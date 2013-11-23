@@ -109,7 +109,6 @@ struct App
     typedef GenomeIndex<TGenome, TGenomeIndexSpec, void>            TGenomeIndex;
     typedef FragmentStore<void, CUDAStoreConfig>                    TStore;
     typedef ReadsConfig<False, False, True, True, CUDAStoreConfig>  TReadsConfig;
-    typedef Reads<void, TReadsConfig>                               TReads;
     typedef ReadsLoader<void, TReadsConfig>                         TReadsLoader;
 
     TGenome             genome;
@@ -118,7 +117,6 @@ struct App
 #endif
     TGenomeIndex        genomeIndex;
     TStore              store;
-    TReads              reads;
     TReadsLoader        readsLoader;
 
     App() :
@@ -127,9 +125,7 @@ struct App
         genomeLoader(genome),
 #endif
         genomeIndex(genome),
-        store(),
-        reads(store),
-        readsLoader(reads)
+        store()
     {};
 };
 
@@ -170,18 +166,11 @@ inline TValue getValue(Timer<TValue, TSpec> & timer)
     return timer._end - timer._begin;
 }
 
-template <typename TValue, typename TSpec, typename TString>
-inline void start(Timer<TValue, TSpec> & timer, TString const & msg)
+template <typename TValue, typename TSpec>
+std::ostream & operator<<(std::ostream & os, Timer<TValue, TSpec> & timer)
 {
-    std::cout << msg << std::flush;
-    start(timer);
-}
-
-template <typename TValue, typename TSpec, typename TString>
-inline void stop(Timer<TValue, TSpec> & timer, TString const & msg)
-{
-    stop(timer);
-    std::cout << getValue(timer) << msg << std::endl;
+    os << getValue(timer) << " sec";
+    return os;
 }
 
 // ============================================================================
@@ -290,7 +279,11 @@ parseCommandLine(Options & options, ArgumentParser & parser, int argc, char cons
 template <typename TExecSpace>
 void runApp(App<TExecSpace> & app, Options const & options)
 {
-    Timer<double> timer;
+    typedef Timer<double>                               TTimer;
+    typedef App<TExecSpace>                             TApp;
+    typedef Reads<void, typename TApp::TReadsConfig>    TReads;
+
+    TTimer timer;
 
 #ifdef _OPENMP
     // Set the number of threads that OpenMP can spawn.
@@ -302,40 +295,81 @@ void runApp(App<TExecSpace> & app, Options const & options)
     // Load genome.
     open(app.genomeLoader, options.genomeFile);
 
-    start(timer, "Loading genome:\t\t\t");
+    start(timer);
     load(app.genomeLoader);
-    stop(timer, " sec");
+    stop(timer);
+    std::cout << "Loading genome:\t\t\t" << timer << std::endl;
 #endif
 
     // Load genome index.
-    start(timer, "Loading genome index:\t\t");
+    start(timer);
     load(app.genomeIndex, options.genomeIndexFile);
-    stop(timer, " sec");
+    stop(timer);
+    std::cout << "Loading genome index:\t\t" << timer << std::endl;
 
     // Open reads file.
     open(app.readsLoader, options.readsFile);
 
-    // Reserve space for reads.
-    if (options.mappingBlock < MaxValue<int>::VALUE)
-        reserve(app.reads, options.mappingBlock);
-    else
-        reserve(app.reads);
-
-    // Process reads in blocks.
-    while (!atEnd(app.readsLoader))
+    // Process reads in parallel.
+    SEQAN_OMP_PRAGMA(parallel firstprivate(timer))
     {
-        // Load reads.
-        start(timer, "Loading reads:\t\t\t");
-        load(app.readsLoader, options.mappingBlock);
-        stop(timer, " sec");
+        // Reserve space for reads.
+        TReads reads;
+        reserve(reads, options.mappingBlock);
+//        if (options.mappingBlock < MaxValue<int>::VALUE)
+//            reserve(reads, options.mappingBlock);
+//        else
+//            reserve(reads);
 
-        std::cout << "Reads count:\t\t\t" << app.reads.readsCount << std::endl;
+        // Process reads.
+        while (true)
+        {
+            // Load a block of reads.
+            SEQAN_OMP_PRAGMA(critical(_mapper_readsLoader_load))
+            {
+                // No more reads.
+                if (!atEnd(app.readsLoader))
+                {
+                    start(timer);
+                    setReads(app.readsLoader, reads);
+                    load(app.readsLoader, options.mappingBlock);
+                    sleep(2);
+                    stop(timer);
+                    
+                    SEQAN_OMP_PRAGMA(critical(_cout))
+                    {
+                        std::cout << "Loading reads:\t\t\t" << timer << "\t\t[" << omp_get_thread_num() << "]" << std::endl;
+                        std::cout << "Reads count:\t\t\t" << reads.readsCount << "\t\t\t[" << omp_get_thread_num() << "]" << std::endl;
+                    }
+                }
+            }
 
-        // Map reads.
-//        mapReads(app.genomeIndex.index, getSeqs(app.reads), options.seedLength, options.errorsPerSeed, TExecSpace());
+            // No more reads.
+            if (!reads.readsCount) break;
 
-        // Clear mapped reads.
-        clear(app.reads);
+            // Map reads.
+    //        mapReads(app.genomeIndex.index, getSeqs(app.reads), options.seedLength, options.errorsPerSeed, TExecSpace());
+            start(timer);
+            sleep(5);
+            stop(timer);
+            
+            SEQAN_OMP_PRAGMA(critical(_cout))
+            std::cout << "Mapping reads:\t\t\t" << timer << "\t\t[" << omp_get_thread_num() << "]" << std::endl;
+
+            // Writer results.
+            SEQAN_OMP_PRAGMA(critical(_mapper_samWriter_write))
+            {
+                start(timer);
+                sleep(2);
+                stop(timer);
+                
+                SEQAN_OMP_PRAGMA(critical(_cout))
+                std::cout << "Writing results:\t\t" << timer << "\t\t[" << omp_get_thread_num() << "]" << std::endl;
+            }
+
+            // Clear mapped reads.
+            clear(reads);
+        }
     }
 
     // Close reads file.
