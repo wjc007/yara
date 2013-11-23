@@ -91,11 +91,98 @@ struct Options
     Options() :
         noCuda(false),
         threadsCount(1),
-        mappingBlock(MaxValue<int>::VALUE),
+        mappingBlock(100000),
         seedLength(33),
         errorsPerSeed(0)
     {}
 };
+
+// ----------------------------------------------------------------------------
+// Class App
+// ----------------------------------------------------------------------------
+
+template <typename TExecSpace>
+struct App
+{
+    typedef Genome<void, CUDAStoreConfig>                           TGenome;
+    typedef GenomeLoader<void, CUDAStoreConfig>                     TGenomeLoader;
+    typedef GenomeIndex<TGenome, TGenomeIndexSpec, void>            TGenomeIndex;
+    typedef FragmentStore<void, CUDAStoreConfig>                    TStore;
+    typedef ReadsConfig<False, False, True, True, CUDAStoreConfig>  TReadsConfig;
+    typedef Reads<void, TReadsConfig>                               TReads;
+    typedef ReadsLoader<void, TReadsConfig>                         TReadsLoader;
+
+    TGenome             genome;
+#ifdef ENABLE_GENOME_LOADING
+    TGenomeLoader       genomeLoader;
+#endif
+    TGenomeIndex        genomeIndex;
+    TStore              store;
+    TReads              reads;
+    TReadsLoader        readsLoader;
+
+    App() :
+        genome(),
+#ifdef ENABLE_GENOME_LOADING
+        genomeLoader(genome),
+#endif
+        genomeIndex(genome),
+        store(),
+        reads(store),
+        readsLoader(reads)
+    {};
+};
+
+// ----------------------------------------------------------------------------
+// Class Timer
+// ----------------------------------------------------------------------------
+
+template <typename TValue, typename TSpec = void>
+struct Timer
+{
+    TValue _begin, _end;
+
+    Timer() : _begin(0), _end(0) {};
+};
+
+template <typename TValue, typename TSpec>
+inline void start(Timer<TValue, TSpec> & timer)
+{
+    timer._begin = sysTime();
+}
+
+template <typename TValue, typename TSpec>
+inline void stop(Timer<TValue, TSpec> & timer)
+{
+    timer._end = sysTime();
+}
+
+template <typename TValue, typename TSpec>
+inline void clear(Timer<TValue, TSpec> & timer)
+{
+    timer._begin = 0;
+    timer._end = 0;
+}
+
+template <typename TValue, typename TSpec>
+inline TValue getValue(Timer<TValue, TSpec> & timer)
+{
+    return timer._end - timer._begin;
+}
+
+template <typename TValue, typename TSpec, typename TString>
+inline void start(Timer<TValue, TSpec> & timer, TString const & msg)
+{
+    std::cout << msg << std::flush;
+    start(timer);
+}
+
+template <typename TValue, typename TSpec, typename TString>
+inline void stop(Timer<TValue, TSpec> & timer, TString const & msg)
+{
+    stop(timer);
+    std::cout << getValue(timer) << msg << std::endl;
+}
 
 // ============================================================================
 // Functions
@@ -137,7 +224,7 @@ void setupArgumentParser(ArgumentParser & parser, Options const & options)
     addSection(parser, "Mapping Options");
 
     addOption(parser, ArgParseOption("mb", "mapping-block", "Maximum number of reads to be mapped at once.", ArgParseOption::INTEGER));
-    setMinValue(parser, "mapping-block", "10000");
+    setMinValue(parser, "mapping-block", "1000");
     setDefaultValue(parser, "mapping-block", options.mappingBlock);
 
     addOption(parser, ArgParseOption("sl", "seed-length", "Minimum seed length.", ArgParseOption::INTEGER));
@@ -197,32 +284,13 @@ parseCommandLine(Options & options, ArgumentParser & parser, int argc, char cons
 }
 
 // ----------------------------------------------------------------------------
-// Function runMapper()
+// Function run()
 // ----------------------------------------------------------------------------
 
 template <typename TExecSpace>
-int runMapper(Options & options)
+void run(App<TExecSpace> & app, Options const & options)
 {
-    typedef Genome<void, CUDAStoreConfig>                           TGenome;
-    typedef GenomeLoader<void, CUDAStoreConfig>                     TGenomeLoader;
-    typedef GenomeIndex<TGenome, TGenomeIndexSpec, void>            TGenomeIndex;
-
-    typedef FragmentStore<void, CUDAStoreConfig>                    TStore;
-    typedef ReadsConfig<False, False, True, True, CUDAStoreConfig>  TReadsConfig;
-    typedef Reads<void, TReadsConfig>                               TReads;
-    typedef ReadsLoader<void, TReadsConfig>                         TReadsLoader;
-
-    TGenome             genome;
-#ifdef ENABLE_GENOME_LOADING
-    TGenomeLoader       genomeLoader(genome);
-#endif
-    TGenomeIndex        genomeIndex(genome);
-
-    TStore              store;
-    TReads              reads(store);
-    TReadsLoader        readsLoader(reads);
-
-    double start, finish;
+    Timer<double> timer;
 
 #ifdef _OPENMP
     // Set the number of threads that OpenMP can spawn.
@@ -232,94 +300,74 @@ int runMapper(Options & options)
 
 #ifdef ENABLE_GENOME_LOADING
     // Load genome.
-    if (!open(genomeLoader, options.genomeFile))
-    {
-        std::cerr << "Error while loading genome" << std::endl;
-        return 1;
-    }
+    open(app.genomeLoader, options.genomeFile);
 
-    std::cout << "Loading genome:\t\t\t" << std::flush;
-    start = sysTime();
-    if (!load(genomeLoader))
-    {
-        std::cerr << "Error while loading genome" << std::endl;
-        return 1;
-    }
-    finish = sysTime();
-    std::cout << finish - start << " sec" << std::endl;
+    start(timer, "Loading genome:\t\t\t");
+    load(app.genomeLoader);
+    stop(timer, " sec");
 #endif
 
     // Load genome index.
-    std::cout << "Loading genome index:\t\t" << std::flush;
-    start = sysTime();
-    if (!load(genomeIndex, options.genomeIndexFile))
-    {
-        std::cout << "Error while loading genome index" << std::endl;
-        return 1;
-    }
-    finish = sysTime();
-    std::cout << finish - start << " sec" << std::endl;
+    start(timer, "Loading genome index:\t\t");
+    load(app.genomeIndex, options.genomeIndexFile);
+    stop(timer, " sec");
 
     // Open reads file.
-    start = sysTime();
-    if (!open(readsLoader, options.readsFile))
-    {
-        std::cerr << "Error while opening reads file" << std::endl;
-        return 1;
-    }
+    open(app.readsLoader, options.readsFile);
 
     // Reserve space for reads.
     if (options.mappingBlock < MaxValue<int>::VALUE)
-        reserve(reads, options.mappingBlock);
+        reserve(app.reads, options.mappingBlock);
     else
-        reserve(reads);
+        reserve(app.reads);
 
     // Process reads in blocks.
-    while (!atEnd(readsLoader))
+    while (!atEnd(app.readsLoader))
     {
         // Load reads.
-        std::cout << "Loading reads:\t\t\t" << std::flush;
-        if (!load(readsLoader, options.mappingBlock))
-        {
-            std::cerr << "Error while loading reads" << std::endl;
-            return 1;
-        }
-        finish = sysTime();
-        std::cout << finish - start << " sec" << std::endl;
-        std::cout << "Reads count:\t\t\t" << reads.readsCount << std::endl;
+        start(timer, "Loading reads:\t\t\t");
+        load(app.readsLoader, options.mappingBlock);
+        stop(timer, " sec");
+
+        std::cout << "Reads count:\t\t\t" << app.reads.readsCount << std::endl;
 
         // Map reads.
-//        start = sysTime();
-        mapReads(genomeIndex.index, getSeqs(reads), options.seedLength, options.errorsPerSeed, TExecSpace());
-//        finish = sysTime();
-//        std::cout << "Mapping time:\t\t\t" << std::flush;
-//        std::cout << finish - start << " sec" << std::endl;
+//        mapReads(app.genomeIndex.index, getSeqs(app.reads), options.seedLength, options.errorsPerSeed, TExecSpace());
 
         // Clear mapped reads.
-        clear(reads);
+        clear(app.reads);
     }
 
     // Close reads file.
-    close(readsLoader);
-
-    return 0;
+    close(app.readsLoader);
 }
 
 // ----------------------------------------------------------------------------
-// Function configureMapper()
+// Function configureApp()
 // ----------------------------------------------------------------------------
 
 template <typename TOptions>
-int configureMapper(TOptions & options)
+int configureApp(TOptions & options)
 {
+    try
+    {
 #ifndef CUDA_DISABLED
-    if (options.noCuda)
-        return runMapper<ExecHost>(options);
-    else
-        return runMapper<ExecDevice>(options);
+        if (options.noCuda)
+            run(App<ExecHost>(), options);
+        else
+            run(App<ExecDevice>(), options);
 #else
-    return runMapper<ExecHost>(options);
+            App<ExecHost> app;
+            run(app, options);
 #endif
+    }
+    catch (std::runtime_error e)
+    {
+        std::cerr << e.what() << std::endl;
+        return 1;
+    }
+
+    return 0;
 }
 
 // ----------------------------------------------------------------------------
@@ -337,5 +385,5 @@ int main(int argc, char const ** argv)
     if (res != seqan::ArgumentParser::PARSE_OK)
         return res == seqan::ArgumentParser::PARSE_ERROR;
 
-    return configureMapper(options);
+    return configureApp(options);
 }
