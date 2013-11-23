@@ -1,0 +1,7 @@
+Name: CUDA Mapper
+Author: Enrico Siragusa <enrico.siragusa@fu-berlin.de>
+Maintainer: Enrico Siragusa <enrico.siragusa@fu-berlin.de>
+License: BSD
+Copyright: 2008-2013, FU Berlin
+Status: under development
+Description: A simple read mapper running on CPUs or GPUs.
