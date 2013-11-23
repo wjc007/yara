@@ -37,6 +37,8 @@
 #ifndef SEQAN_EXTRAS_MASAI_READS_H_
 #define SEQAN_EXTRAS_MASAI_READS_H_
 
+#include <stdexcept>
+
 #include <seqan/basic.h>
 #include <seqan/sequence.h>
 #include <seqan/seq_io.h>
@@ -425,7 +427,7 @@ void _estimateReadsStatistics(ReadsLoader<TSpec, TConfig> & loader)
 // ----------------------------------------------------------------------------
 
 template <typename TSpec, typename TConfig, typename TString>
-bool open(ReadsLoader<TSpec, TConfig> & loader, TString const & readsFile)
+void open(ReadsLoader<TSpec, TConfig> & loader, TString const & readsFile)
 {
     typedef ReadsLoader<TSpec, TConfig>             TReadsLoader;
     typedef typename TReadsLoader::TRecordReader    TRecordReader;
@@ -434,7 +436,7 @@ bool open(ReadsLoader<TSpec, TConfig> & loader, TString const & readsFile)
     loader._file.open(toCString(readsFile), std::ios::binary | std::ios::in);
 
     if (!loader._file.is_open())
-        return false;
+        throw std::runtime_error("Error while opening reads file.");
 
     // Compute file size.
     loader._file.seekg(0, std::ios::end);
@@ -446,7 +448,7 @@ bool open(ReadsLoader<TSpec, TConfig> & loader, TString const & readsFile)
 
     // Autodetect file format.
     if (!guessStreamFormat(*(loader._reader), loader._fileFormat))
-        return false;
+        throw std::runtime_error("Error while guessing reads file format.");
 
     // Estimate statistics for reads in file.
     _estimateReadsStatistics(loader);
@@ -455,21 +457,17 @@ bool open(ReadsLoader<TSpec, TConfig> & loader, TString const & readsFile)
     loader._file.close();
     loader._file.open(toCString(readsFile), std::ios::binary | std::ios::in);
     loader._reader.reset(new TRecordReader(loader._file));
-
-    return true;
 }
 
 template <typename TConfig, typename TString>
-bool open(ReadsLoader<PairedEnd, TConfig> & loader, TString const & readsLeftFile, TString const & readsRightFile)
+void open(ReadsLoader<PairedEnd, TConfig> & loader, TString const & readsLeftFile, TString const & readsRightFile)
 {
     if (!loadReads(value(getReads(loader)._store), readsLeftFile, readsRightFile))
-        return false;
+        throw std::runtime_error("Error while loading reads file.");
 
     getReads(loader).readsCount = length(getSeqs(getReads(loader)));
 
     _loadReverseComplement(loader);
-
-    return true;
 }
 
 // ----------------------------------------------------------------------------
@@ -477,17 +475,14 @@ bool open(ReadsLoader<PairedEnd, TConfig> & loader, TString const & readsLeftFil
 // ----------------------------------------------------------------------------
 
 template <typename TSpec, typename TConfig>
-bool close(ReadsLoader<TSpec, TConfig> & loader)
+void close(ReadsLoader<TSpec, TConfig> & loader)
 {
     loader._file.close();
-
-    return !loader._file.is_open();
 }
 
 template <typename TConfig>
-bool close(ReadsLoader<PairedEnd, TConfig> & /* loader */)
+void close(ReadsLoader<PairedEnd, TConfig> & /* loader */)
 {
-    return true;
 }
 
 // ----------------------------------------------------------------------------
@@ -495,33 +490,35 @@ bool close(ReadsLoader<PairedEnd, TConfig> & /* loader */)
 // ----------------------------------------------------------------------------
 
 template <typename TSpec, typename TConfig>
-bool load(ReadsLoader<TSpec, TConfig> & loader)
+void load(ReadsLoader<TSpec, TConfig> & loader)
 {
-    return load(loader, MaxValue<unsigned long>::VALUE);
+    load(loader, MaxValue<unsigned long>::VALUE);
 }
 
 template <typename TConfig>
-bool load(ReadsLoader<PairedEnd, TConfig> & /* loader */)
+void load(ReadsLoader<PairedEnd, TConfig> & /* loader */)
 {
-    return true;
 }
 
 template <typename TSpec, typename TConfig, typename TSize>
-bool load(ReadsLoader<TSpec, TConfig> & loader, TSize count)
+void load(ReadsLoader<TSpec, TConfig> & loader, TSize count)
 {
     switch (loader._fileFormat.tagId)
     {
     case Find<AutoSeqStreamFormat, Fasta>::VALUE:
-        return load(loader, count, Fasta());
+        load(loader, count, Fasta());
+        break;
     case Find<AutoSeqStreamFormat, Fastq>::VALUE:
-        return load(loader, count, Fastq());
+        load(loader, count, Fastq());
+        break;
     default:
-        return false;
+        throw std::runtime_error("Unsupported reads file format.");
+        break;
     }
 }
 
 template <typename TSpec, typename TConfig, typename TSize, typename TFormat>
-bool load(ReadsLoader<TSpec, TConfig> & loader, TSize count, TFormat const & /* tag */)
+void load(ReadsLoader<TSpec, TConfig> & loader, TSize count, TFormat const & /* tag */)
 {
     typedef FragmentStore<TSpec, typename TConfig::TFragStoreConfig>    TFragmentStore;
     typedef typename Value<typename TFragmentStore::TReadStore>::Type   TReadStoreElement;
@@ -537,7 +534,7 @@ bool load(ReadsLoader<TSpec, TConfig> & loader, TSize count, TFormat const & /* 
 //        if (readRecord(seqName, seq, *(loader._reader), loader._fileFormat) != 0)
 
         if (readRecord(seqName, seq, *(loader._reader), TFormat()) != 0)
-            return false;
+            throw std::runtime_error("Error while reading read record.");
 
         appendSeq(getReads(loader), seq);
         appendName(getReads(loader), seqName, typename TConfig::TUseReadNameStore());
@@ -548,8 +545,6 @@ bool load(ReadsLoader<TSpec, TConfig> & loader, TSize count, TFormat const & /* 
 
     // Append reverse complemented reads.
     _loadReverseComplement(loader);
-
-    return true;
 }
 
 // ----------------------------------------------------------------------------

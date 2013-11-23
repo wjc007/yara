@@ -37,6 +37,8 @@
 #ifndef SEQAN_EXTRAS_MASAI_GENOME_H_
 #define SEQAN_EXTRAS_MASAI_GENOME_H_
 
+#include <stdexcept>
+
 #include <seqan/basic.h>
 #include <seqan/sequence.h>
 #include <seqan/seq_io.h>
@@ -298,7 +300,7 @@ void reverse(Genome<TSpec, TConfig> & genome)
 // ----------------------------------------------------------------------------
 
 template <typename TSpec, typename TConfig, typename TString>
-bool open(GenomeLoader<TSpec, TConfig> & loader, TString const & genomeFile)
+void open(GenomeLoader<TSpec, TConfig> & loader, TString const & genomeFile)
 {
     typedef GenomeLoader<TSpec, TConfig>            TGenomeLoader;
     typedef typename TGenomeLoader::TRecordReader   TRecordReader;
@@ -307,7 +309,7 @@ bool open(GenomeLoader<TSpec, TConfig> & loader, TString const & genomeFile)
     loader._file.open(toCString(genomeFile), std::ios::binary | std::ios::in);
 
     if (!loader._file.is_open())
-        return false;
+        throw std::runtime_error("Error while opening genome file.");
 
     // Compute file size.
     loader._file.seekg(0, std::ios::end);
@@ -319,9 +321,7 @@ bool open(GenomeLoader<TSpec, TConfig> & loader, TString const & genomeFile)
 
     // Autodetect file format.
     if (!guessStreamFormat(*(loader._reader), loader._fileFormat))
-        return false;
-
-    return true;
+        throw std::runtime_error("Error while guessing genome file format.");
 }
 
 // ----------------------------------------------------------------------------
@@ -329,19 +329,21 @@ bool open(GenomeLoader<TSpec, TConfig> & loader, TString const & genomeFile)
 // ----------------------------------------------------------------------------
 
 template <typename TSpec, typename TConfig>
-bool load(GenomeLoader<TSpec, TConfig> & loader)
+void load(GenomeLoader<TSpec, TConfig> & loader)
 {
     switch (loader._fileFormat.tagId)
     {
     case Find<AutoSeqStreamFormat, Fasta>::VALUE:
-        return load(loader, Fasta());
+        load(loader, Fasta());
+        break;
     default:
-        return false;
+        throw std::runtime_error("Unsupported genome file format.");
+        break;
     }
 }
 
 template <typename TSpec, typename TConfig, typename TFormat>
-bool load(GenomeLoader<TSpec, TConfig> & loader, TFormat const & /* tag */)
+void load(GenomeLoader<TSpec, TConfig> & loader, TFormat const & /* tag */)
 {
     // Reserve space for contigs.
     reserve(getGenome(loader), loader._fileSize);
@@ -353,12 +355,10 @@ bool load(GenomeLoader<TSpec, TConfig> & loader, TFormat const & /* tag */)
     while (!atEnd(*(loader._reader)))
     {
         if (readRecord(contigName, contigSeq, *(loader._reader), TFormat()) != 0)
-            return false;
+            throw std::runtime_error("Error while reading genome contig.");
 
         appendValue(contigs(getGenome(loader)), contigSeq);
     }
-
-    return true;
 }
 
 #endif  // #ifndef SEQAN_EXTRAS_MASAI_GENOME_H_

@@ -37,6 +37,8 @@
 #ifndef SEQAN_EXTRAS_MASAI_GENOME_INDEX_H_
 #define SEQAN_EXTRAS_MASAI_GENOME_INDEX_H_
 
+#include <stdexcept>
+
 #include <seqan/basic.h>
 #include <seqan/sequence.h>
 #include <seqan/index.h>
@@ -89,11 +91,12 @@ struct GenomeHost<GenomeIndex<TGenome, TIndexSpec, TSpec> >
 // ----------------------------------------------------------------------------
 
 template <typename TGenome, typename TIndexSpec, typename TSpec, typename TString>
-bool load(GenomeIndex<TGenome, TIndexSpec, TSpec> & genomeIndex, TString const & genomeIndexFile)
+void load(GenomeIndex<TGenome, TIndexSpec, TSpec> & genomeIndex, TString const & genomeIndexFile)
 {
     setValue(genomeIndex.index.text, contigs(getGenome(genomeIndex)));
 
-    return open(genomeIndex.index, toCString(genomeIndexFile));
+    if (!open(genomeIndex.index, toCString(genomeIndexFile)))
+        throw std::runtime_error("Error while opening genome index file.");
 }
 
 // ----------------------------------------------------------------------------
@@ -134,9 +137,10 @@ void build(GenomeIndex<TGenome, FMIndex<TIndexSpec, TIndexConfig>, TSpec> & geno
 // ----------------------------------------------------------------------------
 
 template <typename TGenome, typename TIndexSpec, typename TSpec, typename TString>
-bool dump(GenomeIndex<TGenome, TIndexSpec, TSpec> & genomeIndex, TString const & genomeIndexFile)
+void dump(GenomeIndex<TGenome, TIndexSpec, TSpec> & genomeIndex, TString const & genomeIndexFile)
 {
-    return save(genomeIndex.index, toCString(genomeIndexFile));
+    if (!save(genomeIndex.index, toCString(genomeIndexFile)))
+        throw std::runtime_error("Error while saving genome index file.");
 }
 
 // ----------------------------------------------------------------------------
