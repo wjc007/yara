@@ -265,6 +265,11 @@ struct MinLength<thrust::device_vector<TValue, TSpec> >
 };
 #endif
 
+template <typename TContainer, typename TSpec>
+struct MinLength<ContainerView<TContainer, TSpec> >
+{
+    static const unsigned VALUE = 10;
+};
 }
 
 #endif  // #ifndef SEQAN_EXTRAS_CUDAMAPPER_TYPES_H_
