@@ -119,6 +119,10 @@ struct ReadsLoader
     std::auto_ptr<TRecordReader>    _reader;
     Holder<TReads>                  reads;
 
+    ReadsLoader() :
+        _fileSize(0)
+    {}
+
     ReadsLoader(TReads & reads) :
         _fileSize(0),
         reads(reads)
@@ -160,7 +164,7 @@ struct ReadsHost<ReadsLoader<TSpec, TConfig> >
 
 template <typename TObject, typename TReads>
 inline void
-setReads(TObject & object, TReads const & reads)
+setReads(TObject & object, TReads /* const */ & reads)
 {
     setValue(object.reads, reads);
 }
@@ -241,6 +245,7 @@ template <typename TSpec, typename TConfig>
 void clear(Reads<TSpec, TConfig> & reads)
 {
     clearReads(value(reads._store));
+    reads.readsCount = 0;
 }
 
 // ----------------------------------------------------------------------------
