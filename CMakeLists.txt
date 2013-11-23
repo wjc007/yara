@@ -6,7 +6,7 @@
 # CMakeLists.txt file for cuda_mapper.
 # ===========================================================================
 
-cmake_minimum_required (VERSION 2.8.2)
+cmake_minimum_required (VERSION 2.8.12)
 project (seqan_core_apps_cuda_mapper)
 message (STATUS "Configuring core/apps/cuda_mapper")
 
@@ -33,11 +33,6 @@ endif (NOT SEQAN_HAS_OPENMP)
 # CUDA Setup
 # ----------------------------------------------------------------------------
 
-# Workaround for Xcode 4.6 / CUDA 5.x which doesn't find CUDA framework (@rpath).
-#if (APPLE)
-#    set_target_properties(${TARGET_NAME} PROPERTIES LINK_FLAGS "-F /Library/Frameworks/")
-#endif (APPLE)
-
 # Setup CUDA flags.
 seqan_setup_cuda_vars (ARCH sm_35)
 
@@ -50,19 +45,29 @@ seqan_setup_cuda_vars (ARCH sm_35)
 # Output PTX.
 #list (APPEND CUDA_NVCC_FLAGS --keep --source-in-ptx)
 
+# Workaround for Xcode 4.6 / CUDA 5.x which doesn't find CUDA framework (@rpath).
+#if (APPLE)
+#    set_target_properties(${TARGET_NAME} PROPERTIES LINK_FLAGS "-F /Library/Frameworks/")
+#endif (APPLE)
+
 # ----------------------------------------------------------------------------
 # Arch Setup
 # ----------------------------------------------------------------------------
+
+set (SEQAN_CXX_FLAGS "${SEQAN_CXX_FLAGS} -march=native")
 
 if (CMAKE_COMPILER_IS_GNUCXX)
   set (SEQAN_CXX_FLAGS "${SEQAN_CXX_FLAGS} -mpopcnt")
 endif (CMAKE_COMPILER_IS_GNUCXX)
 
-set (SEQAN_CXX_FLAGS "${SEQAN_CXX_FLAGS} -march=native")
-
 if (CMAKE_COMPILER_IS_GNUCXX AND APPLE)
   set (SEQAN_CXX_FLAGS "${SEQAN_CXX_FLAGS} -mno-avx")
 endif (CMAKE_COMPILER_IS_GNUCXX AND APPLE)
+
+if (COMPILER_IS_CLANG AND APPLE AND SEQAN_HAS_CUDA)
+  set (SEQAN_CXX_FLAGS "${SEQAN_CXX_FLAGS} -stdlib=libstdc++")
+  set (CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -stdlib=libstdc++")
+endif (COMPILER_IS_CLANG AND APPLE AND SEQAN_HAS_CUDA)
 
 # ----------------------------------------------------------------------------
 # Build Setup
