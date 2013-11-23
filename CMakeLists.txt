@@ -18,10 +18,6 @@ message (STATUS "Configuring core/apps/cuda_mapper")
 set (SEQAN_FIND_DEPENDENCIES OpenMP CUDA)
 find_package (SeqAn REQUIRED)
 
-# Search for Thrust.
-#set(CUDATHRUST_FIND_REQUIRED true)
-#find_package (CUDAThrust QUIET)
-
 # Disable CUDA acceleration if CUDA was not found.
 if (NOT SEQAN_HAS_CUDA)
   add_definitions (-DCUDA_DISABLED=1)
@@ -42,14 +38,8 @@ endif (NOT SEQAN_HAS_OPENMP)
 #    set_target_properties(${TARGET_NAME} PROPERTIES LINK_FLAGS "-F /Library/Frameworks/")
 #endif (APPLE)
 
-# Use colornvcc to let Xcode parse nvcc's output.
-#if (APPLE)
-#    find_program(COLOR_NVCC colornvcc PATHS ${CMAKE_SOURCE_DIR}/util/cmake NO_DEFAULT_PATH)
-#    set(CUDA_NVCC_EXECUTABLE ${COLOR_NVCC})
-#endif (APPLE)
-
-# Build from Kepler architecture upwards.
-#list (APPEND CUDA_NVCC_FLAGS -arch sm_35)
+# Setup CUDA flags.
+seqan_setup_cuda_vars (ARCH sm_35)
 
 # Enforce nvcc to use at most 32 registers per thread.
 #list (APPEND CUDA_NVCC_FLAGS --maxrregcount 32)
@@ -90,7 +80,6 @@ add_definitions (-DSEQAN_DATE="${SEQAN_DATE}")
 
 # Add CXX flags found by find_package (SeqAn).
 set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${SEQAN_CXX_FLAGS}")
-list (APPEND CUDA_NVCC_FLAGS "${SEQAN_NVCC_FLAGS}")
 
 # Update the list of file names below if you add source files to your application.
 add_executable(cuda_indexer indexer.cpp
