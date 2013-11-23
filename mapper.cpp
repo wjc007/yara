@@ -328,9 +328,12 @@ void runApp(App<TExecSpace> & app, Options const & options)
     TLogger cerr(std::cerr);
 
 #ifdef _OPENMP
-    // Set the number of threads that OpenMP can spawn.
-    omp_set_num_threads(options.threadsCount);
-    cout << "Threads count:\t\t\t" << omp_get_max_threads() << std::endl;
+    cout << "Threads count:\t\t\t" << options.threadsCount << std::endl;
+#endif
+
+#ifdef _OPENMP
+    // Disable nested parallelism.
+    omp_set_nested(false);
 #endif
 
 #ifdef ENABLE_GENOME_LOADING
@@ -353,7 +356,7 @@ void runApp(App<TExecSpace> & app, Options const & options)
     open(app.readsLoader, options.readsFile);
 
     // Process reads in parallel.
-    SEQAN_OMP_PRAGMA(parallel firstprivate(timer))
+    SEQAN_OMP_PRAGMA(parallel firstprivate(timer) num_threads(3))
     {
         // Reserve space for reads.
         TReads reads;
@@ -375,11 +378,10 @@ void runApp(App<TExecSpace> & app, Options const & options)
                     start(timer);
                     setReads(app.readsLoader, reads);
                     load(app.readsLoader, options.mappingBlock);
-                    sleep(2);
                     stop(timer);
 
-                    cout << "Loading reads:\t\t\t" << timer << "\t\t[" << omp_get_thread_num() << "]" << std::endl <<
-                            "Reads count:\t\t\t" << reads.readsCount << "\t\t\t[" << omp_get_thread_num() << "]" << std::endl;
+                    cout << "Loading reads:\t\t\t" << timer << "\t\t[" << omp_get_thread_num() << "]" << std::endl;// <<
+//                            "Reads count:\t\t\t" << reads.readsCount << "\t\t\t[" << omp_get_thread_num() << "]" << std::endl;
                 }
             }
 
@@ -387,18 +389,38 @@ void runApp(App<TExecSpace> & app, Options const & options)
             if (!reads.readsCount) break;
 
             // Map reads.
-    //        mapReads(app.genomeIndex.index, getSeqs(app.reads), options.seedLength, options.errorsPerSeed, TExecSpace());
-            start(timer);
-            sleep(5);
-            stop(timer);
-            
-            cout << "Mapping reads:\t\t\t" << timer << "\t\t[" << omp_get_thread_num() << "]" << std::endl;
+            SEQAN_OMP_PRAGMA(critical(_mapper_mapReads))
+            {
+                #ifdef _OPENMP
+                // Enable nested parallelism.
+                omp_set_nested(true);
+                #endif
+
+                #ifdef _OPENMP
+                omp_set_num_threads(options.threadsCount);
+                #endif
+
+                start(timer);
+                mapReads(app.genomeIndex.index, getSeqs(reads), options.seedLength, options.errorsPerSeed, TExecSpace());
+                stop(timer);
+
+                cout << "Mapping reads:\t\t\t" << timer << "\t\t[" << omp_get_thread_num() << "]" << std::endl;
+
+                #ifdef _OPENMP
+                omp_set_num_threads(1);
+                #endif
+
+                #ifdef _OPENMP
+                // Disable nested parallelism.
+                omp_set_nested(false);
+                #endif
+            }
 
             // Writer results.
             SEQAN_OMP_PRAGMA(critical(_mapper_samWriter_write))
             {
                 start(timer);
-                sleep(2);
+                sleep(reads.readsCount / 1000000.0);
                 stop(timer);
                 
                 cout << "Writing results:\t\t" << timer << "\t\t[" << omp_get_thread_num() << "]" << std::endl;

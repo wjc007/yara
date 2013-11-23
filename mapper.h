@@ -407,14 +407,16 @@ _mapReads(TIndex & index, TReadSeqs & readSeqs, unsigned seedLength, unsigned er
     typedef typename ExecSpec<TIndex, Count<> >::Type   THitsSpec;
     typedef Hits<TIndex, THitsSpec>                     THits;
 
-    double start, finish;
+//    double start, finish;
 
 #ifdef PLATFORM_CUDA
     cudaDeviceSynchronize();
 #endif
 
-    start = sysTime();
+//    start = sysTime();
 
+//SEQAN_OMP_PRAGMA(critical(_mapper_mapReads_filter))
+//{
     // Instantiate a multiple finder.
     TFinder finder(index);
 //    setScoreThreshold(finder, errorsPerSeed);
@@ -422,7 +424,7 @@ _mapReads(TIndex & index, TReadSeqs & readSeqs, unsigned seedLength, unsigned er
     // Collect seeds from read seqs.
     TSeeds seeds;
     fillSeeds(seeds, readSeqs, seedLength, tag);
-    std::cout << "Seeds count:\t\t\t" << length(seeds) << std::endl;
+//    std::cout << "Seeds count:\t\t\t" << length(seeds) << std::endl;
 
     // Instantiate a pattern object.
     TPattern pattern(seeds);
@@ -435,16 +437,17 @@ _mapReads(TIndex & index, TReadSeqs & readSeqs, unsigned seedLength, unsigned er
 
     // Find hits.
     find(finder, pattern, hits);
+//}
 
 #ifdef PLATFORM_CUDA
     cudaDeviceSynchronize();
 #endif
 
-    finish = sysTime();
-    std::cout << "Mapping time:\t\t\t" << std::flush;
-    std::cout << finish - start << " sec" << std::endl;
-
-    std::cout << "Hits count:\t\t\t" << getCount(hits) << std::endl;
+//    finish = sysTime();
+//    std::cout << "Mapping time:\t\t\t" << std::flush;
+//    std::cout << finish - start << " sec" << std::endl;
+//
+//    std::cout << "Hits count:\t\t\t" << getCount(hits) << std::endl;
 }
 
 // ----------------------------------------------------------------------------
