@@ -173,6 +173,45 @@ std::ostream & operator<<(std::ostream & os, Timer<TValue, TSpec> & timer)
     return os;
 }
 
+// ----------------------------------------------------------------------------
+// Class Logger
+// ----------------------------------------------------------------------------
+
+template <typename TStream, typename TSpec = void>
+struct Logger
+{
+    TStream &   stream;
+    bool        quiet;
+
+    Logger(TStream & stream) :
+        stream(stream),
+        quiet(false)
+    {};
+};
+
+template <typename TStream, typename TSpec, typename TStream2>
+void write(Logger<TStream, TSpec> & logger, TStream2 const & stream)
+{
+    if (logger.quiet) return;
+
+    // TODO(esiragusa): use a scoped lock per logger instance.
+    SEQAN_OMP_PRAGMA(critical(_logger))
+    logger.stream << stream;
+}
+
+template <typename TStream, typename TSpec, typename TStream2>
+void write(Logger<TStream, TSpec> & logger, TStream2 & stream)
+{
+    write(logger, reinterpret_cast<TStream2 const &>(stream));
+}
+
+template <typename TStream, typename TSpec, typename TStream2>
+TStream & operator<<(Logger<TStream, TSpec> & logger, TStream2 & stream)
+{
+    write(logger, stream);
+    return logger.stream;
+}
+
 // ============================================================================
 // Functions
 // ============================================================================
@@ -280,15 +319,18 @@ template <typename TExecSpace>
 void runApp(App<TExecSpace> & app, Options const & options)
 {
     typedef Timer<double>                               TTimer;
+    typedef Logger<std::ostream>                        TLogger;
     typedef App<TExecSpace>                             TApp;
     typedef Reads<void, typename TApp::TReadsConfig>    TReads;
 
     TTimer timer;
+    TLogger cout(std::cout);
+    TLogger cerr(std::cerr);
 
 #ifdef _OPENMP
     // Set the number of threads that OpenMP can spawn.
     omp_set_num_threads(options.threadsCount);
-    std::cout << "Threads count:\t\t\t" << omp_get_max_threads() << std::endl;
+    cout << "Threads count:\t\t\t" << omp_get_max_threads() << std::endl;
 #endif
 
 #ifdef ENABLE_GENOME_LOADING
@@ -298,14 +340,14 @@ void runApp(App<TExecSpace> & app, Options const & options)
     start(timer);
     load(app.genomeLoader);
     stop(timer);
-    std::cout << "Loading genome:\t\t\t" << timer << std::endl;
+    cout << "Loading genome:\t\t\t" << timer << std::endl;
 #endif
 
     // Load genome index.
     start(timer);
     load(app.genomeIndex, options.genomeIndexFile);
     stop(timer);
-    std::cout << "Loading genome index:\t\t" << timer << std::endl;
+    cout << "Loading genome index:\t\t" << timer << std::endl;
 
     // Open reads file.
     open(app.readsLoader, options.readsFile);
@@ -335,12 +377,9 @@ void runApp(App<TExecSpace> & app, Options const & options)
                     load(app.readsLoader, options.mappingBlock);
                     sleep(2);
                     stop(timer);
-                    
-                    SEQAN_OMP_PRAGMA(critical(_cout))
-                    {
-                        std::cout << "Loading reads:\t\t\t" << timer << "\t\t[" << omp_get_thread_num() << "]" << std::endl;
-                        std::cout << "Reads count:\t\t\t" << reads.readsCount << "\t\t\t[" << omp_get_thread_num() << "]" << std::endl;
-                    }
+
+                    cout << "Loading reads:\t\t\t" << timer << "\t\t[" << omp_get_thread_num() << "]" << std::endl <<
+                            "Reads count:\t\t\t" << reads.readsCount << "\t\t\t[" << omp_get_thread_num() << "]" << std::endl;
                 }
             }
 
@@ -353,8 +392,7 @@ void runApp(App<TExecSpace> & app, Options const & options)
             sleep(5);
             stop(timer);
             
-            SEQAN_OMP_PRAGMA(critical(_cout))
-            std::cout << "Mapping reads:\t\t\t" << timer << "\t\t[" << omp_get_thread_num() << "]" << std::endl;
+            cout << "Mapping reads:\t\t\t" << timer << "\t\t[" << omp_get_thread_num() << "]" << std::endl;
 
             // Writer results.
             SEQAN_OMP_PRAGMA(critical(_mapper_samWriter_write))
@@ -363,8 +401,7 @@ void runApp(App<TExecSpace> & app, Options const & options)
                 sleep(2);
                 stop(timer);
                 
-                SEQAN_OMP_PRAGMA(critical(_cout))
-                std::cout << "Writing results:\t\t" << timer << "\t\t[" << omp_get_thread_num() << "]" << std::endl;
+                cout << "Writing results:\t\t" << timer << "\t\t[" << omp_get_thread_num() << "]" << std::endl;
             }
 
             // Clear mapped reads.
