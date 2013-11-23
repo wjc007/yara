@@ -257,6 +257,14 @@ struct MinLength<StringSet<TString, TSpec> >
     static const unsigned VALUE = 10;
 };
 
+#ifdef PLATFORM_CUDA
+template <typename TValue, typename TSpec>
+struct MinLength<thrust::device_vector<TValue, TSpec> >
+{
+    static const unsigned VALUE = 10;
+};
+#endif
+
 }
 
 #endif  // #ifndef SEQAN_EXTRAS_CUDAMAPPER_TYPES_H_
