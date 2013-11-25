@@ -6,7 +6,7 @@
 # CMakeLists.txt file for cuda_mapper.
 # ===========================================================================
 
-cmake_minimum_required (VERSION 2.8.12)
+cmake_minimum_required (VERSION 2.8.11)
 project (seqan_core_apps_cuda_mapper)
 message (STATUS "Configuring core/apps/cuda_mapper")
 
