@@ -136,7 +136,7 @@ install (FILES LICENSE README
 # App Test
 # ----------------------------------------------------------------------------
 
-#seqan_add_app_test (cuda_mapper)
+seqan_add_app_test (cuda_mapper)
 
 # ----------------------------------------------------------------------------
 # Setup Common Tool Description for Generic Workflow Nodes
