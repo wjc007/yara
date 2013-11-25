@@ -60,7 +60,7 @@ def main(source_base, binary_base):
 
 #    for organism in ['celegans', 'hg18']:
     for organism in ['celegans']:
-
+    
         # Get file extensions for the fm index files
         exts = [os.path.basename(fname).split('.', 2)[-1]
                 for fname in glob.glob(ph.inFile('datasets/%s/genome.fasta.*' % organism))]
@@ -82,8 +82,8 @@ def main(source_base, binary_base):
     # ============================================================
 
     mapper_args = [
-                    ['--no-cuda', '--threads', 1 ],
-                    ['--no-cuda', '--threads', 8 ],
+                    ['--no-cuda', '--threads', '1' ],
+                    ['--no-cuda', '--threads', '8' ],
                     []
                   ]
     log_suffix = ['t1', 't8', 'cuda']
@@ -94,13 +94,14 @@ def main(source_base, binary_base):
             conf = app_tests.TestConf(
                 program=path_to_mapper,
                 args=[ph.inFile('datasets/%s/genome.fasta' % organism),
-                      ph.inFile('datasets/%s/reads.fastq' % organism)] + mapper_args[i],
+                      ph.inFile('datasets/%s/reads.fastq' % organism),
+                      '-xp', ph.inFile('datasets/%s/genome.fm' % organism)] +
+                      mapper_args[i],
                 redir_stdout=ph.outFile('mapper.%s.%s.stdout' % (organism, log_suffix[i])),
-                to_diff=[(ph.inFile('mapper.%s.%s.stdout' % (organism, log_suffix[i])),
-                          ph.outFile('logs/mapper.%s.%s.stdout' % (organism, log_suffix[i])),
+                to_diff=[(ph.inFile('logs/mapper.%s.%s.stdout' % (organism, log_suffix[i])),
+                          ph.outFile('mapper.%s.%s.stdout' % (organism, log_suffix[i])),
                           transforms)])
             conf_list.append(conf)
-
 
     # ============================================================
     # Execute the tests
