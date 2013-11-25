@@ -400,8 +400,8 @@ _mapReads(TIndex & index, TReadSeqs & readSeqs, unsigned seedLength, unsigned er
 {
     typedef typename ExecSpec<TReadSeqs, void>::Type    TSeedsSpec;
     typedef typename Seeds<TReadSeqs, TSeedsSpec>::Type TSeeds;
-    typedef Multiple<Backtracking<HammingDistance> >    TAlgoSpec;
-//    typedef Multiple<FinderSTree>                       TAlgoSpec;
+//    typedef Multiple<Backtracking<HammingDistance> >    TAlgoSpec;
+    typedef Multiple<FinderSTree>                       TAlgoSpec;
     typedef Pattern<TSeeds, TAlgoSpec>                  TPattern;
     typedef Finder2<TIndex, TPattern, TAlgoSpec>        TFinder;
     typedef typename ExecSpec<TIndex, Count<> >::Type   THitsSpec;
