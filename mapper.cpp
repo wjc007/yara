@@ -284,11 +284,11 @@ parseCommandLine(Options & options, ArgumentParser & parser, int argc, char cons
 }
 
 // ----------------------------------------------------------------------------
-// Function run()
+// Function runApp()
 // ----------------------------------------------------------------------------
 
 template <typename TExecSpace>
-void run(App<TExecSpace> & app, Options const & options)
+void runApp(App<TExecSpace> & app, Options const & options)
 {
     Timer<double> timer;
 
@@ -353,12 +353,12 @@ int configureApp(TOptions & options)
     {
 #ifndef CUDA_DISABLED
         if (options.noCuda)
-            run(App<ExecHost>(), options);
+            runApp(App<ExecHost>(), options);
         else
-            run(App<ExecDevice>(), options);
+            runApp(App<ExecDevice>(), options);
 #else
             App<ExecHost> app;
-            run(app, options);
+            runApp(app, options);
 #endif
     }
     catch (std::runtime_error e)
