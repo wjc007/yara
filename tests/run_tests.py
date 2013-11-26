@@ -22,7 +22,8 @@ sys.path.insert(0, path)
 import seqan.app_tests as app_tests
 
 transforms = [
-	app_tests.RegexpReplaceTransform("[0-9\.\-e]+ sec", "0.0 sec")
+	app_tests.RegexpReplaceTransform("[0-9\.\-e]+ sec", "0.0 sec"),
+	app_tests.RegexpReplaceTransform("Free [0-9]+ of [0-9]+ MB", "Free 0 of 0 MB")
 ]
 
 def main(source_base, binary_base):
@@ -59,7 +60,7 @@ def main(source_base, binary_base):
     # ============================================================
 
 #    for organism in ['celegans', 'hg18']:
-    for organism in ['celegans']:
+    for organism in []:
     
         # Get file extensions for the fm index files
         exts = [os.path.basename(fname).split('.', 2)[-1]
