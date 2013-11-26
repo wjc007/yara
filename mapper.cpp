@@ -91,7 +91,7 @@ struct Options
     Options() :
         noCuda(false),
         threadsCount(1),
-        mappingBlock(100000),
+        mappingBlock(200000),
         seedLength(33),
         errorsPerSeed(0)
     {}
