@@ -442,23 +442,21 @@ void runApp(App<TExecSpace> & app, Options const & options)
 template <typename TOptions>
 int configureApp(TOptions & options)
 {
-    try
-    {
 #ifndef CUDA_DISABLED
-        if (options.noCuda)
-            runApp(App<ExecHost>(), options);
-        else
-            runApp(App<ExecDevice>(), options);
-#else
-            App<ExecHost> app;
-            runApp(app, options);
-#endif
-    }
-    catch (std::runtime_error e)
+    if (options.noCuda)
     {
-        std::cerr << e.what() << std::endl;
-        return 1;
+        App<ExecHost> app;
+        runApp(app, options);
     }
+    else
+    {
+        App<ExecDevice> app;
+        runApp(app, options);
+    }
+#else
+    App<ExecHost> app;
+    runApp(app, options);
+#endif
 
     return 0;
 }
