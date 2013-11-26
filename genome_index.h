@@ -124,8 +124,7 @@ void build(GenomeIndex<TGenome, FMIndex<TIndexSpec, TIndexConfig>, TSpec> & geno
     // Iterator instantiation calls automatic index construction.
     typename Iterator<TIndex, TopDown<> >::Type it(genomeIndex.index);
 
-    // NOTE(esiragusa): This removes a warning.
-    goRoot(it);
+    ignoreUnusedVariableWarning(it);
 
     reverse(getGenome(genomeIndex));
 }

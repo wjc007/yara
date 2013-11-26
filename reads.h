@@ -107,7 +107,6 @@ struct Reads
 template <typename TSpec = void, typename TConfig = ReadsConfig<> >
 struct ReadsLoader
 {
-    // TODO(esiragusa): Use MMap FileReader. Support compressed streams.
     typedef std::fstream                            TStream;
     typedef RecordReader<TStream, SinglePass<> >    TRecordReader;
     typedef Reads<TSpec, TConfig>                   TReads;
