@@ -157,15 +157,6 @@ struct SAValue<TContigs>
 // FM Index Fibres
 // ----------------------------------------------------------------------------
 
-namespace seqan {
-// TODO(esiragusa): Overload Size<CSA> instead of Size<SparseString>
-template <typename TValueString>
-struct Size<SparseString<TValueString, void> >
-{
-    typedef __uint32    Type;
-};
-}
-
 struct CUDAFMIndexConfig
 {
     typedef TwoLevels<void>    TValuesSpec;
@@ -244,6 +235,19 @@ struct Size<RankDictionary<bool, Naive<TSpec> > >
     typedef __uint32 Type;
 };
 }
+
+// ----------------------------------------------------------------------------
+// CSA Size
+// ----------------------------------------------------------------------------
+
+//namespace seqan {
+//// TODO(esiragusa): Overload Size<CSA> instead of Size<SparseString>
+//template <typename TValueString>
+//struct Size<SparseString<TValueString, void> >
+//{
+//    typedef __uint32    Type;
+//};
+//}
 
 // ----------------------------------------------------------------------------
 // Shape Size
