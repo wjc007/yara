@@ -34,19 +34,34 @@
 // This file contains the cuda_indexer application.
 // ==========================================================================
 
+// ============================================================================
+// Prerequisites
+// ============================================================================
+
+// ----------------------------------------------------------------------------
+// SeqAn headers
+// ----------------------------------------------------------------------------
+
 #include <seqan/basic.h>
 #include <seqan/sequence.h>
 #include <seqan/store.h>
+#include <seqan/index.h>
 
-#include "misc.h"
-#include "options.h"
+// ----------------------------------------------------------------------------
+// I/O and options
+// ----------------------------------------------------------------------------
+
 #include "genome.h"
-#include "genome_index.h"
+
+// ----------------------------------------------------------------------------
+// App headers
+// ----------------------------------------------------------------------------
 
 #include "types.h"
+#include "misc.h"
+#include "options.h"
 
 using namespace seqan;
-
 
 // ============================================================================
 // Tags, Classes, Enums
@@ -62,12 +77,35 @@ struct Options
     CharString genomeIndexFile;
 };
 
+// ----------------------------------------------------------------------------
+// Class Indexer
+// ----------------------------------------------------------------------------
+
+template <typename TIndexSpec, typename TSpec = void>
+struct Indexer
+{
+    typedef Genome<void, CUDAStoreConfig>                           TGenome;
+    typedef GenomeLoader<void, CUDAStoreConfig>                     TGenomeLoader;
+    typedef Index<typename Contigs<TGenome>::Type, TIndexSpec>      TIndex;
+
+    TGenome             genome;
+    TGenomeLoader       genomeLoader;
+    TIndex              index;
+    Timer<double>       timer;
+
+    Indexer() :
+        genome(),
+        genomeLoader(genome),
+        index(contigs(genome))
+    {};
+};
+
 // ============================================================================
 // Functions
 // ============================================================================
 
 // ----------------------------------------------------------------------------
-// Function setupArgumentParser()                              [ArgumentParser]
+// Function setupArgumentParser()
 // ----------------------------------------------------------------------------
 
 void setupArgumentParser(ArgumentParser & parser, Options const & /* options */)
@@ -94,7 +132,7 @@ void setupArgumentParser(ArgumentParser & parser, Options const & /* options */)
 }
 
 // ----------------------------------------------------------------------------
-// Function parseCommandLine()                                        [Options]
+// Function parseCommandLine()
 // ----------------------------------------------------------------------------
 
 ArgumentParser::ParseResult
@@ -118,52 +156,77 @@ parseCommandLine(Options & options, ArgumentParser & parser, int argc, char cons
 }
 
 // ----------------------------------------------------------------------------
+// Function loadGenome()
+// ----------------------------------------------------------------------------
+
+template <typename TIndexSpec, typename TSpec>
+void loadGenome(Indexer<TIndexSpec, TSpec> & indexer, Options const & options)
+{
+    std::cout << "Loading genome:\t\t\t" << std::flush;
+    start(indexer.timer);
+
+    open(indexer.genomeLoader, options.genomeFile);
+    load(indexer.genomeLoader);
+
+    stop(indexer.timer);
+    std::cout << indexer.timer << std::endl;
+}
+
+// ----------------------------------------------------------------------------
+// Function buildIndex()
+// ----------------------------------------------------------------------------
+
+template <typename TIndexSpec, typename TSpec>
+void buildIndex(Indexer<TIndexSpec, TSpec> & indexer)
+{
+    typedef typename Indexer<TIndexSpec, TSpec>::TIndex TIndex;
+
+    std::cout << "Building genome index:\t\t" << std::flush;
+    start(indexer.timer);
+
+    // IndexFM is built on the reversed genome.
+    reverse(contigs(indexer.genome));
+
+    // Set the Index text.
+//    setValue(indexer.index.text, contigs(indexer.genome));
+
+    // Iterator instantiation calls automatic index construction.
+    typename Iterator<TIndex, TopDown<> >::Type it(indexer.index);
+    ignoreUnusedVariableWarning(it);
+
+    reverse(contigs(indexer.genome));
+
+    stop(indexer.timer);
+    std::cout << indexer.timer << std::endl;
+}
+
+// ----------------------------------------------------------------------------
+// Function saveIndex()
+// ----------------------------------------------------------------------------
+
+template <typename TIndexSpec, typename TSpec>
+void saveIndex(Indexer<TIndexSpec, TSpec> & indexer, Options const & options)
+{
+    std::cout << "Dumping genome index:\t\t" << std::flush;
+    start(indexer.timer);
+
+    if (!save(indexer.index, toCString(options.genomeIndexFile)))
+        throw RuntimeError("Error while dumping genome index file.");
+
+    stop(indexer.timer);
+    std::cout << indexer.timer << std::endl;
+}
+
+// ----------------------------------------------------------------------------
 // Function runIndexer()
 // ----------------------------------------------------------------------------
 
-int runIndexer(Options & options)
+template <typename TIndexSpec, typename TSpec>
+int runIndexer(Indexer<TIndexSpec, TSpec> & indexer, Options const & options)
 {
-    typedef Genome<void, CUDAStoreConfig>                   TGenome;
-    typedef GenomeLoader<void, CUDAStoreConfig>             TGenomeLoader;
-    typedef GenomeIndex<TGenome, TGenomeIndexSpec, void>    TGenomeIndex;
-
-    TGenome             genome;
-    TGenomeLoader       genomeLoader(genome);
-    TGenomeIndex        genomeIndex(genome);
-
-    double start, finish;
-
-    if (!open(genomeLoader, options.genomeFile))
-    {
-        std::cerr << "Error while opening genome" << std::endl;
-        return 1;
-    }
-
-    std::cout << "Loading genome:\t\t\t" << std::flush;
-    start = sysTime();
-    if (!load(genomeLoader))
-    {
-        std::cerr << "Error while loading genome" << std::endl;
-        return 1;
-    }
-    finish = sysTime();
-    std::cout << finish - start << " sec" << std::endl;
-
-    std::cout << "Building genome index:\t\t" << std::flush;
-    start = sysTime();
-    build(genomeIndex);
-    finish = sysTime();
-    std::cout << finish - start << " sec" << std::endl;
-
-    std::cout << "Dumping genome index:\t\t" << std::flush;
-    start = sysTime();
-    if (!dump(genomeIndex, options.genomeIndexFile))
-    {
-        std::cerr << "Error while dumping genome index" << std::endl;
-        return 1;
-    }
-    finish = sysTime();
-    std::cout << finish - start << " sec" << std::endl;
+    loadGenome(indexer, options);
+    buildIndex(indexer);
+    saveIndex(indexer, options);
 
     return 0;
 }
@@ -183,5 +246,6 @@ int main(int argc, char const ** argv)
     if (res != seqan::ArgumentParser::PARSE_OK)
         return res == seqan::ArgumentParser::PARSE_ERROR;
 
-    return runIndexer(options);
+    Indexer<TGenomeIndexSpec, void> indexer;
+    return runIndexer(indexer, options);
 }
