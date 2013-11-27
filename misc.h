@@ -67,13 +67,6 @@ inline void stop(Timer<TValue, TSpec> & timer)
 }
 
 template <typename TValue, typename TSpec>
-inline void clear(Timer<TValue, TSpec> & timer)
-{
-    timer._begin = 0;
-    timer._end = 0;
-}
-
-template <typename TValue, typename TSpec>
 inline TValue getValue(Timer<TValue, TSpec> & timer)
 {
     return timer._end - timer._begin;
