@@ -518,6 +518,73 @@ void loadReads(Mapper<TExecSpace> & mapper, Options const & options)
 }
 
 // ----------------------------------------------------------------------------
+// Function mapReads()
+// ----------------------------------------------------------------------------
+
+template <typename TExecSpace>
+void mapReads(Mapper<TExecSpace> & mapper, Options const & options)
+{
+    _mapReads(mapper, options, mapper.genomeIndex.index, getSeqs(mapper.reads));
+}
+
+// ----------------------------------------------------------------------------
+// Function _mapReads()
+// ----------------------------------------------------------------------------
+
+template <typename TExecSpace, typename TIndex, typename TReadSeqs>
+void _mapReads(Mapper<TExecSpace> & mapper, Options const & options, TIndex & index, TReadSeqs & readSeqs)
+{
+    typedef typename ExecSpec<TReadSeqs, void>::Type    TSeedsSpec;
+    typedef typename Seeds<TReadSeqs, TSeedsSpec>::Type TSeeds;
+//    typedef Multiple<Backtracking<HammingDistance> >    TAlgoSpec;
+    typedef Multiple<FinderSTree>                       TAlgoSpec;
+    typedef Pattern<TSeeds, TAlgoSpec>                  TPattern;
+    typedef Finder2<TIndex, TPattern, TAlgoSpec>        TFinder;
+    typedef typename ExecSpec<TIndex, Count<> >::Type   THitsSpec;
+    typedef Hits<TIndex, THitsSpec>                     THits;
+
+#ifdef PLATFORM_CUDA
+    cudaDeviceSynchronize();
+#endif
+
+    start(mapper.timer);
+
+//SEQAN_OMP_PRAGMA(critical(_mapper_mapReads_filter))
+//{
+    // Instantiate a multiple finder.
+    TFinder finder(index);
+//    setScoreThreshold(finder, options.errorsPerSeed);
+
+    // Collect seeds from read seqs.
+    TSeeds seeds;
+    fillSeeds(seeds, readSeqs, options.seedLength, TExecSpace());
+    std::cout << "Seeds count:\t\t\t" << length(seeds) << std::endl;
+
+    // Instantiate a pattern object.
+    TPattern pattern(seeds);
+
+    // Instantiate an object to save the hits.
+    THits hits;
+
+    // Resize space for hits.
+    init(hits, pattern);
+
+    // Find hits.
+    find(finder, pattern, hits);
+//}
+
+#ifdef PLATFORM_CUDA
+    cudaDeviceSynchronize();
+#endif
+
+    stop(mapper.timer);
+    std::cout << "Mapping time:\t\t\t" << std::flush;
+    std::cout << mapper.timer << std::endl;
+
+    std::cout << "Hits count:\t\t\t" << getCount(hits) << std::endl;
+}
+
+// ----------------------------------------------------------------------------
 // Function runMapper()
 // ----------------------------------------------------------------------------
 
@@ -668,73 +735,5 @@ void runMapper(Mapper<TExecSpace> & mapper, Options const & options)
     close(mapper.readsLoader);
 }
 #endif
-
-// ----------------------------------------------------------------------------
-// Function mapReads()
-// ----------------------------------------------------------------------------
-
-template <typename TExecSpace>
-void mapReads(Mapper<TExecSpace> & mapper, Options const & options)
-{
-    _mapReads(mapper, options, mapper.genomeIndex.index, getSeqs(mapper.reads));
-}
-
-// ----------------------------------------------------------------------------
-// Function _mapReads()
-// ----------------------------------------------------------------------------
-
-template <typename TExecSpace, typename TIndex, typename TReadSeqs>
-void _mapReads(Mapper<TExecSpace> & mapper, Options const & options, TIndex & index, TReadSeqs & readSeqs)
-{
-    typedef typename ExecSpec<TReadSeqs, void>::Type    TSeedsSpec;
-    typedef typename Seeds<TReadSeqs, TSeedsSpec>::Type TSeeds;
-//    typedef Multiple<Backtracking<HammingDistance> >    TAlgoSpec;
-    typedef Multiple<FinderSTree>                       TAlgoSpec;
-    typedef Pattern<TSeeds, TAlgoSpec>                  TPattern;
-    typedef Finder2<TIndex, TPattern, TAlgoSpec>        TFinder;
-    typedef typename ExecSpec<TIndex, Count<> >::Type   THitsSpec;
-    typedef Hits<TIndex, THitsSpec>                     THits;
-
-#ifdef PLATFORM_CUDA
-    cudaDeviceSynchronize();
-#endif
-
-    start(mapper.timer);
-
-//SEQAN_OMP_PRAGMA(critical(_mapper_mapReads_filter))
-//{
-    // Instantiate a multiple finder.
-    TFinder finder(index);
-//    setScoreThreshold(finder, options.errorsPerSeed);
-
-    // Collect seeds from read seqs.
-    TSeeds seeds;
-    fillSeeds(seeds, readSeqs, options.seedLength, TExecSpace());
-    std::cout << "Seeds count:\t\t\t" << length(seeds) << std::endl;
-
-    // Instantiate a pattern object.
-    TPattern pattern(seeds);
-
-    // Instantiate an object to save the hits.
-    THits hits;
-
-    // Resize space for hits.
-    init(hits, pattern);
-
-    // Find hits.
-    find(finder, pattern, hits);
-//}
-
-#ifdef PLATFORM_CUDA
-    cudaDeviceSynchronize();
-#endif
-
-    stop(mapper.timer);
-    std::cout << "Mapping time:\t\t\t" << std::flush;
-    std::cout << mapper.timer << std::endl;
-
-    std::cout << "Hits count:\t\t\t" << getCount(hits) << std::endl;
-}
-
 
 #endif  // #ifndef APP_CUDAMAPPER_MAPPER_H_
