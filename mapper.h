@@ -315,7 +315,11 @@ struct Mapper
 {
     typedef Genome<void, CUDAStoreConfig>                           TGenome;
     typedef GenomeLoader<void, CUDAStoreConfig>                     TGenomeLoader;
-    typedef Index<typename Contigs<TGenome>::Type, TGenomeIndexSpec> TIndex;
+
+    typedef typename Contigs<TGenome>::Type                         TContigs;
+    typedef Index<TContigs, TGenomeIndexSpec>                       THostIndex;
+    typedef typename Space<THostIndex, TExecSpace>::Type            TIndex;
+
     typedef FragmentStore<void, CUDAStoreConfig>                    TStore;
     typedef ReadsConfig<False, False, True, True, CUDAStoreConfig>  TReadsConfig;
     typedef Reads<void, TReadsConfig>                               TReads;
@@ -337,7 +341,7 @@ struct Mapper
 #ifdef ENABLE_GENOME_LOADING
         genomeLoader(genome),
 #endif
-        index(contigs(genome)),
+        index(),
         store(),
         reads(store),
         readsLoader(reads)
@@ -425,22 +429,24 @@ void loadReads(Mapper<TExecSpace> & mapper, Options const & options)
 template <typename TExecSpace>
 void mapReads(Mapper<TExecSpace> & mapper, Options const & options)
 {
-    _mapReads(mapper, options, mapper.index, getSeqs(mapper.reads));
+    _mapReads(mapper, options, getSeqs(mapper.reads));
 }
 
 // ----------------------------------------------------------------------------
 // Function _mapReads()
 // ----------------------------------------------------------------------------
 
-template <typename TExecSpace, typename TIndex, typename TReadSeqs>
-void _mapReads(Mapper<TExecSpace> & mapper, Options const & options, TIndex & index, TReadSeqs & readSeqs)
+template <typename TExecSpace, typename TReadSeqs>
+void _mapReads(Mapper<TExecSpace> & mapper, Options const & options, TReadSeqs & readSeqs)
 {
+    typedef Mapper<TExecSpace>                              TMapper;
+    typedef typename TMapper::TIndex                        TIndex;
+
     typedef String<typename Seed<TReadSeqs>::Type>          TSeedsString;
     typedef typename Space<TSeedsString, TExecSpace>::Type  TSeeds;
 
 //    typedef Multiple<Backtracking<HammingDistance> >    TAlgoSpec;
     typedef Multiple<FinderSTree>                       TAlgoSpec;
-
     typedef Pattern<TSeeds, TAlgoSpec>                  TPattern;
     typedef Finder2<TIndex, TPattern, TAlgoSpec>        TFinder;
     typedef OccurrencesCounter<TIndex>                  TCounter;
@@ -454,7 +460,7 @@ void _mapReads(Mapper<TExecSpace> & mapper, Options const & options, TIndex & in
 //SEQAN_OMP_PRAGMA(critical(_mapper_mapReads_filter))
 //{
     // Instantiate a multiple finder.
-    TFinder finder(index);
+    TFinder finder(mapper.index);
 //    setScoreThreshold(finder, options.errorsPerSeed);
 
     // Collect seeds from read seqs.
