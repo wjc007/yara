@@ -676,16 +676,15 @@ void runMapper(Mapper<TExecSpace> & mapper, Options const & options)
 template <typename TExecSpace>
 void mapReads(Mapper<TExecSpace> & mapper, Options const & options)
 {
-    _mapReads(mapper.genomeIndex.index, getSeqs(mapper.reads), options.seedLength, options.errorsPerSeed, TExecSpace());
+    _mapReads(mapper, options, mapper.genomeIndex.index, getSeqs(mapper.reads));
 }
 
 // ----------------------------------------------------------------------------
 // Function _mapReads()
 // ----------------------------------------------------------------------------
 
-template <typename TIndex, typename TReadSeqs, typename TExecSpace>
-inline void
-_mapReads(TIndex & index, TReadSeqs & readSeqs, unsigned seedLength, unsigned errorsPerSeed, TExecSpace const & tag)
+template <typename TExecSpace, typename TIndex, typename TReadSeqs>
+void _mapReads(Mapper<TExecSpace> & mapper, Options const & options, TIndex & index, TReadSeqs & readSeqs)
 {
     typedef typename ExecSpec<TReadSeqs, void>::Type    TSeedsSpec;
     typedef typename Seeds<TReadSeqs, TSeedsSpec>::Type TSeeds;
@@ -696,23 +695,21 @@ _mapReads(TIndex & index, TReadSeqs & readSeqs, unsigned seedLength, unsigned er
     typedef typename ExecSpec<TIndex, Count<> >::Type   THitsSpec;
     typedef Hits<TIndex, THitsSpec>                     THits;
 
-    double start, finish;
-
 #ifdef PLATFORM_CUDA
     cudaDeviceSynchronize();
 #endif
 
-    start = sysTime();
+    start(mapper.timer);
 
 //SEQAN_OMP_PRAGMA(critical(_mapper_mapReads_filter))
 //{
     // Instantiate a multiple finder.
     TFinder finder(index);
-//    setScoreThreshold(finder, errorsPerSeed);
+//    setScoreThreshold(finder, options.errorsPerSeed);
 
     // Collect seeds from read seqs.
     TSeeds seeds;
-    fillSeeds(seeds, readSeqs, seedLength, tag);
+    fillSeeds(seeds, readSeqs, options.seedLength, TExecSpace());
     std::cout << "Seeds count:\t\t\t" << length(seeds) << std::endl;
 
     // Instantiate a pattern object.
@@ -732,9 +729,9 @@ _mapReads(TIndex & index, TReadSeqs & readSeqs, unsigned seedLength, unsigned er
     cudaDeviceSynchronize();
 #endif
 
-    finish = sysTime();
+    stop(mapper.timer);
     std::cout << "Mapping time:\t\t\t" << std::flush;
-    std::cout << finish - start << " sec" << std::endl;
+    std::cout << mapper.timer << std::endl;
 
     std::cout << "Hits count:\t\t\t" << getCount(hits) << std::endl;
 }

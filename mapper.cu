@@ -113,5 +113,5 @@ void mapReads(Mapper<ExecDevice> & mapper, Options const & options)
     cudaDeviceSynchronize();
 
     // Map reads.
-    _mapReads(deviceIndex, deviceReadSeqs, options.seedLength, options.errorsPerSeed, ExecDevice());
+    _mapReads(mapper, options, deviceIndex, deviceReadSeqs);
 }
