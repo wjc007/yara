@@ -334,15 +334,19 @@ void runApp(App<TExecSpace> & app, Options const & options)
     // Load genome.
     open(app.genomeLoader, options.genomeFile);
 
-    start(timer, "Loading genome:\t\t\t");
+    std::cout << "Loading genome:\t\t\t";
+    start(timer);
     load(app.genomeLoader);
-    stop(timer, " sec");
+    stop(timer);
+    std::cout << timer << std::endl;
 #endif
 
     // Load genome index.
-    start(timer, "Loading genome index:\t\t");
+    std::cout << "Loading genome index:\t\t";
+    start(timer);
     load(app.genomeIndex, options.genomeIndexFile);
-    stop(timer, " sec");
+    stop(timer);
+    std::cout << timer << std::endl;
 
     // Open reads file.
     open(app.readsLoader, options.readsFile);
@@ -357,9 +361,11 @@ void runApp(App<TExecSpace> & app, Options const & options)
     while (!atEnd(app.readsLoader))
     {
         // Load reads.
-        start(timer, "Loading reads:\t\t\t");
+        std::cout << "Loading reads:\t\t\t";
+        start(timer);
         load(app.readsLoader, options.mappingBlock);
-        stop(timer, " sec");
+        stop(timer);
+        std::cout << timer << std::endl;
 
         std::cout << "Reads count:\t\t\t" << app.reads.readsCount << std::endl;
 
