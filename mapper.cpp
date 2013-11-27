@@ -109,6 +109,7 @@ struct App
     typedef GenomeIndex<TGenome, TGenomeIndexSpec, void>            TGenomeIndex;
     typedef FragmentStore<void, CUDAStoreConfig>                    TStore;
     typedef ReadsConfig<False, False, True, True, CUDAStoreConfig>  TReadsConfig;
+    typedef Reads<void, TReadsConfig>                               TReads;
     typedef ReadsLoader<void, TReadsConfig>                         TReadsLoader;
 
     TGenome             genome;
@@ -117,6 +118,7 @@ struct App
 #endif
     TGenomeIndex        genomeIndex;
     TStore              store;
+    TReads              reads;
     TReadsLoader        readsLoader;
 
     App() :
@@ -125,7 +127,9 @@ struct App
         genomeLoader(genome),
 #endif
         genomeIndex(genome),
-        store()
+        store(),
+        reads(store),
+        readsLoader(reads)
     {};
 };
 
