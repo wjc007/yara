@@ -467,8 +467,12 @@ struct Mapper
 template <typename TExecSpace>
 void configureThreads(Mapper<TExecSpace> & /* mapper */, Options const & options)
 {
+#ifdef _OPENMP
     omp_set_num_threads(options.threadsCount);
     std::cout << "Threads count:\t\t\t" << omp_get_max_threads() << std::endl;
+#else
+    ignoreUnusedVariableWarning(options);
+#endif
 }
 
 // ----------------------------------------------------------------------------
@@ -478,6 +482,7 @@ void configureThreads(Mapper<TExecSpace> & /* mapper */, Options const & options
 template <typename TExecSpace>
 void loadGenome(Mapper<TExecSpace> & mapper, Options const & options)
 {
+#ifdef ENABLE_GENOME_LOADING
     open(mapper.genomeLoader, options.genomeFile);
 
     std::cout << "Loading genome:\t\t\t" << std::flush;
@@ -485,6 +490,10 @@ void loadGenome(Mapper<TExecSpace> & mapper, Options const & options)
     load(mapper.genomeLoader);
     stop(mapper.timer);
     std::cout << mapper.timer << std::endl;
+#else
+    ignoreUnusedVariableWarning(mapper);
+    ignoreUnusedVariableWarning(options);
+#endif
 }
 
 // ----------------------------------------------------------------------------
@@ -592,14 +601,9 @@ void _mapReads(Mapper<TExecSpace> & mapper, Options const & options, TIndex & in
 template <typename TExecSpace>
 void runMapper(Mapper<TExecSpace> & mapper, Options const & options)
 {
-#ifdef _OPENMP
     configureThreads(mapper, options);
-#endif
 
-#ifdef ENABLE_GENOME_LOADING
     loadGenome(mapper, options);
-#endif
-
     loadGenomeIndex(mapper, options);
 
     // Open reads file.
@@ -651,10 +655,7 @@ void runMapper(Mapper<TExecSpace> & mapper, Options const & options)
     omp_set_nested(false);
 #endif
 
-#ifdef ENABLE_GENOME_LOADING
     loadGenome(mapper, options);
-#endif
-
     loadGenomeIndex(mapper, options);
 
     // Open reads file.
