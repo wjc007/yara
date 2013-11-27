@@ -53,7 +53,6 @@
 #include "tags.h"
 #include "reads.h"
 #include "genome.h"
-#include "genome_index.h"
 
 // ----------------------------------------------------------------------------
 // App headers
@@ -103,7 +102,7 @@ void mapReads(Mapper<ExecDevice> & mapper, Options const & options)
 
     // Copy index to device.
     TDeviceIndex deviceIndex;
-    assign(deviceIndex, mapper.genomeIndex.index);
+    assign(deviceIndex, mapper.index);
 
     // Copy read seqs to device.
     TDeviceReadSeqs deviceReadSeqs;
