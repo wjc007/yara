@@ -34,8 +34,8 @@
 // This file contains type definitions.
 // ==========================================================================
 
-#ifndef SEQAN_EXTRAS_CUDAMAPPER_TYPES_H_
-#define SEQAN_EXTRAS_CUDAMAPPER_TYPES_H_
+#ifndef APP_CUDAMAPPER_TYPES_H_
+#define APP_CUDAMAPPER_TYPES_H_
 
 using namespace seqan;
 
@@ -285,4 +285,4 @@ struct MinLength<ContainerView<TContainer, TSpec> >
 };
 }
 
-#endif  // #ifndef SEQAN_EXTRAS_CUDAMAPPER_TYPES_H_
+#endif  // #ifndef APP_CUDAMAPPER_TYPES_H_

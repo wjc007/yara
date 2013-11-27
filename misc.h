@@ -32,8 +32,8 @@
 // Author: Enrico Siragusa <enrico.siragusa@fu-berlin.de>
 // ==========================================================================
 
-#ifndef APP_MAPPER_MISC_H_
-#define APP_MAPPER_MISC_H_
+#ifndef APP_CUDAMAPPER_MISC_H_
+#define APP_CUDAMAPPER_MISC_H_
 
 using namespace seqan;
 
@@ -125,4 +125,4 @@ TStream & operator<<(Logger<TStream, TSpec> & logger, TStream2 & stream)
     return logger.stream;
 }
 
-#endif // APP_MAPPER_MISC_H_
+#endif // APP_CUDAMAPPER_MISC_H_

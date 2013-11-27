@@ -32,8 +32,8 @@
 // Author: Enrico Siragusa <enrico.siragusa@fu-berlin.de>
 // ==========================================================================
 
-#ifndef SEQAN_EXTRAS_CUDAMAPPER_MAPPER_H_
-#define SEQAN_EXTRAS_CUDAMAPPER_MAPPER_H_
+#ifndef APP_CUDAMAPPER_MAPPER_H_
+#define APP_CUDAMAPPER_MAPPER_H_
 
 using namespace seqan;
 
@@ -737,4 +737,4 @@ void _mapReads(Mapper<TExecSpace> & mapper, Options const & options, TIndex & in
 }
 
 
-#endif  // #ifndef SEQAN_EXTRAS_CUDAMAPPER_MAPPER_H_
+#endif  // #ifndef APP_CUDAMAPPER_MAPPER_H_

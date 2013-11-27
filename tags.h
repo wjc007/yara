@@ -34,8 +34,8 @@
 // This file contains tags.
 // ==========================================================================
 
-#ifndef SEQAN_EXTRAS_MASAI_TAGS_H_
-#define SEQAN_EXTRAS_MASAI_TAGS_H_
+#ifndef APP_CUDAMAPPER_TAGS_H_
+#define APP_CUDAMAPPER_TAGS_H_
 
 #include <seqan/basic.h>
 #include <seqan/sequence.h>
@@ -97,4 +97,4 @@ typedef Tag<MultipleBacktracking_>  MultipleBacktracking;
 // Functions
 // ============================================================================
 
-#endif  // #ifndef SEQAN_EXTRAS_MASAI_TAGS_H_
+#endif  // #ifndef APP_CUDAMAPPER_TAGS_H_
