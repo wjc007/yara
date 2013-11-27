@@ -338,7 +338,6 @@ void load(GenomeLoader<TSpec, TConfig> & loader)
         break;
     default:
         throw std::runtime_error("Unsupported genome file format.");
-        break;
     }
 }
 

@@ -518,7 +518,6 @@ void load(ReadsLoader<TSpec, TConfig> & loader, TSize count)
         break;
     default:
         throw std::runtime_error("Unsupported reads file format.");
-        break;
     }
 }
 
