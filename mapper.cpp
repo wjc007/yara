@@ -51,6 +51,7 @@
 // ----------------------------------------------------------------------------
 
 #include "tags.h"
+#include "misc.h"
 #include "options.h"
 #include "reads.h"
 #include "genome.h"
@@ -121,6 +122,8 @@ struct App
     TReads              reads;
     TReadsLoader        readsLoader;
 
+    Timer<double>       timer;
+
     App() :
         genome(),
 #ifdef ENABLE_GENOME_LOADING
@@ -132,89 +135,6 @@ struct App
         readsLoader(reads)
     {};
 };
-
-// ----------------------------------------------------------------------------
-// Class Timer
-// ----------------------------------------------------------------------------
-
-template <typename TValue, typename TSpec = void>
-struct Timer
-{
-    TValue _begin, _end;
-
-    Timer() : _begin(0), _end(0) {};
-};
-
-template <typename TValue, typename TSpec>
-inline void start(Timer<TValue, TSpec> & timer)
-{
-    timer._begin = sysTime();
-}
-
-template <typename TValue, typename TSpec>
-inline void stop(Timer<TValue, TSpec> & timer)
-{
-    timer._end = sysTime();
-}
-
-template <typename TValue, typename TSpec>
-inline void clear(Timer<TValue, TSpec> & timer)
-{
-    timer._begin = 0;
-    timer._end = 0;
-}
-
-template <typename TValue, typename TSpec>
-inline TValue getValue(Timer<TValue, TSpec> & timer)
-{
-    return timer._end - timer._begin;
-}
-
-template <typename TValue, typename TSpec>
-std::ostream & operator<<(std::ostream & os, Timer<TValue, TSpec> & timer)
-{
-    os << getValue(timer) << " sec";
-    return os;
-}
-
-// ----------------------------------------------------------------------------
-// Class Logger
-// ----------------------------------------------------------------------------
-
-template <typename TStream, typename TSpec = void>
-struct Logger
-{
-    TStream &   stream;
-    bool        quiet;
-
-    Logger(TStream & stream) :
-        stream(stream),
-        quiet(false)
-    {};
-};
-
-template <typename TStream, typename TSpec, typename TStream2>
-void write(Logger<TStream, TSpec> & logger, TStream2 const & stream)
-{
-    if (logger.quiet) return;
-
-    // TODO(esiragusa): use a scoped lock per logger instance.
-    SEQAN_OMP_PRAGMA(critical(_logger))
-    logger.stream << stream;
-}
-
-template <typename TStream, typename TSpec, typename TStream2>
-void write(Logger<TStream, TSpec> & logger, TStream2 & stream)
-{
-    write(logger, reinterpret_cast<TStream2 const &>(stream));
-}
-
-template <typename TStream, typename TSpec, typename TStream2>
-TStream & operator<<(Logger<TStream, TSpec> & logger, TStream2 & stream)
-{
-    write(logger, stream);
-    return logger.stream;
-}
 
 // ============================================================================
 // Functions
@@ -322,8 +242,6 @@ parseCommandLine(Options & options, ArgumentParser & parser, int argc, char cons
 template <typename TExecSpace>
 void runApp(App<TExecSpace> & app, Options const & options)
 {
-    Timer<double> timer;
-
 #ifdef _OPENMP
     // Set the number of threads that OpenMP can spawn.
     omp_set_num_threads(options.threadsCount);
@@ -343,10 +261,10 @@ void runApp(App<TExecSpace> & app, Options const & options)
 
     // Load genome index.
     std::cout << "Loading genome index:\t\t";
-    start(timer);
+    start(app.timer);
     load(app.genomeIndex, options.genomeIndexFile);
-    stop(timer);
-    std::cout << timer << std::endl;
+    stop(app.timer);
+    std::cout << app.timer << std::endl;
 
     // Open reads file.
     open(app.readsLoader, options.readsFile);
@@ -359,10 +277,10 @@ void runApp(App<TExecSpace> & app, Options const & options)
     {
         // Load reads.
         std::cout << "Loading reads:\t\t\t";
-        start(timer);
+        start(app.timer);
         load(app.readsLoader, options.mappingBlock);
-        stop(timer);
-        std::cout << timer << std::endl;
+        stop(app.timer);
+        std::cout << app.timer << std::endl;
 
         std::cout << "Reads count:\t\t\t" << app.reads.readsCount << std::endl;
 

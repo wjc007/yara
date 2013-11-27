@@ -89,6 +89,7 @@ set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${SEQAN_CXX_FLAGS}")
 # Update the list of file names below if you add source files to your application.
 add_executable(cuda_indexer indexer.cpp
                             types.h
+                            misc.h
                             options.h
                             genome.h
                             genome_index.h)
@@ -100,6 +101,7 @@ if (SEQAN_HAS_CUDA)
                                   mapper.cuh
                                   tags.h
                                   types.h
+                                  misc.h
                                   options.h
                                   reads.h
                                   genome.h
@@ -109,6 +111,7 @@ else ()
                              mapper.h
                              tags.h
                              types.h
+                             misc.h
                              options.h
                              reads.h
                              genome.h
