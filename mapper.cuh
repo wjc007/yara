@@ -39,37 +39,6 @@
 // Forwards
 // ============================================================================
 
-// --------------------------------------------------------------------------
-// Function mapReads()                                                  [GPU]
-// --------------------------------------------------------------------------
-
-void mapReads(TGenomeIndex & index, TReadSeqs & readSeqs, unsigned seedLength, unsigned errorsPerSeed, ExecDevice const & /* tag */);
-
-// ============================================================================
-// Functions
-// ============================================================================
-
-// ----------------------------------------------------------------------------
-// Function assign()                                                  [FMIndex]
-// ----------------------------------------------------------------------------
-// NOTE(esiragusa): We do not assign the text to the device index!
-
-#ifdef PLATFORM_CUDA
-namespace seqan {
-template <typename TValue, typename TAlloc, typename TSSetSpec, typename TOccSpec, typename TSpec,
-          typename TText2, typename TOccSpec2, typename TSpec2>
-inline void
-assign(Index<StringSet<thrust::device_vector<TValue, TAlloc>, TSSetSpec>, FMIndex<TOccSpec, TSpec> > & index,
-       Index<TText2, FMIndex<TOccSpec2, TSpec2> > & source)
-{
-    cudaPrintFreeMemory();
-
-    assign(indexSA(index), indexSA(source));
-    assign(indexLF(index), indexLF(source));
-
-    cudaPrintFreeMemory();
-}
-}
-#endif
+void mapReads(App<ExecDevice> & app, Options const & options);
 
 #endif  // #ifndef SEQAN_EXTRAS_CUDAMAPPER_MAPPER_CUH_

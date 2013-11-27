@@ -47,12 +47,10 @@
 #include <seqan/parallel.h>
 
 // ----------------------------------------------------------------------------
-// Masai headers; I/O and options
+// I/O and options
 // ----------------------------------------------------------------------------
 
 #include "tags.h"
-#include "misc.h"
-#include "options.h"
 #include "reads.h"
 #include "genome.h"
 #include "genome_index.h"
@@ -62,6 +60,8 @@
 // ----------------------------------------------------------------------------
 
 #include "types.h"
+#include "misc.h"
+#include "options.h"
 #include "mapper.h"
 #ifndef CUDA_DISABLED
 #include "mapper.cuh"
@@ -72,69 +72,6 @@ using namespace seqan;
 // ============================================================================
 // Classes
 // ============================================================================
-
-// ----------------------------------------------------------------------------
-// Class Options
-// ----------------------------------------------------------------------------
-
-struct Options
-{
-    CharString  genomeFile;
-    CharString  genomeIndexFile;
-    CharString  readsFile;
-
-    bool        noCuda;
-    unsigned    threadsCount;
-    int         mappingBlock;
-    unsigned    seedLength;
-    unsigned    errorsPerSeed;
-
-    Options() :
-        noCuda(false),
-        threadsCount(1),
-        mappingBlock(200000),
-        seedLength(33),
-        errorsPerSeed(0)
-    {}
-};
-
-// ----------------------------------------------------------------------------
-// Class App
-// ----------------------------------------------------------------------------
-
-template <typename TExecSpace>
-struct App
-{
-    typedef Genome<void, CUDAStoreConfig>                           TGenome;
-    typedef GenomeLoader<void, CUDAStoreConfig>                     TGenomeLoader;
-    typedef GenomeIndex<TGenome, TGenomeIndexSpec, void>            TGenomeIndex;
-    typedef FragmentStore<void, CUDAStoreConfig>                    TStore;
-    typedef ReadsConfig<False, False, True, True, CUDAStoreConfig>  TReadsConfig;
-    typedef Reads<void, TReadsConfig>                               TReads;
-    typedef ReadsLoader<void, TReadsConfig>                         TReadsLoader;
-
-    TGenome             genome;
-#ifdef ENABLE_GENOME_LOADING
-    TGenomeLoader       genomeLoader;
-#endif
-    TGenomeIndex        genomeIndex;
-    TStore              store;
-    TReads              reads;
-    TReadsLoader        readsLoader;
-
-    Timer<double>       timer;
-
-    App() :
-        genome(),
-#ifdef ENABLE_GENOME_LOADING
-        genomeLoader(genome),
-#endif
-        genomeIndex(genome),
-        store(),
-        reads(store),
-        readsLoader(reads)
-    {};
-};
 
 // ============================================================================
 // Functions

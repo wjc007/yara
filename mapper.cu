@@ -43,13 +43,25 @@
 #include <seqan/basic.h>
 #include <seqan/sequence.h>
 #include <seqan/index.h>
+#include <seqan/store.h>
 #include <seqan/misc/misc_cuda.h>
+
+// ----------------------------------------------------------------------------
+// I/O and options
+// ----------------------------------------------------------------------------
+
+#include "tags.h"
+#include "reads.h"
+#include "genome.h"
+#include "genome_index.h"
 
 // ----------------------------------------------------------------------------
 // App headers
 // ----------------------------------------------------------------------------
 
 #include "types.h"
+#include "misc.h"
+//#include "options.h"
 #include "mapper.h"
 #include "mapper.cuh"
 
@@ -59,26 +71,47 @@ using namespace seqan;
 // Functions
 // ============================================================================
 
+// ----------------------------------------------------------------------------
+// Function assign()                                                  [FMIndex]
+// ----------------------------------------------------------------------------
+// NOTE(esiragusa): We do not assign the text to the device index!
+
+namespace seqan {
+template <typename TValue, typename TAlloc, typename TSSetSpec, typename TOccSpec, typename TSpec,
+          typename TText2, typename TOccSpec2, typename TSpec2>
+inline void
+assign(Index<StringSet<thrust::device_vector<TValue, TAlloc>, TSSetSpec>, FMIndex<TOccSpec, TSpec> > & index,
+       Index<TText2, FMIndex<TOccSpec2, TSpec2> > & source)
+{
+    cudaPrintFreeMemory();
+
+    assign(indexSA(index), indexSA(source));
+    assign(indexLF(index), indexLF(source));
+
+    cudaPrintFreeMemory();
+}
+}
+
 // --------------------------------------------------------------------------
 // Function mapReads()
 // --------------------------------------------------------------------------
 
-void mapReads(TGenomeIndex & index, TReadSeqs & readSeqs, unsigned seedLength, unsigned errorsPerSeed, ExecDevice const & tag)
+void mapReads(App<ExecDevice> & app, Options const & options)
 {
     typedef typename Device<TGenomeIndex>::Type                 TDeviceIndex;
     typedef typename Device<TReadSeqs>::Type                    TDeviceReadSeqs;
 
     // Copy index to device.
     TDeviceIndex deviceIndex;
-    assign(deviceIndex, index);
+    assign(deviceIndex, app.genomeIndex.index);
 
     // Copy read seqs to device.
     TDeviceReadSeqs deviceReadSeqs;
-    assign(deviceReadSeqs, readSeqs);
+    assign(deviceReadSeqs, getSeqs(app.reads));
 
     // Wait for the copy to finish.
     cudaDeviceSynchronize();
 
     // Map reads.
-    _mapReads(deviceIndex, deviceReadSeqs, seedLength, errorsPerSeed, tag);
+    _mapReads(deviceIndex, deviceReadSeqs, options.seedLength, options.errorsPerSeed, ExecDevice());
 }
