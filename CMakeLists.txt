@@ -91,8 +91,7 @@ add_executable(cuda_indexer indexer.cpp
                             types.h
                             misc.h
                             options.h
-                            genome.h
-                            genome_index.h)
+                            genome.h)
 
 if (SEQAN_HAS_CUDA)
   cuda_add_executable(cuda_mapper mapper.cpp
@@ -104,8 +103,7 @@ if (SEQAN_HAS_CUDA)
                                   misc.h
                                   options.h
                                   reads.h
-                                  genome.h
-                                  genome_index.h)
+                                  genome.h)
 else ()
   add_executable(cuda_mapper mapper.cpp
                              mapper.h
@@ -114,8 +112,7 @@ else ()
                              misc.h
                              options.h
                              reads.h
-                             genome.h
-                             genome_index.h)
+                             genome.h)
 endif ()
 
 # Add dependencies found by find_package (SeqAn).
