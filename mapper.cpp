@@ -236,6 +236,75 @@ parseCommandLine(Options & options, ArgumentParser & parser, int argc, char cons
 }
 
 // ----------------------------------------------------------------------------
+// Function configureThreads()
+// ----------------------------------------------------------------------------
+
+template <typename TExecSpace>
+void configureThreads(App<TExecSpace> & /* app */, Options const & options)
+{
+    // Set the number of threads that OpenMP can spawn.
+    omp_set_num_threads(options.threadsCount);
+    std::cout << "Threads count:\t\t\t" << omp_get_max_threads() << std::endl;
+}
+
+// ----------------------------------------------------------------------------
+// Function loadGenome()
+// ----------------------------------------------------------------------------
+
+template <typename TExecSpace>
+void loadGenome(App<TExecSpace> & app, Options const & options)
+{
+    // Load genome.
+    open(app.genomeLoader, options.genomeFile);
+
+    std::cout << "Loading genome:\t\t\t";
+    start(app.timer);
+    load(app.genomeLoader);
+    stop(app.timer);
+    std::cout << app.timer << std::endl;
+}
+
+// ----------------------------------------------------------------------------
+// Function loadGenomeIndex()
+// ----------------------------------------------------------------------------
+
+template <typename TExecSpace>
+void loadGenomeIndex(App<TExecSpace> & app, Options const & options)
+{
+    std::cout << "Loading genome index:\t\t";
+    start(app.timer);
+    load(app.genomeIndex, options.genomeIndexFile);
+    stop(app.timer);
+    std::cout << app.timer << std::endl;
+}
+
+// ----------------------------------------------------------------------------
+// Function loadReads()
+// ----------------------------------------------------------------------------
+
+template <typename TExecSpace>
+void loadReads(App<TExecSpace> & app, Options const & options)
+{
+    std::cout << "Loading reads:\t\t\t";
+    start(app.timer);
+    load(app.readsLoader, options.mappingBlock);
+    stop(app.timer);
+    std::cout << app.timer << std::endl;
+
+    std::cout << "Reads count:\t\t\t" << app.reads.readsCount << std::endl;
+}
+
+// ----------------------------------------------------------------------------
+// Function mapReads()
+// ----------------------------------------------------------------------------
+
+template <typename TExecSpace>
+void mapReads(App<TExecSpace> & app, Options const & options)
+{
+    _mapReads(app.genomeIndex.index, getSeqs(app.reads), options.seedLength, options.errorsPerSeed, TExecSpace());
+}
+
+// ----------------------------------------------------------------------------
 // Function runApp()
 // ----------------------------------------------------------------------------
 
@@ -243,28 +312,14 @@ template <typename TExecSpace>
 void runApp(App<TExecSpace> & app, Options const & options)
 {
 #ifdef _OPENMP
-    // Set the number of threads that OpenMP can spawn.
-    omp_set_num_threads(options.threadsCount);
-    std::cout << "Threads count:\t\t\t" << omp_get_max_threads() << std::endl;
+    configureThreads(app, options);
 #endif
 
 #ifdef ENABLE_GENOME_LOADING
-    // Load genome.
-    open(app.genomeLoader, options.genomeFile);
-
-    std::cout << "Loading genome:\t\t\t";
-    start(timer);
-    load(app.genomeLoader);
-    stop(timer);
-    std::cout << timer << std::endl;
+    loadGenome(app, options);
 #endif
 
-    // Load genome index.
-    std::cout << "Loading genome index:\t\t";
-    start(app.timer);
-    load(app.genomeIndex, options.genomeIndexFile);
-    stop(app.timer);
-    std::cout << app.timer << std::endl;
+    loadGenomeIndex(app, options);
 
     // Open reads file.
     open(app.readsLoader, options.readsFile);
@@ -275,17 +330,11 @@ void runApp(App<TExecSpace> & app, Options const & options)
     // Process reads in blocks.
     while (!atEnd(app.readsLoader))
     {
-        // Load reads.
-        std::cout << "Loading reads:\t\t\t";
-        start(app.timer);
-        load(app.readsLoader, options.mappingBlock);
-        stop(app.timer);
-        std::cout << app.timer << std::endl;
+        // Load one block of reads.
+        loadReads(app, options);
 
-        std::cout << "Reads count:\t\t\t" << app.reads.readsCount << std::endl;
-
-        // Map reads.
-        mapReads(app.genomeIndex.index, getSeqs(app.reads), options.seedLength, options.errorsPerSeed, TExecSpace());
+        // Map this block of reads.
+        mapReads(app, options);
 
         // Clear mapped reads.
         clear(app.reads);
