@@ -53,7 +53,6 @@
 #include "tags.h"
 #include "reads.h"
 #include "genome.h"
-#include "genome_index.h"
 
 // ----------------------------------------------------------------------------
 // App headers
@@ -74,7 +73,7 @@ using namespace seqan;
 // ============================================================================
 
 // ----------------------------------------------------------------------------
-// Function setupArgumentParser()                              [ArgumentParser]
+// Function setupArgumentParser()
 // ----------------------------------------------------------------------------
 
 void setupArgumentParser(ArgumentParser & parser, Options const & options)
@@ -128,7 +127,7 @@ void setupArgumentParser(ArgumentParser & parser, Options const & options)
 }
 
 // ----------------------------------------------------------------------------
-// Function parseCommandLine()                                        [Options]
+// Function parseCommandLine()
 // ----------------------------------------------------------------------------
 
 ArgumentParser::ParseResult

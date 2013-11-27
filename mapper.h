@@ -426,7 +426,7 @@ struct Mapper
 {
     typedef Genome<void, CUDAStoreConfig>                           TGenome;
     typedef GenomeLoader<void, CUDAStoreConfig>                     TGenomeLoader;
-    typedef GenomeIndex<TGenome, TGenomeIndexSpec, void>            TGenomeIndex;
+    typedef Index<typename Contigs<TGenome>::Type, TGenomeIndexSpec> TIndex;
     typedef FragmentStore<void, CUDAStoreConfig>                    TStore;
     typedef ReadsConfig<False, False, True, True, CUDAStoreConfig>  TReadsConfig;
     typedef Reads<void, TReadsConfig>                               TReads;
@@ -436,7 +436,7 @@ struct Mapper
 #ifdef ENABLE_GENOME_LOADING
     TGenomeLoader       genomeLoader;
 #endif
-    TGenomeIndex        genomeIndex;
+    TIndex              index;
     TStore              store;
     TReads              reads;
     TReadsLoader        readsLoader;
@@ -448,7 +448,7 @@ struct Mapper
 #ifdef ENABLE_GENOME_LOADING
         genomeLoader(genome),
 #endif
-        genomeIndex(genome),
+        index(contigs(genome)),
         store(),
         reads(store),
         readsLoader(reads)
@@ -480,7 +480,7 @@ void loadGenome(Mapper<TExecSpace> & mapper, Options const & options)
 {
     open(mapper.genomeLoader, options.genomeFile);
 
-    std::cout << "Loading genome:\t\t\t";
+    std::cout << "Loading genome:\t\t\t" << std::flush;
     start(mapper.timer);
     load(mapper.genomeLoader);
     stop(mapper.timer);
@@ -494,9 +494,12 @@ void loadGenome(Mapper<TExecSpace> & mapper, Options const & options)
 template <typename TExecSpace>
 void loadGenomeIndex(Mapper<TExecSpace> & mapper, Options const & options)
 {
-    std::cout << "Loading genome index:\t\t";
+    std::cout << "Loading genome index:\t\t" << std::flush;
     start(mapper.timer);
-    load(mapper.genomeIndex, options.genomeIndexFile);
+
+    if (!open(mapper.index, toCString(options.genomeIndexFile)))
+        throw std::runtime_error("Error while opening genome index file.");
+
     stop(mapper.timer);
     std::cout << mapper.timer << std::endl;
 }
@@ -508,7 +511,7 @@ void loadGenomeIndex(Mapper<TExecSpace> & mapper, Options const & options)
 template <typename TExecSpace>
 void loadReads(Mapper<TExecSpace> & mapper, Options const & options)
 {
-    std::cout << "Loading reads:\t\t\t";
+    std::cout << "Loading reads:\t\t\t" << std::flush;
     start(mapper.timer);
     load(mapper.readsLoader, options.mappingBlock);
     stop(mapper.timer);
@@ -524,7 +527,7 @@ void loadReads(Mapper<TExecSpace> & mapper, Options const & options)
 template <typename TExecSpace>
 void mapReads(Mapper<TExecSpace> & mapper, Options const & options)
 {
-    _mapReads(mapper, options, mapper.genomeIndex.index, getSeqs(mapper.reads));
+    _mapReads(mapper, options, mapper.index, getSeqs(mapper.reads));
 }
 
 // ----------------------------------------------------------------------------
@@ -578,9 +581,7 @@ void _mapReads(Mapper<TExecSpace> & mapper, Options const & options, TIndex & in
 #endif
 
     stop(mapper.timer);
-    std::cout << "Mapping time:\t\t\t" << std::flush;
-    std::cout << mapper.timer << std::endl;
-
+    std::cout << "Mapping time:\t\t\t" << mapper.timer << std::endl;
     std::cout << "Hits count:\t\t\t" << getCount(hits) << std::endl;
 }
 
