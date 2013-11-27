@@ -318,6 +318,66 @@ parseCommandLine(Options & options, ArgumentParser & parser, int argc, char cons
 template <typename TExecSpace>
 void runApp(App<TExecSpace> & app, Options const & options)
 {
+    Timer<double> timer;
+
+#ifdef _OPENMP
+    // Set the number of threads that OpenMP can spawn.
+    omp_set_num_threads(options.threadsCount);
+    std::cout << "Threads count:\t\t\t" << omp_get_max_threads() << std::endl;
+#endif
+
+#ifdef ENABLE_GENOME_LOADING
+    // Load genome.
+    open(app.genomeLoader, options.genomeFile);
+
+    start(timer, "Loading genome:\t\t\t");
+    load(app.genomeLoader);
+    stop(timer, " sec");
+#endif
+
+    // Load genome index.
+    start(timer, "Loading genome index:\t\t");
+    load(app.genomeIndex, options.genomeIndexFile);
+    stop(timer, " sec");
+
+    // Open reads file.
+    open(app.readsLoader, options.readsFile);
+
+    // Reserve space for reads.
+    if (options.mappingBlock < MaxValue<int>::VALUE)
+        reserve(app.reads, options.mappingBlock);
+    else
+        reserve(app.reads);
+
+    // Process reads in blocks.
+    while (!atEnd(app.readsLoader))
+    {
+        // Load reads.
+        start(timer, "Loading reads:\t\t\t");
+        load(app.readsLoader, options.mappingBlock);
+        stop(timer, " sec");
+
+        std::cout << "Reads count:\t\t\t" << app.reads.readsCount << std::endl;
+
+        // Map reads.
+        mapReads(app.genomeIndex.index, getSeqs(app.reads), options.seedLength, options.errorsPerSeed, TExecSpace());
+
+        // Clear mapped reads.
+        clear(app.reads);
+    }
+
+    // Close reads file.
+    close(app.readsLoader);
+}
+
+// ----------------------------------------------------------------------------
+// Function runApp()
+// ----------------------------------------------------------------------------
+
+#if false
+template <typename TExecSpace>
+void runApp(App<TExecSpace> & app, Options const & options)
+{
     typedef Timer<double>                               TTimer;
     typedef Logger<std::ostream>                        TLogger;
     typedef App<TExecSpace>                             TApp;
@@ -434,6 +494,7 @@ void runApp(App<TExecSpace> & app, Options const & options)
     // Close reads file.
     close(app.readsLoader);
 }
+#endif
 
 // ----------------------------------------------------------------------------
 // Function configureApp()
