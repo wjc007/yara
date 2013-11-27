@@ -39,6 +39,6 @@
 // Forwards
 // ============================================================================
 
-void mapReads(App<ExecDevice> & app, Options const & options);
+void mapReads(Mapper<ExecDevice> & mapper, Options const & options);
 
 #endif  // #ifndef SEQAN_EXTRAS_CUDAMAPPER_MAPPER_CUH_

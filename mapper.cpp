@@ -177,7 +177,7 @@ parseCommandLine(Options & options, ArgumentParser & parser, int argc, char cons
 // ----------------------------------------------------------------------------
 
 template <typename TExecSpace>
-void configureThreads(App<TExecSpace> & /* app */, Options const & options)
+void configureThreads(Mapper<TExecSpace> & /* mapper */, Options const & options)
 {
     // Set the number of threads that OpenMP can spawn.
     omp_set_num_threads(options.threadsCount);
@@ -189,16 +189,16 @@ void configureThreads(App<TExecSpace> & /* app */, Options const & options)
 // ----------------------------------------------------------------------------
 
 template <typename TExecSpace>
-void loadGenome(App<TExecSpace> & app, Options const & options)
+void loadGenome(Mapper<TExecSpace> & mapper, Options const & options)
 {
     // Load genome.
-    open(app.genomeLoader, options.genomeFile);
+    open(mapper.genomeLoader, options.genomeFile);
 
     std::cout << "Loading genome:\t\t\t";
-    start(app.timer);
-    load(app.genomeLoader);
-    stop(app.timer);
-    std::cout << app.timer << std::endl;
+    start(mapper.timer);
+    load(mapper.genomeLoader);
+    stop(mapper.timer);
+    std::cout << mapper.timer << std::endl;
 }
 
 // ----------------------------------------------------------------------------
@@ -206,13 +206,13 @@ void loadGenome(App<TExecSpace> & app, Options const & options)
 // ----------------------------------------------------------------------------
 
 template <typename TExecSpace>
-void loadGenomeIndex(App<TExecSpace> & app, Options const & options)
+void loadGenomeIndex(Mapper<TExecSpace> & mapper, Options const & options)
 {
     std::cout << "Loading genome index:\t\t";
-    start(app.timer);
-    load(app.genomeIndex, options.genomeIndexFile);
-    stop(app.timer);
-    std::cout << app.timer << std::endl;
+    start(mapper.timer);
+    load(mapper.genomeIndex, options.genomeIndexFile);
+    stop(mapper.timer);
+    std::cout << mapper.timer << std::endl;
 }
 
 // ----------------------------------------------------------------------------
@@ -220,15 +220,15 @@ void loadGenomeIndex(App<TExecSpace> & app, Options const & options)
 // ----------------------------------------------------------------------------
 
 template <typename TExecSpace>
-void loadReads(App<TExecSpace> & app, Options const & options)
+void loadReads(Mapper<TExecSpace> & mapper, Options const & options)
 {
     std::cout << "Loading reads:\t\t\t";
-    start(app.timer);
-    load(app.readsLoader, options.mappingBlock);
-    stop(app.timer);
-    std::cout << app.timer << std::endl;
+    start(mapper.timer);
+    load(mapper.readsLoader, options.mappingBlock);
+    stop(mapper.timer);
+    std::cout << mapper.timer << std::endl;
 
-    std::cout << "Reads count:\t\t\t" << app.reads.readsCount << std::endl;
+    std::cout << "Reads count:\t\t\t" << mapper.reads.readsCount << std::endl;
 }
 
 // ----------------------------------------------------------------------------
@@ -236,63 +236,63 @@ void loadReads(App<TExecSpace> & app, Options const & options)
 // ----------------------------------------------------------------------------
 
 template <typename TExecSpace>
-void mapReads(App<TExecSpace> & app, Options const & options)
+void mapReads(Mapper<TExecSpace> & mapper, Options const & options)
 {
-    _mapReads(app.genomeIndex.index, getSeqs(app.reads), options.seedLength, options.errorsPerSeed, TExecSpace());
+    _mapReads(mapper.genomeIndex.index, getSeqs(mapper.reads), options.seedLength, options.errorsPerSeed, TExecSpace());
 }
 
 // ----------------------------------------------------------------------------
-// Function runApp()
+// Function runMapper()
 // ----------------------------------------------------------------------------
 
 template <typename TExecSpace>
-void runApp(App<TExecSpace> & app, Options const & options)
+void runMapper(Mapper<TExecSpace> & mapper, Options const & options)
 {
 #ifdef _OPENMP
-    configureThreads(app, options);
+    configureThreads(mapper, options);
 #endif
 
 #ifdef ENABLE_GENOME_LOADING
-    loadGenome(app, options);
+    loadGenome(mapper, options);
 #endif
 
-    loadGenomeIndex(app, options);
+    loadGenomeIndex(mapper, options);
 
     // Open reads file.
-    open(app.readsLoader, options.readsFile);
+    open(mapper.readsLoader, options.readsFile);
 
     // Reserve space for reads.
-    reserve(app.reads, options.mappingBlock);
+    reserve(mapper.reads, options.mappingBlock);
 
     // Process reads in blocks.
-    while (!atEnd(app.readsLoader))
+    while (!atEnd(mapper.readsLoader))
     {
         // Load one block of reads.
-        loadReads(app, options);
+        loadReads(mapper, options);
 
         // Map this block of reads.
-        mapReads(app, options);
+        mapReads(mapper, options);
 
         // Clear mapped reads.
-        clear(app.reads);
+        clear(mapper.reads);
     }
 
     // Close reads file.
-    close(app.readsLoader);
+    close(mapper.readsLoader);
 }
 
 // ----------------------------------------------------------------------------
-// Function runApp()
+// Function runMapper()
 // ----------------------------------------------------------------------------
 
 #if false
 template <typename TExecSpace>
-void runApp(App<TExecSpace> & app, Options const & options)
+void runMapper(Mapper<TExecSpace> & mapper, Options const & options)
 {
     typedef Timer<double>                               TTimer;
     typedef Logger<std::ostream>                        TLogger;
-    typedef App<TExecSpace>                             TApp;
-    typedef Reads<void, typename TApp::TReadsConfig>    TReads;
+    typedef Mapper<TExecSpace>                             TMapper;
+    typedef Reads<void, typename TMapper::TReadsConfig>    TReads;
 
     TTimer timer;
     TLogger cout(std::cout);
@@ -308,23 +308,13 @@ void runApp(App<TExecSpace> & app, Options const & options)
 #endif
 
 #ifdef ENABLE_GENOME_LOADING
-    // Load genome.
-    open(app.genomeLoader, options.genomeFile);
-
-    start(timer);
-    load(app.genomeLoader);
-    stop(timer);
-    cout << "Loading genome:\t\t\t" << timer << std::endl;
+    loadGenome(mapper, options);
 #endif
 
-    // Load genome index.
-    start(timer);
-    load(app.genomeIndex, options.genomeIndexFile);
-    stop(timer);
-    cout << "Loading genome index:\t\t" << timer << std::endl;
+    loadGenomeIndex(mapper, options);
 
     // Open reads file.
-    open(app.readsLoader, options.readsFile);
+    open(mapper.readsLoader, options.readsFile);
 
     // Process reads in parallel.
     SEQAN_OMP_PRAGMA(parallel firstprivate(timer) num_threads(3))
@@ -340,11 +330,11 @@ void runApp(App<TExecSpace> & app, Options const & options)
             SEQAN_OMP_PRAGMA(critical(_mapper_readsLoader_load))
             {
                 // No more reads.
-                if (!atEnd(app.readsLoader))
+                if (!atEnd(mapper.readsLoader))
                 {
                     start(timer);
-                    setReads(app.readsLoader, reads);
-                    load(app.readsLoader, options.mappingBlock);
+                    setReads(mapper.readsLoader, reads);
+                    load(mapper.readsLoader, options.mappingBlock);
                     stop(timer);
 
                     cout << "Loading reads:\t\t\t" << timer << "\t\t[" << omp_get_thread_num() << "]" << std::endl;// <<
@@ -368,7 +358,7 @@ void runApp(App<TExecSpace> & app, Options const & options)
                 #endif
 
                 start(timer);
-                mapReads(app.genomeIndex.index, getSeqs(reads), options.seedLength, options.errorsPerSeed, TExecSpace());
+                mapReads(mapper, options, getSeqs(reads));
                 stop(timer);
 
                 cout << "Mapping reads:\t\t\t" << timer << "\t\t[" << omp_get_thread_num() << "]" << std::endl;
@@ -399,31 +389,31 @@ void runApp(App<TExecSpace> & app, Options const & options)
     }
 
     // Close reads file.
-    close(app.readsLoader);
+    close(mapper.readsLoader);
 }
 #endif
 
 // ----------------------------------------------------------------------------
-// Function configureApp()
+// Function configureMapper()
 // ----------------------------------------------------------------------------
 
 template <typename TOptions>
-int configureApp(TOptions & options)
+int configureMapper(TOptions & options)
 {
 #ifndef CUDA_DISABLED
     if (options.noCuda)
     {
-        App<ExecHost> app;
-        runApp(app, options);
+        Mapper<ExecHost> mapper;
+        runMapper(mapper, options);
     }
     else
     {
-        App<ExecDevice> app;
-        runApp(app, options);
+        Mapper<ExecDevice> mapper;
+        runMapper(mapper, options);
     }
 #else
-    App<ExecHost> app;
-    runApp(app, options);
+    Mapper<ExecHost> mapper;
+    runMapper(mapper, options);
 #endif
 
     return 0;
@@ -444,5 +434,5 @@ int main(int argc, char const ** argv)
     if (res != seqan::ArgumentParser::PARSE_OK)
         return res == seqan::ArgumentParser::PARSE_ERROR;
 
-    return configureApp(options);
+    return configureMapper(options);
 }

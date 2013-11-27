@@ -96,18 +96,18 @@ assign(Index<StringSet<thrust::device_vector<TValue, TAlloc>, TSSetSpec>, FMInde
 // Function mapReads()
 // --------------------------------------------------------------------------
 
-void mapReads(App<ExecDevice> & app, Options const & options)
+void mapReads(Mapper<ExecDevice> & mapper, Options const & options)
 {
     typedef typename Device<TGenomeIndex>::Type                 TDeviceIndex;
     typedef typename Device<TReadSeqs>::Type                    TDeviceReadSeqs;
 
     // Copy index to device.
     TDeviceIndex deviceIndex;
-    assign(deviceIndex, app.genomeIndex.index);
+    assign(deviceIndex, mapper.genomeIndex.index);
 
     // Copy read seqs to device.
     TDeviceReadSeqs deviceReadSeqs;
-    assign(deviceReadSeqs, getSeqs(app.reads));
+    assign(deviceReadSeqs, getSeqs(mapper.reads));
 
     // Wait for the copy to finish.
     cudaDeviceSynchronize();

@@ -81,11 +81,11 @@ struct Options
 };
 
 // ----------------------------------------------------------------------------
-// Class App
+// Class Mapper
 // ----------------------------------------------------------------------------
 
 template <typename TExecSpace>
-struct App
+struct Mapper
 {
     typedef Genome<void, CUDAStoreConfig>                           TGenome;
     typedef GenomeLoader<void, CUDAStoreConfig>                     TGenomeLoader;
@@ -106,7 +106,7 @@ struct App
 
     Timer<double>       timer;
 
-    App() :
+    Mapper() :
         genome(),
 #ifdef ENABLE_GENOME_LOADING
         genomeLoader(genome),
