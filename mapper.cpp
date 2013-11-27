@@ -352,10 +352,7 @@ void runApp(App<TExecSpace> & app, Options const & options)
     open(app.readsLoader, options.readsFile);
 
     // Reserve space for reads.
-    if (options.mappingBlock < MaxValue<int>::VALUE)
-        reserve(app.reads, options.mappingBlock);
-    else
-        reserve(app.reads);
+    reserve(app.reads, options.mappingBlock);
 
     // Process reads in blocks.
     while (!atEnd(app.readsLoader))
@@ -431,10 +428,6 @@ void runApp(App<TExecSpace> & app, Options const & options)
         // Reserve space for reads.
         TReads reads;
         reserve(reads, options.mappingBlock);
-//        if (options.mappingBlock < MaxValue<int>::VALUE)
-//            reserve(reads, options.mappingBlock);
-//        else
-//            reserve(reads);
 
         // Process reads.
         while (true)
