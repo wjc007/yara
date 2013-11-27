@@ -38,6 +38,7 @@
 #include <seqan/sequence.h>
 #include <seqan/store.h>
 
+#include "misc.h"
 #include "options.h"
 #include "genome.h"
 #include "genome_index.h"

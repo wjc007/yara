@@ -34,8 +34,8 @@
 // This file contains the Reads and ReadsLoader classes.
 // ==========================================================================
 
-#ifndef SEQAN_EXTRAS_MASAI_READS_H_
-#define SEQAN_EXTRAS_MASAI_READS_H_
+#ifndef APP_CUDAMAPPER_READS_H_
+#define APP_CUDAMAPPER_READS_H_
 
 #include <stdexcept>
 
@@ -518,7 +518,6 @@ void load(ReadsLoader<TSpec, TConfig> & loader, TSize count)
         break;
     default:
         throw std::runtime_error("Unsupported reads file format.");
-        break;
     }
 }
 
@@ -581,4 +580,4 @@ inline bool atEnd(ReadsLoader<TSpec, TConfig> & reads)
     return atEnd(*(reads._reader));
 }
 
-#endif  // #ifndef SEQAN_EXTRAS_MASAI_READS_H_
+#endif  // #ifndef APP_CUDAMAPPER_READS_H_

@@ -34,8 +34,8 @@
 // This file contains the GenomeIndex class.
 // ==========================================================================
 
-#ifndef SEQAN_EXTRAS_MASAI_GENOME_INDEX_H_
-#define SEQAN_EXTRAS_MASAI_GENOME_INDEX_H_
+#ifndef APP_CUDAMAPPER_GENOME_INDEX_H_
+#define APP_CUDAMAPPER_GENOME_INDEX_H_
 
 #include <stdexcept>
 
@@ -153,4 +153,4 @@ void clear(GenomeIndex<TGenome, TIndexSpec, TSpec> & genomeIndex)
     clear(genomeIndex.index);
 }
 
-#endif  // #ifndef SEQAN_EXTRAS_MASAI_GENOME_INDEX_H_
+#endif  // #ifndef APP_CUDAMAPPER_GENOME_INDEX_H_

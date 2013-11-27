@@ -47,11 +47,10 @@
 #include <seqan/parallel.h>
 
 // ----------------------------------------------------------------------------
-// Masai headers; I/O and options
+// I/O and options
 // ----------------------------------------------------------------------------
 
 #include "tags.h"
-#include "options.h"
 #include "reads.h"
 #include "genome.h"
 #include "genome_index.h"
@@ -61,128 +60,14 @@
 // ----------------------------------------------------------------------------
 
 #include "types.h"
+#include "misc.h"
+#include "options.h"
 #include "mapper.h"
 #ifndef CUDA_DISABLED
 #include "mapper.cuh"
 #endif
 
 using namespace seqan;
-
-// ============================================================================
-// Classes
-// ============================================================================
-
-// ----------------------------------------------------------------------------
-// Class Options
-// ----------------------------------------------------------------------------
-
-struct Options
-{
-    CharString  genomeFile;
-    CharString  genomeIndexFile;
-    CharString  readsFile;
-
-    bool        noCuda;
-    unsigned    threadsCount;
-    int         mappingBlock;
-    unsigned    seedLength;
-    unsigned    errorsPerSeed;
-
-    Options() :
-        noCuda(false),
-        threadsCount(1),
-        mappingBlock(100000),
-        seedLength(33),
-        errorsPerSeed(0)
-    {}
-};
-
-// ----------------------------------------------------------------------------
-// Class App
-// ----------------------------------------------------------------------------
-
-template <typename TExecSpace>
-struct App
-{
-    typedef Genome<void, CUDAStoreConfig>                           TGenome;
-    typedef GenomeLoader<void, CUDAStoreConfig>                     TGenomeLoader;
-    typedef GenomeIndex<TGenome, TGenomeIndexSpec, void>            TGenomeIndex;
-    typedef FragmentStore<void, CUDAStoreConfig>                    TStore;
-    typedef ReadsConfig<False, False, True, True, CUDAStoreConfig>  TReadsConfig;
-    typedef Reads<void, TReadsConfig>                               TReads;
-    typedef ReadsLoader<void, TReadsConfig>                         TReadsLoader;
-
-    TGenome             genome;
-#ifdef ENABLE_GENOME_LOADING
-    TGenomeLoader       genomeLoader;
-#endif
-    TGenomeIndex        genomeIndex;
-    TStore              store;
-    TReads              reads;
-    TReadsLoader        readsLoader;
-
-    App() :
-        genome(),
-#ifdef ENABLE_GENOME_LOADING
-        genomeLoader(genome),
-#endif
-        genomeIndex(genome),
-        store(),
-        reads(store),
-        readsLoader(reads)
-    {};
-};
-
-// ----------------------------------------------------------------------------
-// Class Timer
-// ----------------------------------------------------------------------------
-
-template <typename TValue, typename TSpec = void>
-struct Timer
-{
-    TValue _begin, _end;
-
-    Timer() : _begin(0), _end(0) {};
-};
-
-template <typename TValue, typename TSpec>
-inline void start(Timer<TValue, TSpec> & timer)
-{
-    timer._begin = sysTime();
-}
-
-template <typename TValue, typename TSpec>
-inline void stop(Timer<TValue, TSpec> & timer)
-{
-    timer._end = sysTime();
-}
-
-template <typename TValue, typename TSpec>
-inline void clear(Timer<TValue, TSpec> & timer)
-{
-    timer._begin = 0;
-    timer._end = 0;
-}
-
-template <typename TValue, typename TSpec>
-inline TValue getValue(Timer<TValue, TSpec> & timer)
-{
-    return timer._end - timer._begin;
-}
-
-template <typename TValue, typename TSpec, typename TString>
-inline void start(Timer<TValue, TSpec> & timer, TString const & msg)
-{
-    std::cout << msg << std::flush;
-    start(timer);
-}
-
-template <typename TValue, typename TSpec, typename TString>
-inline void stop(Timer<TValue, TSpec> & timer, TString const & msg)
-{
-    stop(timer);
-    std::cout << getValue(timer) << msg << std::endl;
-}
 
 // ============================================================================
 // Functions
@@ -284,88 +169,25 @@ parseCommandLine(Options & options, ArgumentParser & parser, int argc, char cons
 }
 
 // ----------------------------------------------------------------------------
-// Function runApp()
+// Function configureMapper()
 // ----------------------------------------------------------------------------
 
-template <typename TExecSpace>
-void runApp(App<TExecSpace> & app, Options const & options)
+int configureMapper(Options const & options)
 {
-    Timer<double> timer;
-
-#ifdef _OPENMP
-    // Set the number of threads that OpenMP can spawn.
-    omp_set_num_threads(options.threadsCount);
-    std::cout << "Threads count:\t\t\t" << omp_get_max_threads() << std::endl;
-#endif
-
-#ifdef ENABLE_GENOME_LOADING
-    // Load genome.
-    open(app.genomeLoader, options.genomeFile);
-
-    start(timer, "Loading genome:\t\t\t");
-    load(app.genomeLoader);
-    stop(timer, " sec");
-#endif
-
-    // Load genome index.
-    start(timer, "Loading genome index:\t\t");
-    load(app.genomeIndex, options.genomeIndexFile);
-    stop(timer, " sec");
-
-    // Open reads file.
-    open(app.readsLoader, options.readsFile);
-
-    // Reserve space for reads.
-    if (options.mappingBlock < MaxValue<int>::VALUE)
-        reserve(app.reads, options.mappingBlock);
-    else
-        reserve(app.reads);
-
-    // Process reads in blocks.
-    while (!atEnd(app.readsLoader))
-    {
-        // Load reads.
-        start(timer, "Loading reads:\t\t\t");
-        load(app.readsLoader, options.mappingBlock);
-        stop(timer, " sec");
-
-        std::cout << "Reads count:\t\t\t" << app.reads.readsCount << std::endl;
-
-        // Map reads.
-//        mapReads(app.genomeIndex.index, getSeqs(app.reads), options.seedLength, options.errorsPerSeed, TExecSpace());
-
-        // Clear mapped reads.
-        clear(app.reads);
-    }
-
-    // Close reads file.
-    close(app.readsLoader);
-}
-
-// ----------------------------------------------------------------------------
-// Function configureApp()
-// ----------------------------------------------------------------------------
-
-template <typename TOptions>
-int configureApp(TOptions & options)
-{
-    try
-    {
 #ifndef CUDA_DISABLED
-        if (options.noCuda)
-            runApp(App<ExecHost>(), options);
-        else
-            runApp(App<ExecDevice>(), options);
-#else
-            App<ExecHost> app;
-            runApp(app, options);
-#endif
-    }
-    catch (std::runtime_error e)
+    if (options.noCuda)
     {
-        std::cerr << e.what() << std::endl;
-        return 1;
+#endif
+        Mapper<ExecHost> mapper;
+        runMapper(mapper, options);
+#ifndef CUDA_DISABLED
     }
+    else
+    {
+        Mapper<ExecDevice> mapper;
+        runMapper(mapper, options);
+    }
+#endif
 
     return 0;
 }
@@ -385,5 +207,5 @@ int main(int argc, char const ** argv)
     if (res != seqan::ArgumentParser::PARSE_OK)
         return res == seqan::ArgumentParser::PARSE_ERROR;
 
-    return configureApp(options);
+    return configureMapper(options);
 }

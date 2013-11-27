@@ -35,70 +35,14 @@
 // This file contains the common Option class.
 // ==========================================================================
 
-#ifndef SEQAN_EXTRAS_MASAI_OPTIONS_H_
-#define SEQAN_EXTRAS_MASAI_OPTIONS_H_
+#ifndef APP_CUDAMAPPER_OPTIONS_H_
+#define APP_CUDAMAPPER_OPTIONS_H_
 
 #include <seqan/basic.h>
 #include <seqan/sequence.h>
 #include <seqan/arg_parse.h>
 
 using namespace seqan;
-
-// ============================================================================
-// Tags, Classes, Enums
-// ============================================================================
-
-// ----------------------------------------------------------------------------
-// Class MasaiOptions
-// ----------------------------------------------------------------------------
-
-struct MasaiOptions
-{
-    typedef std::string             TString;
-    typedef std::vector<TString>    TList;
-
-    enum IndexType
-    {
-        INDEX_ESA, INDEX_SA, INDEX_QGRAM, INDEX_FM
-    };
-
-    enum MappingMode
-    {
-        ALL, ALL_BEST, ANY_BEST
-    };
-
-    enum OutputFormat
-    {
-        RAW, SAM
-    };
-
-    TList       indexTypeList;
-    TList       mappingModeList;
-    TList       outputFormatList;
-    TList       outputFormatExtensions;
-
-    MasaiOptions()
-    {
-        indexTypeList.push_back("esa");
-        indexTypeList.push_back("sa");
-        indexTypeList.push_back("qgram");
-        indexTypeList.push_back("fm");
-
-        mappingModeList.push_back("all");
-        mappingModeList.push_back("all-best");
-        mappingModeList.push_back("any-best");
-
-        outputFormatList.push_back("raw");
-        outputFormatList.push_back("sam");
-
-        outputFormatExtensions.push_back("raw");
-        outputFormatExtensions.push_back("sam");
-    }
-};
-
-// ============================================================================
-// Metafunctions
-// ============================================================================
 
 // ============================================================================
 // Functions
@@ -236,8 +180,8 @@ void getOptionValue(TOption & option,
 
 void setDateAndVersion(ArgumentParser & parser)
 {
-    std::string rev  = "$Revision$";
-    std::string date = "$Date$";
+//    std::string rev  = "$Revision$";
+//    std::string date = "$Date$";
 
     setCategory(parser, "Read Mapping");
 //    setVersion(parser, "0.7.1 [" + rev.substr(11, rev.size() - 13) + "]");
@@ -250,9 +194,9 @@ void setDateAndVersion(ArgumentParser & parser)
 
 void setDescription(ArgumentParser & parser)
 {
-    addDescription(parser, "Masai is a fast and accurate read mapper based on approximate seeds and multiple backtracking.");
+    addDescription(parser, "Masai is a fast and accurate read mapper.");
     addDescription(parser, "See \\fIhttp://www.seqan.de/projects/masai\\fP for more information.");
-    addDescription(parser, "(c) Copyright 2011-2012 by Enrico Siragusa.");
+    addDescription(parser, "(c) Copyright 2011-2013 by Enrico Siragusa.");
 }
 
 // ----------------------------------------------------------------------------
@@ -369,4 +313,4 @@ void getTmpFolder(TOptions const & options, ArgumentParser const & parser)
     setEnv("TMPDIR", tmpFolder);
 }
 
-#endif  // #ifndef SEQAN_EXTRAS_MASAI_OPTIONS_H_
+#endif  // #ifndef APP_CUDAMAPPER_OPTIONS_H_

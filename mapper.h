@@ -32,8 +32,8 @@
 // Author: Enrico Siragusa <enrico.siragusa@fu-berlin.de>
 // ==========================================================================
 
-#ifndef SEQAN_EXTRAS_CUDAMAPPER_MAPPER_H_
-#define SEQAN_EXTRAS_CUDAMAPPER_MAPPER_H_
+#ifndef APP_CUDAMAPPER_MAPPER_H_
+#define APP_CUDAMAPPER_MAPPER_H_
 
 using namespace seqan;
 
@@ -50,10 +50,6 @@ struct Ranges_;
 
 template <typename TSpec = void>
 struct Count;
-
-// ============================================================================
-// Classes
-// ============================================================================
 
 // ----------------------------------------------------------------------------
 // Class Hits
@@ -390,13 +386,153 @@ fillSeeds(TSeeds & seeds, TReadSeqs /* const */ & readSeqs, TSeedLength seedLeng
     _fillSeeds(seeds, readSeqs, static_cast<TSize>(seedLength), readSeqsCount, seedsPerReadSeq, tag);
 }
 
+
+
+// ============================================================================
+// Classes
+// ============================================================================
+
+// ----------------------------------------------------------------------------
+// Class Options
+// ----------------------------------------------------------------------------
+
+struct Options
+{
+    CharString  genomeFile;
+    CharString  genomeIndexFile;
+    CharString  readsFile;
+
+    bool        noCuda;
+    unsigned    threadsCount;
+    int         mappingBlock;
+    unsigned    seedLength;
+    unsigned    errorsPerSeed;
+
+    Options() :
+        noCuda(false),
+        threadsCount(1),
+        mappingBlock(200000),
+        seedLength(33),
+        errorsPerSeed(0)
+    {}
+};
+
+// ----------------------------------------------------------------------------
+// Class Mapper
+// ----------------------------------------------------------------------------
+
+template <typename TExecSpace>
+struct Mapper
+{
+    typedef Genome<void, CUDAStoreConfig>                           TGenome;
+    typedef GenomeLoader<void, CUDAStoreConfig>                     TGenomeLoader;
+    typedef GenomeIndex<TGenome, TGenomeIndexSpec, void>            TGenomeIndex;
+    typedef FragmentStore<void, CUDAStoreConfig>                    TStore;
+    typedef ReadsConfig<False, False, True, True, CUDAStoreConfig>  TReadsConfig;
+    typedef Reads<void, TReadsConfig>                               TReads;
+    typedef ReadsLoader<void, TReadsConfig>                         TReadsLoader;
+
+    TGenome             genome;
+#ifdef ENABLE_GENOME_LOADING
+    TGenomeLoader       genomeLoader;
+#endif
+    TGenomeIndex        genomeIndex;
+    TStore              store;
+    TReads              reads;
+    TReadsLoader        readsLoader;
+
+    Timer<double>       timer;
+
+    Mapper() :
+        genome(),
+#ifdef ENABLE_GENOME_LOADING
+        genomeLoader(genome),
+#endif
+        genomeIndex(genome),
+        store(),
+        reads(store),
+        readsLoader(reads)
+    {};
+};
+
+// ============================================================================
+// Functions
+// ============================================================================
+
+// ----------------------------------------------------------------------------
+// Function configureThreads()
+// ----------------------------------------------------------------------------
+// Sets the number of threads that OpenMP can spawn.
+
+template <typename TExecSpace>
+void configureThreads(Mapper<TExecSpace> & /* mapper */, Options const & options)
+{
+    omp_set_num_threads(options.threadsCount);
+    std::cout << "Threads count:\t\t\t" << omp_get_max_threads() << std::endl;
+}
+
+// ----------------------------------------------------------------------------
+// Function loadGenome()
+// ----------------------------------------------------------------------------
+
+template <typename TExecSpace>
+void loadGenome(Mapper<TExecSpace> & mapper, Options const & options)
+{
+    open(mapper.genomeLoader, options.genomeFile);
+
+    std::cout << "Loading genome:\t\t\t";
+    start(mapper.timer);
+    load(mapper.genomeLoader);
+    stop(mapper.timer);
+    std::cout << mapper.timer << std::endl;
+}
+
+// ----------------------------------------------------------------------------
+// Function loadGenomeIndex()
+// ----------------------------------------------------------------------------
+
+template <typename TExecSpace>
+void loadGenomeIndex(Mapper<TExecSpace> & mapper, Options const & options)
+{
+    std::cout << "Loading genome index:\t\t";
+    start(mapper.timer);
+    load(mapper.genomeIndex, options.genomeIndexFile);
+    stop(mapper.timer);
+    std::cout << mapper.timer << std::endl;
+}
+
+// ----------------------------------------------------------------------------
+// Function loadReads()
+// ----------------------------------------------------------------------------
+
+template <typename TExecSpace>
+void loadReads(Mapper<TExecSpace> & mapper, Options const & options)
+{
+    std::cout << "Loading reads:\t\t\t";
+    start(mapper.timer);
+    load(mapper.readsLoader, options.mappingBlock);
+    stop(mapper.timer);
+    std::cout << mapper.timer << std::endl;
+
+    std::cout << "Reads count:\t\t\t" << mapper.reads.readsCount << std::endl;
+}
+
+// ----------------------------------------------------------------------------
+// Function mapReads()
+// ----------------------------------------------------------------------------
+
+template <typename TExecSpace>
+void mapReads(Mapper<TExecSpace> & mapper, Options const & options)
+{
+    _mapReads(mapper, options, mapper.genomeIndex.index, getSeqs(mapper.reads));
+}
+
 // ----------------------------------------------------------------------------
 // Function _mapReads()
 // ----------------------------------------------------------------------------
 
-template <typename TIndex, typename TReadSeqs, typename TExecSpace>
-inline void
-_mapReads(TIndex & index, TReadSeqs & readSeqs, unsigned seedLength, unsigned errorsPerSeed, TExecSpace const & tag)
+template <typename TExecSpace, typename TIndex, typename TReadSeqs>
+void _mapReads(Mapper<TExecSpace> & mapper, Options const & options, TIndex & index, TReadSeqs & readSeqs)
 {
     typedef typename ExecSpec<TReadSeqs, void>::Type    TSeedsSpec;
     typedef typename Seeds<TReadSeqs, TSeedsSpec>::Type TSeeds;
@@ -407,21 +543,21 @@ _mapReads(TIndex & index, TReadSeqs & readSeqs, unsigned seedLength, unsigned er
     typedef typename ExecSpec<TIndex, Count<> >::Type   THitsSpec;
     typedef Hits<TIndex, THitsSpec>                     THits;
 
-    double start, finish;
-
 #ifdef PLATFORM_CUDA
     cudaDeviceSynchronize();
 #endif
 
-    start = sysTime();
+    start(mapper.timer);
 
+//SEQAN_OMP_PRAGMA(critical(_mapper_mapReads_filter))
+//{
     // Instantiate a multiple finder.
     TFinder finder(index);
-//    setScoreThreshold(finder, errorsPerSeed);
+//    setScoreThreshold(finder, options.errorsPerSeed);
 
     // Collect seeds from read seqs.
     TSeeds seeds;
-    fillSeeds(seeds, readSeqs, seedLength, tag);
+    fillSeeds(seeds, readSeqs, options.seedLength, TExecSpace());
     std::cout << "Seeds count:\t\t\t" << length(seeds) << std::endl;
 
     // Instantiate a pattern object.
@@ -435,28 +571,169 @@ _mapReads(TIndex & index, TReadSeqs & readSeqs, unsigned seedLength, unsigned er
 
     // Find hits.
     find(finder, pattern, hits);
+//}
 
 #ifdef PLATFORM_CUDA
     cudaDeviceSynchronize();
 #endif
 
-    finish = sysTime();
+    stop(mapper.timer);
     std::cout << "Mapping time:\t\t\t" << std::flush;
-    std::cout << finish - start << " sec" << std::endl;
+    std::cout << mapper.timer << std::endl;
 
     std::cout << "Hits count:\t\t\t" << getCount(hits) << std::endl;
 }
 
 // ----------------------------------------------------------------------------
-// Function mapReads()
+// Function runMapper()
 // ----------------------------------------------------------------------------
 
-template <typename TIndex, typename TReadSeqs>
-inline void
-mapReads(TIndex & index, TReadSeqs & readSeqs, unsigned seedLength, unsigned errorsPerSeed, ExecHost const & tag)
+template <typename TExecSpace>
+void runMapper(Mapper<TExecSpace> & mapper, Options const & options)
 {
-    // Map reads.
-    _mapReads(index, readSeqs, seedLength, errorsPerSeed, tag);
+#ifdef _OPENMP
+    configureThreads(mapper, options);
+#endif
+
+#ifdef ENABLE_GENOME_LOADING
+    loadGenome(mapper, options);
+#endif
+
+    loadGenomeIndex(mapper, options);
+
+    // Open reads file.
+    open(mapper.readsLoader, options.readsFile);
+
+    // Reserve space for reads.
+    reserve(mapper.reads, options.mappingBlock);
+
+    // Process reads in blocks.
+    while (!atEnd(mapper.readsLoader))
+    {
+        // Load one block of reads.
+        loadReads(mapper, options);
+
+        // Map this block of reads.
+        mapReads(mapper, options);
+
+        // Clear mapped reads.
+        clear(mapper.reads);
+    }
+
+    // Close reads file.
+    close(mapper.readsLoader);
 }
 
-#endif  // #ifndef SEQAN_EXTRAS_CUDAMAPPER_MAPPER_H_
+// ----------------------------------------------------------------------------
+// Function runMapper()
+// ----------------------------------------------------------------------------
+
+#if false
+template <typename TExecSpace>
+void runMapper(Mapper<TExecSpace> & mapper, Options const & options)
+{
+    typedef Timer<double>                               TTimer;
+    typedef Logger<std::ostream>                        TLogger;
+    typedef Mapper<TExecSpace>                             TMapper;
+    typedef Reads<void, typename TMapper::TReadsConfig>    TReads;
+
+    TTimer timer;
+    TLogger cout(std::cout);
+    TLogger cerr(std::cerr);
+
+#ifdef _OPENMP
+    cout << "Threads count:\t\t\t" << options.threadsCount << std::endl;
+#endif
+
+#ifdef _OPENMP
+    // Disable nested parallelism.
+    omp_set_nested(false);
+#endif
+
+#ifdef ENABLE_GENOME_LOADING
+    loadGenome(mapper, options);
+#endif
+
+    loadGenomeIndex(mapper, options);
+
+    // Open reads file.
+    open(mapper.readsLoader, options.readsFile);
+
+    // Process reads in parallel.
+    SEQAN_OMP_PRAGMA(parallel firstprivate(timer) num_threads(3))
+    {
+        // Reserve space for reads.
+        TReads reads;
+        reserve(reads, options.mappingBlock);
+
+        // Process reads.
+        while (true)
+        {
+            // Load a block of reads.
+            SEQAN_OMP_PRAGMA(critical(_mapper_readsLoader_load))
+            {
+                // No more reads.
+                if (!atEnd(mapper.readsLoader))
+                {
+                    start(timer);
+                    setReads(mapper.readsLoader, reads);
+                    load(mapper.readsLoader, options.mappingBlock);
+                    stop(timer);
+
+                    cout << "Loading reads:\t\t\t" << timer << "\t\t[" << omp_get_thread_num() << "]" << std::endl;// <<
+//                            "Reads count:\t\t\t" << reads.readsCount << "\t\t\t[" << omp_get_thread_num() << "]" << std::endl;
+                }
+            }
+
+            // No more reads.
+            if (!reads.readsCount) break;
+
+            // Map reads.
+            SEQAN_OMP_PRAGMA(critical(_mapper_mapReads))
+            {
+                #ifdef _OPENMP
+                // Enable nested parallelism.
+                omp_set_nested(true);
+                #endif
+
+                #ifdef _OPENMP
+                omp_set_num_threads(options.threadsCount);
+                #endif
+
+                start(timer);
+                mapReads(mapper, options, getSeqs(reads));
+                stop(timer);
+
+                cout << "Mapping reads:\t\t\t" << timer << "\t\t[" << omp_get_thread_num() << "]" << std::endl;
+
+                #ifdef _OPENMP
+                omp_set_num_threads(1);
+                #endif
+
+                #ifdef _OPENMP
+                // Disable nested parallelism.
+                omp_set_nested(false);
+                #endif
+            }
+
+            // Writer results.
+            SEQAN_OMP_PRAGMA(critical(_mapper_samWriter_write))
+            {
+                start(timer);
+                sleep(reads.readsCount / 1000000.0);
+                stop(timer);
+                
+                cout << "Writing results:\t\t" << timer << "\t\t[" << omp_get_thread_num() << "]" << std::endl;
+            }
+
+            // Clear mapped reads.
+            clear(reads);
+        }
+    }
+
+    // Close reads file.
+    close(mapper.readsLoader);
+}
+#endif
+
+#endif  // #ifndef APP_CUDAMAPPER_MAPPER_H_

@@ -34,8 +34,8 @@
 // This file contains the Genome class.
 // ==========================================================================
 
-#ifndef SEQAN_EXTRAS_MASAI_GENOME_H_
-#define SEQAN_EXTRAS_MASAI_GENOME_H_
+#ifndef APP_CUDAMAPPER_GENOME_H_
+#define APP_CUDAMAPPER_GENOME_H_
 
 #include <stdexcept>
 
@@ -338,7 +338,6 @@ void load(GenomeLoader<TSpec, TConfig> & loader)
         break;
     default:
         throw std::runtime_error("Unsupported genome file format.");
-        break;
     }
 }
 
@@ -361,4 +360,4 @@ void load(GenomeLoader<TSpec, TConfig> & loader, TFormat const & /* tag */)
     }
 }
 
-#endif  // #ifndef SEQAN_EXTRAS_MASAI_GENOME_H_
+#endif  // #ifndef APP_CUDAMAPPER_GENOME_H_
