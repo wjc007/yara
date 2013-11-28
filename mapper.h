@@ -277,6 +277,49 @@ fillSeeds(TSeeds & seeds, TReadSeqs /* const */ & readSeqs, TSeedLength seedLeng
 
 
 
+// ----------------------------------------------------------------------------
+// Function open()
+// ----------------------------------------------------------------------------
+// This function is overloaded to avoid loading the text.
+
+namespace seqan {
+template <typename TText, typename TSSetSpec, typename TSpec, typename TConfig>
+inline bool open(Index<StringSet<TText, TSSetSpec>, FMIndex<TSpec, TConfig> > & index,
+                 const char * fileName, int openMode)
+{
+    String<char> name;
+
+    name = fileName;    append(name, ".sa");
+    if (!open(getFibre(index, FibreSA()), toCString(name), openMode)) return false;
+
+    name = fileName;    append(name, ".lf");
+    if (!open(getFibre(index, FibreLF()), toCString(name), openMode)) return false;
+
+    setLfTable(getFibre(index, FibreSA()), getFibre(index, FibreLF()));
+
+    return true;
+}
+}
+
+// ----------------------------------------------------------------------------
+// Function view()
+// ----------------------------------------------------------------------------
+// This function is overloaded to avoid the text.
+
+namespace seqan {
+template <typename TText, typename TSSetSpec, typename TSpec, typename TConfig>
+typename View<Index<StringSet<TText, TSSetSpec>, FMIndex<TSpec, TConfig> > >::Type
+view(Index<StringSet<TText, TSSetSpec>, FMIndex<TSpec, TConfig> > & index)
+{
+    typename View<Index<StringSet<TText, TSSetSpec>, FMIndex<TSpec, TConfig> > >::Type indexView;
+
+    indexLF(indexView) = view(indexLF(index));
+    indexSA(indexView) = view(indexSA(index));
+
+    return indexView;
+}
+}
+
 // ============================================================================
 // Classes
 // ============================================================================
