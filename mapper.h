@@ -677,4 +677,15 @@ void runMapper(Mapper<TExecSpace> & mapper, Options const & options)
 }
 #endif
 
+// ----------------------------------------------------------------------------
+// Function spawnMapper()
+// ----------------------------------------------------------------------------
+
+template <typename TExecSpace>
+void spawnMapper(Options const & options, TExecSpace const & /* tag */)
+{
+    Mapper<TExecSpace> mapper;
+    runMapper(mapper, options);
+}
+
 #endif  // #ifndef APP_CUDAMAPPER_MAPPER_H_

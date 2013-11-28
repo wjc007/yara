@@ -40,5 +40,6 @@
 // ============================================================================
 
 void mapReads(Mapper<ExecDevice> & mapper, Options const & options);
+void spawnMapper(Options const & options, ExecDevice const & /* tag */);
 
 #endif  // #ifndef SEQAN_EXTRAS_CUDAMAPPER_MAPPER_CUH_

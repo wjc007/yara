@@ -85,3 +85,13 @@ void mapReads(Mapper<ExecDevice> & mapper, Options const & options)
     // Map reads.
     _mapReads(mapper, options, deviceReadSeqs);
 }
+
+// --------------------------------------------------------------------------
+// Function spawnMapper()
+// --------------------------------------------------------------------------
+
+void spawnMapper(Options const & options, ExecDevice const & /* tag */)
+{
+    Mapper<ExecDevice> mapper;
+    runMapper(mapper, options);
+}

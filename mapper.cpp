@@ -175,17 +175,11 @@ int configureMapper(Options const & options)
 {
 #ifndef CUDA_DISABLED
     if (options.noCuda)
-    {
 #endif
-        Mapper<ExecHost> mapper;
-        runMapper(mapper, options);
+        spawnMapper(options, ExecHost());
 #ifndef CUDA_DISABLED
-    }
     else
-    {
-        Mapper<ExecDevice> mapper;
-        runMapper(mapper, options);
-    }
+        spawnMapper(options, ExecDevice());
 #endif
 
     return 0;
