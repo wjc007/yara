@@ -302,6 +302,26 @@ inline bool open(Index<StringSet<TText, TSSetSpec>, FMIndex<TSpec, TConfig> > & 
 }
 
 // ----------------------------------------------------------------------------
+// Function assign()                                                  [FMIndex]
+// ----------------------------------------------------------------------------
+// This function is overloaded to avoid the text.
+
+namespace seqan {
+template <typename TText, typename TSSetSpec, typename TSpec, typename TConfig, typename TText2, typename TSSetSpec2,
+          typename TOccSpec2, typename TSpec2>
+inline void
+assign(Index<StringSet<TText, TSSetSpec>, FMIndex<TSpec, TConfig> > & index,
+       Index<StringSet<TText2, TSSetSpec2>, FMIndex<TOccSpec2, TSpec2> > const & source)
+{
+    assign(indexLF(index), indexLF(source));
+    assign(indexSA(index), indexSA(source));
+
+    // Set the pointer.
+    setFibre(indexSA(index), indexLF(index), FibreLF());
+}
+}
+
+// ----------------------------------------------------------------------------
 // Function view()
 // ----------------------------------------------------------------------------
 // This function is overloaded to avoid the text.
@@ -456,6 +476,28 @@ void loadGenomeIndex(Mapper<TExecSpace> & mapper, Options const & options)
     cudaPrintFreeMemory();
 #endif
 }
+
+#ifdef PLATFORM_CUDA
+template <>
+void loadGenomeIndex(Mapper<ExecDevice> & mapper, Options const & options)
+{
+    cudaPrintFreeMemory();
+
+    std::cout << "Loading genome index:\t\t" << std::flush;
+    start(mapper.timer);
+
+    typename Mapper<ExecDevice>::THostIndex index;
+    if (!open(index, toCString(options.genomeIndexFile)))
+        throw RuntimeError("Error while opening genome index file.");
+
+    assign(mapper.index, index);
+
+    stop(mapper.timer);
+    std::cout << mapper.timer << std::endl;
+
+    cudaPrintFreeMemory();
+}
+#endif
 
 // ----------------------------------------------------------------------------
 // Function loadReads()
