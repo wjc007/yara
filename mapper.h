@@ -295,7 +295,7 @@ inline bool open(Index<StringSet<TText, TSSetSpec>, FMIndex<TSpec, TConfig> > & 
     name = fileName;    append(name, ".lf");
     if (!open(getFibre(index, FibreLF()), toCString(name), openMode)) return false;
 
-    setLfTable(getFibre(index, FibreSA()), getFibre(index, FibreLF()));
+    setFibre(getFibre(index, FibreSA()), getFibre(index, FibreLF()), FibreLF());
 
     return true;
 }
