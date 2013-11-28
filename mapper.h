@@ -439,14 +439,22 @@ void loadGenome(Mapper<TExecSpace> & mapper, Options const & options)
 template <typename TExecSpace>
 void loadGenomeIndex(Mapper<TExecSpace> & mapper, Options const & options)
 {
+#ifdef PLATFORM_CUDA
+    cudaPrintFreeMemory();
+#endif
+
     std::cout << "Loading genome index:\t\t" << std::flush;
     start(mapper.timer);
 
     if (!open(mapper.index, toCString(options.genomeIndexFile)))
-        throw std::runtime_error("Error while opening genome index file.");
+        throw RuntimeError("Error while opening genome index file.");
 
     stop(mapper.timer);
     std::cout << mapper.timer << std::endl;
+
+#ifdef PLATFORM_CUDA
+    cudaPrintFreeMemory();
+#endif
 }
 
 // ----------------------------------------------------------------------------
