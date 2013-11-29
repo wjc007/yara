@@ -53,56 +53,57 @@ struct Seed
 };
 
 // ============================================================================
-// Functions
+// Classes
 // ============================================================================
 
 // ----------------------------------------------------------------------------
-// Function init()
+// Class SeederConfig
 // ----------------------------------------------------------------------------
 
-template <typename TIndex, typename TSpec, typename TPattern>
-inline void
-init(Hits<TIndex, TSpec> & hits, TPattern const & pattern)
+template <typename TOptions_, typename TIndex_, typename TReadSeqs_>
+struct SeederConfig
 {
-    reserve(hits.ranges, length(needle(pattern)), Exact());
-}
+    typedef TOptions_    TOptions;
+    typedef TIndex_      TIndex;
+    typedef TReadSeqs_   TReadSeqs;
+};
 
 // ----------------------------------------------------------------------------
-// Function view()
+// Class Seeder
 // ----------------------------------------------------------------------------
 
-template <typename TIndex, typename TSpec>
-typename View<Hits<TIndex, TSpec> >::Type
-view(Hits<TIndex, TSpec> & hits)
+template <typename TExecSpace, typename TConfig>
+struct Seeder
 {
-    typename View<Hits<TIndex, TSpec> >::Type hitsView;
+    typedef typename TConfig::TOptions                      TOptions;
+    typedef typename TConfig::TIndex                        TIndex;
+    typedef typename TConfig::TReadSeqs                     TReadSeqs;
+//    typedef typename TConfig::TAlgorithm                    TAlgorithm;
 
-    hitsView.ranges = view(hits.ranges);
+    typedef String<typename Seed<TReadSeqs>::Type>          TSeedsString;
+    typedef typename Space<TSeedsString, TExecSpace>::Type  TSeeds;
 
-    return hitsView;
-}
+//    typedef Multiple<Backtracking<HammingDistance> >        TAlgorithm;
+    typedef Multiple<FinderSTree>                           TAlgorithm;
+    typedef Pattern<TSeeds, TAlgorithm>                     TPattern;
+    typedef Finder2<TIndex, TPattern, TAlgorithm>           TFinder;
 
-// ----------------------------------------------------------------------------
-// Function appendRange()
-// ----------------------------------------------------------------------------
+    TSeeds              seeds;
+    TFinder             finder;
+    TOptions const &    options;
 
-template <typename TIndex, typename TSpec, typename TFinder>
-inline void
-appendRange(Hits<TIndex, TSpec> & hits, TFinder const & finder)
-{
-    SEQAN_OMP_PRAGMA(critical(Hits_appendRange))
-    appendValue(hits.ranges, range(textIterator(finder)));
-}
+    Seeder(TIndex & index, TOptions const & options) :
+        finder(index),
+        options(options)
+    {
+        // Set the error threshold.
+    //    setScoreThreshold(finder, options.errorsPerSeed);
+    }
+};
 
-#ifdef PLATFORM_CUDA
-template <typename TIndex, typename TSpec, typename TFinder>
-inline SEQAN_HOST_DEVICE void
-appendRange(Hits<TIndex, View<Device<TSpec> > > & /* hits */, TFinder const & /* finder */)
-{
-    // TODO(esiragusa): Global lock.
-//    appendValue(hits.ranges, range(textIterator(finder)));
-}
-#endif
+// ============================================================================
+// Functions
+// ============================================================================
 
 // ----------------------------------------------------------------------------
 // Kernel _fillSeedsKernel()
@@ -131,17 +132,17 @@ _fillSeedsKernel(TSeeds seeds, TReadSeqs readSeqs, TSize seedLength, TSize readS
 // ----------------------------------------------------------------------------
 
 #ifdef PLATFORM_CUDA
-template <typename TSeeds, typename TReadSeqs, typename TSize>
-inline void
-_fillSeeds(TSeeds & seeds, TReadSeqs /* const */ & readSeqs,
-           TSize seedLength, TSize readSeqsCount, TSize seedsPerReadSeq,
-           ExecDevice const & /* tag */)
+template <typename TConfig, typename TReadSeqs, typename TSize>
+inline void _fillSeeds(Seeder<ExecDevice, TConfig> & seeder, TReadSeqs & readSeqs)
+                       TSize readSeqsCount, TSize seedsPerReadSeq)
 {
     // Compute grid size.
     unsigned ctaSize = 256;
     unsigned activeBlocks = (readSeqsCount + ctaSize - 1) / ctaSize;
 
-    _fillSeedsKernel<<<activeBlocks, ctaSize>>>(view(seeds), view(readSeqs), seedLength, readSeqsCount, seedsPerReadSeq);
+    _fillSeedsKernel<<<activeBlocks, ctaSize>>>(view(seeder.seeds), view(readSeqs),
+                                                static_cast<TSize>(seeder.options.seedLength),
+                                                readSeqsCount, seedsPerReadSeq);
 }
 #endif
 
@@ -149,11 +150,9 @@ _fillSeeds(TSeeds & seeds, TReadSeqs /* const */ & readSeqs,
 // Function _fillSeeds(); ExecHost
 // ----------------------------------------------------------------------------
 
-template <typename TSeeds, typename TReadSeqs, typename TSize>
-inline void
-_fillSeeds(TSeeds & seeds, TReadSeqs /* const */ & readSeqs,
-           TSize seedLength, TSize readSeqsCount, TSize seedsPerReadSeq,
-           ExecHost const & /* tag */)
+template <typename TConfig, typename TReadSeqs, typename TSize>
+inline void _fillSeeds(Seeder<ExecHost, TConfig> & seeder, TReadSeqs & readSeqs,
+                       TSize readSeqsCount, TSize seedsPerReadSeq)
 {
     typedef typename Value<TReadSeqs>::Type                 TReadSeq;
     typedef typename Infix<TReadSeqs>::Type                 TReadSeqInfix;
@@ -164,29 +163,56 @@ _fillSeeds(TSeeds & seeds, TReadSeqs /* const */ & readSeqs,
 
         for (TSize seedId = 0; seedId < seedsPerReadSeq; ++seedId)
         {
-            TReadSeqInfix seedInfix = infix(readSeq, seedId * seedLength, (seedId + 1) * seedLength);
-            seeds[readSeqId * seedsPerReadSeq + seedId] = view(seedInfix);
+            TReadSeqInfix seedInfix = infix(readSeq, seedId * seeder.options.seedLength,
+                                                     (seedId + 1) * seeder.options.seedLength);
+
+            seeder.seeds[readSeqId * seedsPerReadSeq + seedId] = view(seedInfix);
         }
     }
 }
 
 // ----------------------------------------------------------------------------
-// Function fillSeeds()
+// Function _fillSeeds()
 // ----------------------------------------------------------------------------
 
-template <typename TSeeds, typename TReadSeqs, typename TSeedLength, typename TExecSpace>
-inline void
-fillSeeds(TSeeds & seeds, TReadSeqs /* const */ & readSeqs, TSeedLength seedLength, TExecSpace const & tag)
+template <typename TExecSpace, typename TConfig, typename TReadSeqs>
+inline void _fillSeeds(Seeder<TExecSpace, TConfig> & seeder, TReadSeqs & readSeqs)
 {
     typedef typename Size<TReadSeqs>::Type  TSize;
 
     TSize readSeqsCount = length(readSeqs);
     TSize readSeqLength = length(back(readSeqs));
-    TSize seedsPerReadSeq = readSeqLength / seedLength;
+    TSize seedsPerReadSeq = readSeqLength / seeder.options.seedLength;
 
-    resize(seeds, readSeqsCount * seedsPerReadSeq, Exact());
+    resize(seeder.seeds, readSeqsCount * seedsPerReadSeq, Exact());
 
-    _fillSeeds(seeds, readSeqs, static_cast<TSize>(seedLength), readSeqsCount, seedsPerReadSeq, tag);
+    _fillSeeds(seeder, readSeqs, readSeqsCount, seedsPerReadSeq);
+}
+
+// ----------------------------------------------------------------------------
+// Function runSeeder()
+// ----------------------------------------------------------------------------
+
+template <typename TExecSpace, typename TConfig, typename TDelegate>
+void runSeeder(Seeder<TExecSpace, TConfig> & seeder, typename TConfig::TReadSeqs & readSeqs, TDelegate & delegate)
+{
+    typedef Seeder<TExecSpace, TConfig>     TSeeder;
+    typedef typename TSeeder::TPattern      TPattern;
+
+    clear(seeder.seeds);
+
+    // Collect seeds from read seqs.
+    _fillSeeds(seeder, readSeqs);
+    std::cout << "Seeds count:\t\t\t" << length(seeder.seeds) << std::endl;
+
+    // Instantiate a pattern object.
+    TPattern pattern(seeder.seeds);
+
+    // Resize space for hits.
+    init(delegate, pattern);
+
+    // Find hits.
+    find(seeder.finder, pattern, delegate);
 }
 
 #endif  // #ifndef APP_CUDAMAPPER_FILTER_H_

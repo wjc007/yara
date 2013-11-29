@@ -84,6 +84,13 @@ struct Mapper
     typedef ReadsConfig<False, False, True, True, CUDAStoreConfig>  TReadsConfig;
     typedef Reads<void, TReadsConfig>                               TReads;
     typedef ReadsLoader<void, TReadsConfig>                         TReadsLoader;
+    typedef typename TStore::TReadSeqStore                          TReadSeqs;
+
+    typedef SeederConfig<Options, TIndex, TStore::TReadSeqStore>    TSeederConfig;
+    typedef Seeder<TExecSpace, TSeederConfig>                       TSeeder;
+
+    Timer<double>       timer;
+    Options const &     options;
 
     TGenome             genome;
 #ifdef ENABLE_GENOME_LOADING
@@ -105,7 +112,8 @@ struct Mapper
         index(),
         store(),
         reads(store),
-        readsLoader(reads)
+        readsLoader(reads),
+        seeder(index, options)
     {};
 };
 
@@ -220,29 +228,9 @@ void _mapReads(Mapper<TExecSpace> & mapper, TReadSeqs & readSeqs)
 
     start(mapper.timer);
 
-//SEQAN_OMP_PRAGMA(critical(_mapper_mapReads_filter))
-//{
-    // Instantiate a multiple finder.
-    TFinder finder(mapper.index);
-//    setScoreThreshold(finder, options.errorsPerSeed);
-
-    // Collect seeds from read seqs.
-    TSeeds seeds;
-    fillSeeds(seeds, readSeqs, options.seedLength, TExecSpace());
-    std::cout << "Seeds count:\t\t\t" << length(seeds) << std::endl;
-
-    // Instantiate a pattern object.
-    TPattern pattern(seeds);
-
     // Instantiate an object to save the hits.
     TCounter hits;
-
-    // Resize space for hits.
-    init(hits, pattern);
-
-    // Find hits.
-    find(finder, pattern, hits);
-//}
+    runSeeder(mapper.seeder, readSeqs, hits);
 
 #ifdef PLATFORM_CUDA
     cudaDeviceSynchronize();
