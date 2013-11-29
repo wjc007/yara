@@ -100,19 +100,21 @@ if (SEQAN_HAS_CUDA)
                                   mapper.cuh
                                   tags.h
                                   types.h
+                                  index.h
                                   misc.h
                                   options.h
                                   reads.h
                                   genome.h)
 else ()
-  add_executable(cuda_mapper mapper.cpp
-                             mapper.h
-                             tags.h
-                             types.h
-                             misc.h
-                             options.h
-                             reads.h
-                             genome.h)
+  add_executable(cuda_mapper      mapper.cpp
+                                  mapper.h
+                                  tags.h
+                                  types.h
+                                  index.h
+                                  misc.h
+                                  options.h
+                                  reads.h
+                                  genome.h)
 endif ()
 
 # Add dependencies found by find_package (SeqAn).

@@ -61,6 +61,7 @@
 #include "types.h"
 #include "misc.h"
 //#include "options.h"
+#include "index.h"
 #include "mapper.h"
 #include "mapper.cuh"
 
@@ -70,47 +71,28 @@ using namespace seqan;
 // Functions
 // ============================================================================
 
-// ----------------------------------------------------------------------------
-// Function assign()                                                  [FMIndex]
-// ----------------------------------------------------------------------------
-// NOTE(esiragusa): We do not assign the text to the device index!
-
-namespace seqan {
-template <typename TValue, typename TAlloc, typename TSSetSpec, typename TOccSpec, typename TSpec,
-          typename TText2, typename TOccSpec2, typename TSpec2>
-inline void
-assign(Index<StringSet<thrust::device_vector<TValue, TAlloc>, TSSetSpec>, FMIndex<TOccSpec, TSpec> > & index,
-       Index<TText2, FMIndex<TOccSpec2, TSpec2> > & source)
-{
-    cudaPrintFreeMemory();
-
-    assign(indexSA(index), indexSA(source));
-    assign(indexLF(index), indexLF(source));
-
-    cudaPrintFreeMemory();
-}
-}
-
 // --------------------------------------------------------------------------
 // Function mapReads()
 // --------------------------------------------------------------------------
 
 void mapReads(Mapper<ExecDevice> & mapper, Options const & options)
 {
-    typedef typename Device<TGenomeIndex>::Type                 TDeviceIndex;
     typedef typename Device<TReadSeqs>::Type                    TDeviceReadSeqs;
-
-    // Copy index to device.
-    TDeviceIndex deviceIndex;
-    assign(deviceIndex, mapper.index);
 
     // Copy read seqs to device.
     TDeviceReadSeqs deviceReadSeqs;
     assign(deviceReadSeqs, getSeqs(mapper.reads));
 
-    // Wait for the copy to finish.
-    cudaDeviceSynchronize();
-
     // Map reads.
-    _mapReads(mapper, options, deviceIndex, deviceReadSeqs);
+    _mapReads(mapper, options, deviceReadSeqs);
+}
+
+// --------------------------------------------------------------------------
+// Function spawnMapper()
+// --------------------------------------------------------------------------
+
+void spawnMapper(Options const & options, ExecDevice const & /* tag */)
+{
+    Mapper<ExecDevice> mapper;
+    runMapper(mapper, options);
 }

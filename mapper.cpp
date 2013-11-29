@@ -61,6 +61,7 @@
 #include "types.h"
 #include "misc.h"
 #include "options.h"
+#include "index.h"
 #include "mapper.h"
 #ifndef CUDA_DISABLED
 #include "mapper.cuh"
@@ -175,17 +176,11 @@ int configureMapper(Options const & options)
 {
 #ifndef CUDA_DISABLED
     if (options.noCuda)
-    {
 #endif
-        Mapper<ExecHost> mapper;
-        runMapper(mapper, options);
+        spawnMapper(options, ExecHost());
 #ifndef CUDA_DISABLED
-    }
     else
-    {
-        Mapper<ExecDevice> mapper;
-        runMapper(mapper, options);
-    }
+        spawnMapper(options, ExecDevice());
 #endif
 
     return 0;

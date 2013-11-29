@@ -151,6 +151,20 @@ struct SAValue<TContigs>
 {
     typedef Pair<__uint8, __uint32, Pack> Type;
 };
+
+template <>
+struct SAValue<View<TContigs>::Type>
+{
+    typedef Pair<__uint8, __uint32, Pack> Type;
+};
+
+#ifdef PLATFORM_CUDA
+template <>
+struct SAValue<Device<TContigs>::Type>
+{
+    typedef Pair<__uint8, __uint32, Pack> Type;
+};
+#endif
 }
 
 // ----------------------------------------------------------------------------
@@ -180,20 +194,20 @@ struct Size<TGenomeIndex>
 };
 
 template <>
-struct Size<typename View<TGenomeIndex>::Type>
+struct Size<View<TGenomeIndex>::Type>
 {
     typedef __uint32 Type;
 };
 
 #ifdef PLATFORM_CUDA
 template <>
-struct Size<typename Device<TGenomeIndex>::Type>
+struct Size<Device<TGenomeIndex>::Type>
 {
     typedef __uint32 Type;
 };
 
 template <>
-struct Size<typename View<typename Device<TGenomeIndex>::Type>::Type>
+struct Size<View<Device<TGenomeIndex>::Type>::Type>
 {
     typedef __uint32 Type;
 };
