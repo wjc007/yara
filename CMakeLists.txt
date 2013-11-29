@@ -88,10 +88,10 @@ set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${SEQAN_CXX_FLAGS}")
 
 # Update the list of file names below if you add source files to your application.
 add_executable(cuda_indexer indexer.cpp
-                            types.h
+                            genome.h
                             misc.h
                             options.h
-                            genome.h)
+                            types.h)
 
 if (SEQAN_HAS_CUDA)
   cuda_add_executable(cuda_mapper mapper.cpp
@@ -99,22 +99,30 @@ if (SEQAN_HAS_CUDA)
                                   mapper.cu
                                   mapper.cuh
                                   tags.h
-                                  types.h
-                                  index.h
+                                  reads.h
+                                  genome.h
                                   misc.h
                                   options.h
-                                  reads.h
-                                  genome.h)
+                                  types.h
+                                  index.h
+                                  filter.h
+                                  locator.h
+                                  verifier.h
+                                  writer.h)
 else ()
   add_executable(cuda_mapper      mapper.cpp
                                   mapper.h
                                   tags.h
-                                  types.h
-                                  index.h
+                                  reads.h
+                                  genome.h
                                   misc.h
                                   options.h
-                                  reads.h
-                                  genome.h)
+                                  types.h
+                                  index.h
+                                  filter.h
+                                  locator.h
+                                  verifier.h
+                                  writer.h)
 endif ()
 
 # Add dependencies found by find_package (SeqAn).
