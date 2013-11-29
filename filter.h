@@ -37,5 +37,238 @@
 
 using namespace seqan;
 
+// ============================================================================
+// Tags
+// ============================================================================
+
+// ----------------------------------------------------------------------------
+// Tag Ranges_
+// ----------------------------------------------------------------------------
+
+struct Ranges_;
+
+// ----------------------------------------------------------------------------
+// Class Hits
+// ----------------------------------------------------------------------------
+
+template <typename TIndex, typename TSpec = void>
+struct Hits
+{
+    typename Member<Hits, Ranges_>::Type    ranges;
+
+    template <typename TFinder>
+    inline SEQAN_HOST_DEVICE void
+    operator() (TFinder const & finder)
+    {
+        appendRange(*this, finder);
+    }
+};
+
+// ============================================================================
+// Metafunctions
+// ============================================================================
+
+// ----------------------------------------------------------------------------
+// Member Ranges_
+// ----------------------------------------------------------------------------
+
+struct Ranges_;
+
+namespace seqan {
+template <typename TIndex, typename TSpec>
+struct Member<Hits<TIndex, TSpec>, Ranges_>
+{
+    typedef Pair<typename Size<TIndex>::Type>   TRange_;
+    typedef String<TRange_>                     Type;
+};
+
+#ifdef PLATFORM_CUDA
+template <typename TIndex, typename TSpec>
+struct Member<Hits<TIndex, Device<TSpec> >, Ranges_>
+{
+    typedef Pair<typename Size<TIndex>::Type>   TRange_;
+    typedef thrust::device_vector<TRange_>      Type;
+};
+#endif
+
+template <typename TIndex, typename TSpec>
+struct Member<Hits<TIndex, View<TSpec> >, Ranges_>
+{
+    typedef typename Member<Hits<TIndex, TSpec>, Ranges_>::Type TRanges_;
+    typedef ContainerView<TRanges_, Resizable<TSpec> >          Type;
+};
+}
+
+// ----------------------------------------------------------------------------
+// Metafunction View
+// ----------------------------------------------------------------------------
+
+namespace seqan {
+template <typename TIndex, typename TSpec>
+struct View<Hits<TIndex, TSpec> >
+{
+    typedef Hits<TIndex, View<TSpec> >  Type;
+};
+}
+
+// ----------------------------------------------------------------------------
+// Metafunction Device
+// ----------------------------------------------------------------------------
+
+namespace seqan {
+template <typename TIndex, typename TSpec>
+struct Device<Hits<TIndex, TSpec> >
+{
+    typedef Hits<TIndex, Device<TSpec> >  Type;
+};
+}
+
+// ----------------------------------------------------------------------------
+// Metafunction Seed
+// ----------------------------------------------------------------------------
+
+template <typename TNeedles, typename TSpec = void>
+struct Seed
+{
+    typedef typename Value<TNeedles>::Type  TNeedle_;
+    typedef typename View<TNeedle_>::Type   Type;
+};
+
+// ============================================================================
+// Functions
+// ============================================================================
+
+// ----------------------------------------------------------------------------
+// Function init()
+// ----------------------------------------------------------------------------
+
+template <typename TIndex, typename TSpec, typename TPattern>
+inline void
+init(Hits<TIndex, TSpec> & hits, TPattern const & pattern)
+{
+    reserve(hits.ranges, length(needle(pattern)), Exact());
+}
+
+// ----------------------------------------------------------------------------
+// Function view()
+// ----------------------------------------------------------------------------
+
+template <typename TIndex, typename TSpec>
+typename View<Hits<TIndex, TSpec> >::Type
+view(Hits<TIndex, TSpec> & hits)
+{
+    typename View<Hits<TIndex, TSpec> >::Type hitsView;
+
+    hitsView.ranges = view(hits.ranges);
+
+    return hitsView;
+}
+
+// ----------------------------------------------------------------------------
+// Function appendRange()
+// ----------------------------------------------------------------------------
+
+template <typename TIndex, typename TSpec, typename TFinder>
+inline void
+appendRange(Hits<TIndex, TSpec> & hits, TFinder const & finder)
+{
+    SEQAN_OMP_PRAGMA(critical(Hits_appendRange))
+    appendValue(hits.ranges, range(textIterator(finder)));
+}
+
+#ifdef PLATFORM_CUDA
+template <typename TIndex, typename TSpec, typename TFinder>
+inline SEQAN_HOST_DEVICE void
+appendRange(Hits<TIndex, View<Device<TSpec> > > & /* hits */, TFinder const & /* finder */)
+{
+    // TODO(esiragusa): Global lock.
+//    appendValue(hits.ranges, range(textIterator(finder)));
+}
+#endif
+
+// ----------------------------------------------------------------------------
+// Kernel _fillSeedsKernel()
+// ----------------------------------------------------------------------------
+
+#ifdef PLATFORM_CUDA
+template <typename TSeeds, typename TReadSeqs, typename TSize>
+SEQAN_GLOBAL void
+_fillSeedsKernel(TSeeds seeds, TReadSeqs readSeqs, TSize seedLength, TSize readSeqsCount, TSize seedsPerReadSeq)
+{
+    typedef typename Value<TReadSeqs>::Type                 TReadSeq;
+
+    TSize readSeqId = getThreadId();
+
+    if (readSeqId >= readSeqsCount) return;
+
+    TReadSeq const & readSeq = readSeqs[readSeqId];
+
+    for (TSize seedId = 0; seedId < seedsPerReadSeq; ++seedId)
+        seeds[readSeqId * seedsPerReadSeq + seedId] = infix(readSeq, seedId * seedLength, (seedId + 1) * seedLength);
+}
+#endif
+
+// ----------------------------------------------------------------------------
+// Function _fillSeeds(); ExecDevice
+// ----------------------------------------------------------------------------
+
+#ifdef PLATFORM_CUDA
+template <typename TSeeds, typename TReadSeqs, typename TSize>
+inline void
+_fillSeeds(TSeeds & seeds, TReadSeqs /* const */ & readSeqs,
+           TSize seedLength, TSize readSeqsCount, TSize seedsPerReadSeq,
+           ExecDevice const & /* tag */)
+{
+    // Compute grid size.
+    unsigned ctaSize = 256;
+    unsigned activeBlocks = (readSeqsCount + ctaSize - 1) / ctaSize;
+
+    _fillSeedsKernel<<<activeBlocks, ctaSize>>>(view(seeds), view(readSeqs), seedLength, readSeqsCount, seedsPerReadSeq);
+}
+#endif
+
+// ----------------------------------------------------------------------------
+// Function _fillSeeds(); ExecHost
+// ----------------------------------------------------------------------------
+
+template <typename TSeeds, typename TReadSeqs, typename TSize>
+inline void
+_fillSeeds(TSeeds & seeds, TReadSeqs /* const */ & readSeqs,
+           TSize seedLength, TSize readSeqsCount, TSize seedsPerReadSeq,
+           ExecHost const & /* tag */)
+{
+    typedef typename Value<TReadSeqs>::Type                 TReadSeq;
+    typedef typename Infix<TReadSeqs>::Type                 TReadSeqInfix;
+
+    for (TSize readSeqId = 0; readSeqId != readSeqsCount; ++readSeqId)
+    {
+        TReadSeq const & readSeq = readSeqs[readSeqId];
+
+        for (TSize seedId = 0; seedId < seedsPerReadSeq; ++seedId)
+        {
+            TReadSeqInfix seedInfix = infix(readSeq, seedId * seedLength, (seedId + 1) * seedLength);
+            seeds[readSeqId * seedsPerReadSeq + seedId] = view(seedInfix);
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------
+// Function fillSeeds()
+// ----------------------------------------------------------------------------
+
+template <typename TSeeds, typename TReadSeqs, typename TSeedLength, typename TExecSpace>
+inline void
+fillSeeds(TSeeds & seeds, TReadSeqs /* const */ & readSeqs, TSeedLength seedLength, TExecSpace const & tag)
+{
+    typedef typename Size<TReadSeqs>::Type  TSize;
+
+    TSize readSeqsCount = length(readSeqs);
+    TSize readSeqLength = length(back(readSeqs));
+    TSize seedsPerReadSeq = readSeqLength / seedLength;
+
+    resize(seeds, readSeqsCount * seedsPerReadSeq, Exact());
+
+    _fillSeeds(seeds, readSeqs, static_cast<TSize>(seedLength), readSeqsCount, seedsPerReadSeq, tag);
+}
 
 #endif  // #ifndef APP_CUDAMAPPER_FILTER_H_
