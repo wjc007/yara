@@ -58,12 +58,15 @@
 // App headers
 // ----------------------------------------------------------------------------
 
-#include "types.h"
 #include "misc.h"
 //#include "options.h"
+#include "types.h"
 #include "index.h"
+#include "filter.h"
+#include "locator.h"
+#include "verifier.h"
+#include "writer.h"
 #include "mapper.h"
-#include "mapper.cuh"
 
 using namespace seqan;
 
