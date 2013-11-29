@@ -205,6 +205,10 @@ void runSeeder(Seeder<TExecSpace, TConfig> & seeder, typename TConfig::TReadSeqs
     _fillSeeds(seeder, readSeqs);
     std::cout << "Seeds count:\t\t\t" << length(seeder.seeds) << std::endl;
 
+#ifdef PLATFORM_CUDA
+    cudaPrintFreeMemory();
+#endif
+
     // Instantiate a pattern object.
     TPattern pattern(seeder.seeds);
 
@@ -213,6 +217,10 @@ void runSeeder(Seeder<TExecSpace, TConfig> & seeder, typename TConfig::TReadSeqs
 
     // Find hits.
     find(seeder.finder, pattern, delegate);
+
+#ifdef PLATFORM_CUDA
+    cudaPrintFreeMemory();
+#endif
 }
 
 #endif  // #ifndef APP_CUDAMAPPER_FILTER_H_
