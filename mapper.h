@@ -287,6 +287,7 @@ void runMapper(Mapper<TExecSpace> & mapper, Parallel)
     typedef Reads<void, typename TMapper::TReadsConfig> TReads;
     typedef Logger<std::ostream>                        TLogger;
 
+    Timer<double> timer;
     TLogger cout(std::cout);
     TLogger cerr(std::cerr);
 
