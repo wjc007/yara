@@ -57,9 +57,10 @@
 // App headers
 // ----------------------------------------------------------------------------
 
-#include "types.h"
 #include "misc.h"
 #include "options.h"
+#include "types.h"
+#include "index.h"
 
 using namespace seqan;
 
@@ -103,27 +104,6 @@ struct Indexer
 // ============================================================================
 // Functions
 // ============================================================================
-
-// ----------------------------------------------------------------------------
-// Function save()
-// ----------------------------------------------------------------------------
-// This function is overloaded to avoid saving the text.
-
-namespace seqan {
-template <typename TText, typename TSpec, typename TConfig>
-inline bool save(Index<TText, FMIndex<TSpec, TConfig> > const & index, const char * fileName, int openMode)
-{
-    String<char> name;
-
-    name = fileName;    append(name, ".sa");
-    if (!save(getFibre(index, FibreSA()), toCString(name), openMode)) return false;
-
-    name = fileName;    append(name, ".lf");
-    if (!save(getFibre(index, FibreLF()), toCString(name), openMode)) return false;
-
-    return true;
-}
-}
 
 // ----------------------------------------------------------------------------
 // Function setupArgumentParser()
@@ -243,13 +223,11 @@ void saveIndex(Indexer<TIndexSpec, TSpec> & indexer, Options const & options)
 // ----------------------------------------------------------------------------
 
 template <typename TIndexSpec, typename TSpec>
-int runIndexer(Indexer<TIndexSpec, TSpec> & indexer, Options const & options)
+void runIndexer(Indexer<TIndexSpec, TSpec> & indexer, Options const & options)
 {
     loadGenome(indexer, options);
     buildIndex(indexer);
     saveIndex(indexer, options);
-
-    return 0;
 }
 
 // ----------------------------------------------------------------------------
@@ -267,6 +245,16 @@ int main(int argc, char const ** argv)
     if (res != seqan::ArgumentParser::PARSE_OK)
         return res == seqan::ArgumentParser::PARSE_ERROR;
 
-    Indexer<TGenomeIndexSpec, void> indexer;
-    return runIndexer(indexer, options);
+    try
+    {
+        Indexer<TGenomeIndexSpec, void> indexer;
+        runIndexer(indexer, options);
+    }
+    catch (Exception const & e)
+    {
+        std::cout << e.what() << std::endl;
+        return 1;
+    }
+
+    return 0;
 }

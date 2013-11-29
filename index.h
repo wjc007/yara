@@ -38,6 +38,28 @@
 #define APP_CUDAMAPPER_INDEX_H_
 
 // ----------------------------------------------------------------------------
+// Function save()
+// ----------------------------------------------------------------------------
+// This function is overloaded to avoid saving the text.
+
+namespace seqan {
+template <typename TText, typename TSSetSpec, typename TSpec, typename TConfig>
+inline bool save(Index<StringSet<TText, TSSetSpec>, FMIndex<TSpec, TConfig> > & index,
+                 const char * fileName, int openMode)
+{
+    String<char> name;
+
+    name = fileName;    append(name, ".sa");
+    if (!save(getFibre(index, FibreSA()), toCString(name), openMode)) return false;
+
+    name = fileName;    append(name, ".lf");
+    if (!save(getFibre(index, FibreLF()), toCString(name), openMode)) return false;
+
+    return true;
+}
+}
+
+// ----------------------------------------------------------------------------
 // Function open()
 // ----------------------------------------------------------------------------
 // This function is overloaded to avoid loading the text.

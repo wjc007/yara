@@ -91,7 +91,8 @@ add_executable(cuda_indexer indexer.cpp
                             genome.h
                             misc.h
                             options.h
-                            types.h)
+                            types.h
+                            index.h)
 
 if (SEQAN_HAS_CUDA)
   cuda_add_executable(cuda_mapper mapper.cpp
