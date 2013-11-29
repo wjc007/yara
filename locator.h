@@ -37,5 +37,147 @@
 
 using namespace seqan;
 
+// ============================================================================
+// Tags
+// ============================================================================
+
+// ----------------------------------------------------------------------------
+// Tag Ranges_
+// ----------------------------------------------------------------------------
+
+struct Ranges_;
+
+// ============================================================================
+// Classes
+// ============================================================================
+
+// ----------------------------------------------------------------------------
+// Class Hits
+// ----------------------------------------------------------------------------
+
+template <typename TIndex, typename TSpec = void>
+struct Hits
+{
+    typename Member<Hits, Ranges_>::Type    ranges;
+
+    template <typename TFinder>
+    inline SEQAN_HOST_DEVICE void
+    operator() (TFinder const & finder)
+    {
+        appendRange(*this, finder);
+    }
+};
+
+// ============================================================================
+// Metafunctions
+// ============================================================================
+
+// ----------------------------------------------------------------------------
+// Member Ranges_
+// ----------------------------------------------------------------------------
+
+struct Ranges_;
+
+namespace seqan {
+template <typename TIndex, typename TSpec>
+struct Member<Hits<TIndex, TSpec>, Ranges_>
+{
+    typedef Pair<typename Size<TIndex>::Type>   TRange_;
+    typedef String<TRange_>                     Type;
+};
+
+#ifdef PLATFORM_CUDA
+template <typename TIndex, typename TSpec>
+struct Member<Hits<TIndex, Device<TSpec> >, Ranges_>
+{
+    typedef Pair<typename Size<TIndex>::Type>   TRange_;
+    typedef thrust::device_vector<TRange_>      Type;
+};
+#endif
+
+template <typename TIndex, typename TSpec>
+struct Member<Hits<TIndex, View<TSpec> >, Ranges_>
+{
+    typedef typename Member<Hits<TIndex, TSpec>, Ranges_>::Type TRanges_;
+    typedef ContainerView<TRanges_, Resizable<TSpec> >          Type;
+};
+}
+
+// ----------------------------------------------------------------------------
+// Metafunction View
+// ----------------------------------------------------------------------------
+
+namespace seqan {
+template <typename TIndex, typename TSpec>
+struct View<Hits<TIndex, TSpec> >
+{
+    typedef Hits<TIndex, View<TSpec> >  Type;
+};
+}
+
+// ----------------------------------------------------------------------------
+// Metafunction Device
+// ----------------------------------------------------------------------------
+
+namespace seqan {
+template <typename TIndex, typename TSpec>
+struct Device<Hits<TIndex, TSpec> >
+{
+    typedef Hits<TIndex, Device<TSpec> >  Type;
+};
+}
+
+// ============================================================================
+// Functions
+// ============================================================================
+
+// ----------------------------------------------------------------------------
+// Function init()
+// ----------------------------------------------------------------------------
+
+template <typename TIndex, typename TSpec, typename TPattern>
+inline void
+init(Hits<TIndex, TSpec> & hits, TPattern const & pattern)
+{
+    reserve(hits.ranges, length(needle(pattern)), Exact());
+}
+
+// ----------------------------------------------------------------------------
+// Function view()
+// ----------------------------------------------------------------------------
+
+template <typename TIndex, typename TSpec>
+typename View<Hits<TIndex, TSpec> >::Type
+view(Hits<TIndex, TSpec> & hits)
+{
+    typename View<Hits<TIndex, TSpec> >::Type hitsView;
+
+    hitsView.ranges = view(hits.ranges);
+
+    return hitsView;
+}
+
+// ----------------------------------------------------------------------------
+// Function appendRange()
+// ----------------------------------------------------------------------------
+
+template <typename TIndex, typename TSpec, typename TFinder>
+inline void
+appendRange(Hits<TIndex, TSpec> & hits, TFinder const & finder)
+{
+    SEQAN_OMP_PRAGMA(critical(Hits_appendRange))
+    appendValue(hits.ranges, range(textIterator(finder)));
+}
+
+#ifdef PLATFORM_CUDA
+template <typename TIndex, typename TSpec, typename TFinder>
+inline SEQAN_HOST_DEVICE void
+appendRange(Hits<TIndex, View<Device<TSpec> > > & /* hits */, TFinder const & /* finder */)
+{
+    // TODO(esiragusa): Global lock.
+//    appendValue(hits.ranges, range(textIterator(finder)));
+}
+#endif
+
 
 #endif  // #ifndef APP_CUDAMAPPER_LOCATOR_H_
