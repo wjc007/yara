@@ -61,6 +61,7 @@
 #include "types.h"
 #include "misc.h"
 #include "options.h"
+#include "index.h"
 #include "mapper.h"
 #ifndef CUDA_DISABLED
 #include "mapper.cuh"
