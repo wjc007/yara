@@ -133,7 +133,7 @@ _fillSeedsKernel(TSeeds seeds, TReadSeqs readSeqs, TSize seedLength, TSize readS
 
 #ifdef PLATFORM_CUDA
 template <typename TConfig, typename TReadSeqs, typename TSize>
-inline void _fillSeeds(Seeder<ExecDevice, TConfig> & seeder, TReadSeqs & readSeqs)
+inline void _fillSeeds(Seeder<ExecDevice, TConfig> & seeder, TReadSeqs & readSeqs,
                        TSize readSeqsCount, TSize seedsPerReadSeq)
 {
     // Compute grid size.

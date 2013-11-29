@@ -84,9 +84,10 @@ struct Mapper
     typedef ReadsConfig<False, False, True, True, CUDAStoreConfig>  TReadsConfig;
     typedef Reads<void, TReadsConfig>                               TReads;
     typedef ReadsLoader<void, TReadsConfig>                         TReadsLoader;
-    typedef typename TStore::TReadSeqStore                          TReadSeqs;
+    typedef typename TStore::TReadSeqStore                          THostReadSeqs;
+    typedef typename Space<THostReadSeqs, TExecSpace>::Type         TReadSeqs;
 
-    typedef SeederConfig<Options, TIndex, TStore::TReadSeqStore>    TSeederConfig;
+    typedef SeederConfig<Options, TIndex, TReadSeqs>                TSeederConfig;
     typedef Seeder<TExecSpace, TSeederConfig>                       TSeeder;
 
     Timer<double>       timer;

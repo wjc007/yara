@@ -80,10 +80,8 @@ using namespace seqan;
 
 void mapReads(Mapper<ExecDevice> & mapper)
 {
-    typedef typename Device<TReadSeqs>::Type                    TDeviceReadSeqs;
-
     // Copy read seqs to device.
-    TDeviceReadSeqs deviceReadSeqs;
+    typename Mapper<ExecDevice>::TReadSeqs deviceReadSeqs;
     assign(deviceReadSeqs, getSeqs(mapper.reads));
 
     // Map reads.
