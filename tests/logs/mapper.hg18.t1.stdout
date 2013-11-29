@@ -1,7 +1,7 @@
 Threads count:			1
-Loading genome index:		18.7097 sec
-Loading reads:			0.228435 sec
+Loading genome index:		3.0781 sec
+Loading reads:			0.235982 sec
 Reads count:			200000
 Seeds count:			1200000
-Mapping time:			2.3761 sec
-Hits count:			3204018803
+Mapping time:			2.25014 sec
+Hits count:			2252361298
