@@ -301,6 +301,25 @@ inline bool open(Index<StringSet<TText, TSSetSpec>, FMIndex<TSpec, TConfig> > & 
 }
 }
 
+#ifdef PLATFORM_CUDA
+namespace seqan {
+template <typename TValue, typename TTraits, typename TSSetSpec, typename TSpec, typename TConfig>
+inline bool open(Index<StringSet<thrust::device_vector<TValue, TTraits>, TSSetSpec>, FMIndex<TSpec, TConfig> > & index,
+                 const char * fileName, int openMode)
+{
+    typedef StringSet<String<TValue>, TSSetSpec>    TText;
+    typedef Index<TText, FMIndex<TSpec, TConfig> >  THostIndex;
+
+    THostIndex hindex;
+    if (!open(hindex, fileName, openMode)) return false;
+
+    assign(index, hindex);
+
+    return true;
+}
+}
+#endif
+
 // ----------------------------------------------------------------------------
 // Function assign()                                                  [FMIndex]
 // ----------------------------------------------------------------------------
@@ -316,7 +335,7 @@ assign(Index<StringSet<TText, TSSetSpec>, FMIndex<TSpec, TConfig> > & index,
     assign(indexLF(index), indexLF(source));
     assign(indexSA(index), indexSA(source));
 
-    // Set the pointer.
+    // Set the CSA pointer to LF.
     setFibre(indexSA(index), indexLF(index), FibreLF());
 }
 }
@@ -476,28 +495,6 @@ void loadGenomeIndex(Mapper<TExecSpace> & mapper, Options const & options)
     cudaPrintFreeMemory();
 #endif
 }
-
-#ifdef PLATFORM_CUDA
-template <>
-void loadGenomeIndex(Mapper<ExecDevice> & mapper, Options const & options)
-{
-    cudaPrintFreeMemory();
-
-    std::cout << "Loading genome index:\t\t" << std::flush;
-    start(mapper.timer);
-
-    typename Mapper<ExecDevice>::THostIndex index;
-    if (!open(index, toCString(options.genomeIndexFile)))
-        throw RuntimeError("Error while opening genome index file.");
-
-    assign(mapper.index, index);
-
-    stop(mapper.timer);
-    std::cout << mapper.timer << std::endl;
-
-    cudaPrintFreeMemory();
-}
-#endif
 
 // ----------------------------------------------------------------------------
 // Function loadReads()
