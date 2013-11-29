@@ -176,7 +176,7 @@ parseCommandLine(Options & options, ArgumentParser & parser, int argc, char cons
 // Function configureMapper()
 // ----------------------------------------------------------------------------
 
-int configureMapper(Options const & options)
+void configureMapper(Options const & options)
 {
 #ifndef CUDA_DISABLED
     if (options.noCuda)

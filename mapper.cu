@@ -78,7 +78,7 @@ using namespace seqan;
 // Function mapReads()
 // --------------------------------------------------------------------------
 
-void mapReads(Mapper<ExecDevice> & mapper, Options const & options)
+void mapReads(Mapper<ExecDevice> & mapper)
 {
     typedef typename Device<TReadSeqs>::Type                    TDeviceReadSeqs;
 
@@ -87,7 +87,7 @@ void mapReads(Mapper<ExecDevice> & mapper, Options const & options)
     assign(deviceReadSeqs, getSeqs(mapper.reads));
 
     // Map reads.
-    _mapReads(mapper, options, deviceReadSeqs);
+    _mapReads(mapper, deviceReadSeqs);
 }
 
 // --------------------------------------------------------------------------
@@ -96,6 +96,6 @@ void mapReads(Mapper<ExecDevice> & mapper, Options const & options)
 
 void spawnMapper(Options const & options, ExecDevice const & /* tag */)
 {
-    Mapper<ExecDevice> mapper;
-    runMapper(mapper, options);
+    Mapper<ExecDevice> mapper(options);
+    runMapper(mapper);
 }
