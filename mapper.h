@@ -130,7 +130,7 @@ template <typename TExecSpace>
 void configureThreads(Mapper<TExecSpace> & mapper)
 {
 #ifdef _OPENMP
-    omp_set_num_threads(mapper.optionsthreadsCount);
+    omp_set_num_threads(mapper.options.threadsCount);
     std::cout << "Threads count:\t\t\t" << omp_get_max_threads() << std::endl;
 #else
     ignoreUnusedVariableWarning(mapper);
@@ -145,7 +145,7 @@ template <typename TExecSpace>
 void loadGenome(Mapper<TExecSpace> & mapper)
 {
 #ifdef ENABLE_GENOME_LOADING
-    open(mapper.genomeLoader, mapper.optionsgenomeFile);
+    open(mapper.genomeLoader, mapper.options.genomeFile);
 
     std::cout << "Loading genome:\t\t\t" << std::flush;
     start(mapper.timer);
