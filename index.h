@@ -125,4 +125,36 @@ view(Index<StringSet<TText, TSSetSpec>, FMIndex<TSpec, TConfig> > & index)
 }
 }
 
+// ----------------------------------------------------------------------------
+// Function _getNodeByChar()
+// ----------------------------------------------------------------------------
+// This function is overloaded for Dna5 to let Ns always mismatch.
+
+namespace seqan {
+template <typename TText, typename TOccSpec, typename TIndexSpec, typename TSpec>
+SEQAN_HOST_DEVICE inline bool
+_getNodeByChar(Iter<Index<TText, FMIndex<TOccSpec, TIndexSpec> >, VSTree<TopDown<TSpec> > > const & it,
+               typename VertexDescriptor<Index<TText, FMIndex<TOccSpec, TIndexSpec> > >::Type const & vDesc,
+               Pair<typename Size<Index<TText, FMIndex<TOccSpec, TIndexSpec> > >::Type> & _range,
+               Dna5 c)
+{
+    typedef Index<TText, FMIndex<TOccSpec, TIndexSpec> >        TIndex;
+    typedef typename Fibre<TIndex, FibreLF>::Type               TLF;
+    typedef typename Value<TIndex>::Type                        TAlphabet;
+    typedef typename ValueSize<TAlphabet>::Type                 TAlphabetSize;
+
+    TIndex const & index = container(it);
+    TLF const & lf = indexLF(index);
+
+    if (ordValue(c) >= ValueSize<TAlphabet>::VALUE) return false;
+
+    _range = range(index, vDesc);
+
+    _range.i1 = lf(_range.i1, c);
+    _range.i2 = lf(_range.i2, c);
+
+    return _range.i1 < _range.i2;
+}
+}
+
 #endif  // #ifndef APP_CUDAMAPPER_INDEX_H_
