@@ -186,8 +186,6 @@ int configureMapper(Options const & options)
     else
         spawnMapper(options, ExecDevice());
 #endif
-
-    return 0;
 }
 
 // ----------------------------------------------------------------------------
@@ -205,5 +203,15 @@ int main(int argc, char const ** argv)
     if (res != seqan::ArgumentParser::PARSE_OK)
         return res == seqan::ArgumentParser::PARSE_ERROR;
 
-    return configureMapper(options);
+    try
+    {
+        configureMapper(options);
+    }
+    catch (Exception const & e)
+    {
+        std::cout << e.what() << std::endl;
+        return 1;
+    }
+
+    return 0;
 }
