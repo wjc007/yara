@@ -90,6 +90,14 @@ struct Mapper
     typedef SeederConfig<Options, TIndex, TReadSeqs>                TSeederConfig;
     typedef Seeder<TExecSpace, TSeederConfig>                       TSeeder;
 
+    typedef OccurrencesCounter<TIndex>                              TLocator;
+
+    typedef VerifierConfig<Options, TReadSeqs>                      TVerifierConfig;
+    typedef Verifier<TExecSpace, TVerifierConfig>                   TVerifier;
+
+    typedef WriterConfig<Options, TReadSeqs>                        TWriterConfig;
+    typedef Writer<TExecSpace, TWriterConfig>                       TWriter;
+
     Timer<double>       timer;
     Options const &     options;
 
@@ -103,6 +111,9 @@ struct Mapper
     TReadsLoader        readsLoader;
 
     TSeeder             seeder;
+    TLocator            locator;
+    TVerifier           verifier;
+    TWriter             writer;
 
     Mapper(Options const & options) :
         options(options),
@@ -114,7 +125,10 @@ struct Mapper
         store(),
         reads(store),
         readsLoader(reads),
-        seeder(index, options)
+        seeder(index, options),
+        locator(),
+        verifier(options),
+        writer(options)
     {};
 };
 
@@ -221,7 +235,6 @@ void _mapReads(Mapper<TExecSpace> & mapper, TReadSeqs & readSeqs)
 {
     typedef Mapper<TExecSpace>                              TMapper;
     typedef typename TMapper::TIndex                        TIndex;
-    typedef OccurrencesCounter<TIndex>                      TCounter;
 
 #ifdef PLATFORM_CUDA
     cudaDeviceSynchronize();
@@ -229,17 +242,16 @@ void _mapReads(Mapper<TExecSpace> & mapper, TReadSeqs & readSeqs)
 
     start(mapper.timer);
 
-    // Instantiate an object to save the hits.
-    TCounter hits;
-    runSeeder(mapper.seeder, readSeqs, hits);
+    runSeeder(mapper.seeder, readSeqs, mapper.locator);
 
 #ifdef PLATFORM_CUDA
     cudaDeviceSynchronize();
 #endif
 
     stop(mapper.timer);
+
     std::cout << "Mapping time:\t\t\t" << mapper.timer << std::endl;
-    std::cout << "Hits count:\t\t\t" << getCount(hits) << std::endl;
+    std::cout << "Hits count:\t\t\t" << getCount(mapper.locator) << std::endl;
 }
 
 // ----------------------------------------------------------------------------
