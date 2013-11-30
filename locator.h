@@ -52,13 +52,13 @@ struct Ranges_;
 // ============================================================================
 
 // ----------------------------------------------------------------------------
-// Class Hits
+// Class Locator
 // ----------------------------------------------------------------------------
 
 template <typename TIndex, typename TSpec = void>
-struct Hits
+struct Locator
 {
-    typename Member<Hits, Ranges_>::Type    ranges;
+    typename Member<Locator, Ranges_>::Type    ranges;
 
     template <typename TFinder>
     inline SEQAN_HOST_DEVICE void
@@ -80,7 +80,7 @@ struct Ranges_;
 
 namespace seqan {
 template <typename TIndex, typename TSpec>
-struct Member<Hits<TIndex, TSpec>, Ranges_>
+struct Member<Locator<TIndex, TSpec>, Ranges_>
 {
     typedef Pair<typename Size<TIndex>::Type>   TRange_;
     typedef String<TRange_>                     Type;
@@ -88,7 +88,7 @@ struct Member<Hits<TIndex, TSpec>, Ranges_>
 
 #ifdef PLATFORM_CUDA
 template <typename TIndex, typename TSpec>
-struct Member<Hits<TIndex, Device<TSpec> >, Ranges_>
+struct Member<Locator<TIndex, Device<TSpec> >, Ranges_>
 {
     typedef Pair<typename Size<TIndex>::Type>   TRange_;
     typedef thrust::device_vector<TRange_>      Type;
@@ -96,10 +96,10 @@ struct Member<Hits<TIndex, Device<TSpec> >, Ranges_>
 #endif
 
 template <typename TIndex, typename TSpec>
-struct Member<Hits<TIndex, View<TSpec> >, Ranges_>
+struct Member<Locator<TIndex, View<TSpec> >, Ranges_>
 {
-    typedef typename Member<Hits<TIndex, TSpec>, Ranges_>::Type TRanges_;
-    typedef ContainerView<TRanges_, Resizable<TSpec> >          Type;
+    typedef typename Member<Locator<TIndex, TSpec>, Ranges_>::Type  TRanges_;
+    typedef ContainerView<TRanges_, Resizable<TSpec> >              Type;
 };
 }
 
@@ -109,9 +109,9 @@ struct Member<Hits<TIndex, View<TSpec> >, Ranges_>
 
 namespace seqan {
 template <typename TIndex, typename TSpec>
-struct View<Hits<TIndex, TSpec> >
+struct View<Locator<TIndex, TSpec> >
 {
-    typedef Hits<TIndex, View<TSpec> >  Type;
+    typedef Locator<TIndex, View<TSpec> >  Type;
 };
 }
 
@@ -121,9 +121,9 @@ struct View<Hits<TIndex, TSpec> >
 
 namespace seqan {
 template <typename TIndex, typename TSpec>
-struct Device<Hits<TIndex, TSpec> >
+struct Device<Locator<TIndex, TSpec> >
 {
-    typedef Hits<TIndex, Device<TSpec> >  Type;
+    typedef Locator<TIndex, Device<TSpec> >  Type;
 };
 }
 
@@ -137,9 +137,9 @@ struct Device<Hits<TIndex, TSpec> >
 
 template <typename TIndex, typename TSpec, typename TPattern>
 inline void
-init(Hits<TIndex, TSpec> & hits, TPattern const & pattern)
+init(Locator<TIndex, TSpec> & locator, TPattern const & pattern)
 {
-    reserve(hits.ranges, length(needle(pattern)), Exact());
+    reserve(locator.ranges, length(needle(pattern)), Exact());
 }
 
 // ----------------------------------------------------------------------------
@@ -147,14 +147,14 @@ init(Hits<TIndex, TSpec> & hits, TPattern const & pattern)
 // ----------------------------------------------------------------------------
 
 template <typename TIndex, typename TSpec>
-typename View<Hits<TIndex, TSpec> >::Type
-view(Hits<TIndex, TSpec> & hits)
+typename View<Locator<TIndex, TSpec> >::Type
+view(Locator<TIndex, TSpec> & locator)
 {
-    typename View<Hits<TIndex, TSpec> >::Type hitsView;
+    typename View<Locator<TIndex, TSpec> >::Type locatorView;
 
-    hitsView.ranges = view(hits.ranges);
+    locatorView.ranges = view(locator.ranges);
 
-    return hitsView;
+    return locatorView;
 }
 
 // ----------------------------------------------------------------------------
@@ -163,19 +163,19 @@ view(Hits<TIndex, TSpec> & hits)
 
 template <typename TIndex, typename TSpec, typename TFinder>
 inline void
-appendRange(Hits<TIndex, TSpec> & hits, TFinder const & finder)
+appendRange(Locator<TIndex, TSpec> & locator, TFinder const & finder)
 {
-    SEQAN_OMP_PRAGMA(critical(Hits_appendRange))
-    appendValue(hits.ranges, range(textIterator(finder)));
+    SEQAN_OMP_PRAGMA(critical(Locator_appendRange))
+    appendValue(locator.ranges, range(textIterator(finder)));
 }
 
 #ifdef PLATFORM_CUDA
 template <typename TIndex, typename TSpec, typename TFinder>
 inline SEQAN_HOST_DEVICE void
-appendRange(Hits<TIndex, View<Device<TSpec> > > & /* hits */, TFinder const & /* finder */)
+appendRange(Locator<TIndex, View<Device<TSpec> > > & /* locator */, TFinder const & /* finder */)
 {
     // TODO(esiragusa): Global lock.
-//    appendValue(hits.ranges, range(textIterator(finder)));
+//    appendValue(locator.ranges, range(textIterator(finder)));
 }
 #endif
 
