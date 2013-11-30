@@ -112,8 +112,8 @@ struct Mapper
 
     TSeeder             seeder;
     TLocator            locator;
-    TVerifier           verifier;
-    TWriter             writer;
+//    TVerifier           verifier;
+//    TWriter             writer;
 
     Mapper(Options const & options) :
         options(options),
@@ -126,9 +126,10 @@ struct Mapper
         reads(store),
         readsLoader(reads),
         seeder(index, options),
-        locator(),
-        verifier(options),
-        writer(options)
+        locator()
+//        locator(index, options),
+//        verifier(contigs(genome), options),
+//        writer(genome, options)
     {};
 };
 
@@ -233,25 +234,26 @@ void mapReads(Mapper<TExecSpace> & mapper)
 template <typename TExecSpace, typename TReadSeqs>
 void _mapReads(Mapper<TExecSpace> & mapper, TReadSeqs & readSeqs)
 {
-    typedef Mapper<TExecSpace>                              TMapper;
-    typedef typename TMapper::TIndex                        TIndex;
-
-#ifdef PLATFORM_CUDA
-    cudaDeviceSynchronize();
-#endif
-
     start(mapper.timer);
-
     runSeeder(mapper.seeder, readSeqs, mapper.locator);
-
-#ifdef PLATFORM_CUDA
-    cudaDeviceSynchronize();
-#endif
-
     stop(mapper.timer);
-
-    std::cout << "Mapping time:\t\t\t" << mapper.timer << std::endl;
+    std::cout << "Seeding time:\t\t\t" << mapper.timer << std::endl;
     std::cout << "Hits count:\t\t\t" << getCount(mapper.locator) << std::endl;
+
+//    start(mapper.timer);
+//    runLocator(mapper.locator, mapper.verifier);
+//    stop(mapper.timer);
+//    std::cout << "Location time:\t\t\t" << mapper.timer << std::endl;
+
+//    start(mapper.timer);
+//    runVerifier(mapper.verifier, readSeqs, mapper.writer);
+//    stop(mapper.timer);
+//    std::cout << "Verification time:\t\t" << mapper.timer << std::endl;
+
+//    start(mapper.timer);
+//    runWriter(mapper.writer, readSeqs);
+//    stop(mapper.timer);
+//    std::cout << "Writing time:\t\t\t" << mapper.timer << std::endl;
 }
 
 // ----------------------------------------------------------------------------
