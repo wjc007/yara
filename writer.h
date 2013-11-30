@@ -37,5 +37,35 @@
 
 using namespace seqan;
 
+// ============================================================================
+// Classes
+// ============================================================================
+
+// ----------------------------------------------------------------------------
+// Class WriterConfig
+// ----------------------------------------------------------------------------
+
+template <typename TOptions_, typename TReadSeqs_>
+struct WriterConfig
+{
+    typedef TOptions_    TOptions;
+    typedef TReadSeqs_   TReadSeqs;
+};
+
+// ----------------------------------------------------------------------------
+// Class Writer
+// ----------------------------------------------------------------------------
+
+template <typename TExecSpace, typename TConfig>
+struct Writer
+{
+    typedef typename TConfig::TOptions                      TOptions;
+
+    TOptions const &    options;
+
+    Writer(TOptions const & options) :
+        options(options)
+    {}
+};
 
 #endif  // #ifndef APP_CUDAMAPPER_WRITER_H_

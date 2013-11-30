@@ -37,5 +37,35 @@
 
 using namespace seqan;
 
+// ============================================================================
+// Classes
+// ============================================================================
+
+// ----------------------------------------------------------------------------
+// Class VerifierConfig
+// ----------------------------------------------------------------------------
+
+template <typename TOptions_, typename TReadSeqs_>
+struct VerifierConfig
+{
+    typedef TOptions_    TOptions;
+    typedef TReadSeqs_   TReadSeqs;
+};
+
+// ----------------------------------------------------------------------------
+// Class Verifier
+// ----------------------------------------------------------------------------
+
+template <typename TExecSpace, typename TConfig>
+struct Verifier
+{
+    typedef typename TConfig::TOptions                      TOptions;
+
+    TOptions const &    options;
+
+    Verifier(TOptions const & options) :
+        options(options)
+    {}
+};
 
 #endif  // #ifndef APP_CUDAMAPPER_VERIFIER_H_
