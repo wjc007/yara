@@ -58,10 +58,14 @@
 // App headers
 // ----------------------------------------------------------------------------
 
-#include "types.h"
 #include "misc.h"
 #include "options.h"
+#include "types.h"
 #include "index.h"
+#include "filter.h"
+#include "locator.h"
+#include "verifier.h"
+#include "writer.h"
 #include "mapper.h"
 #ifndef CUDA_DISABLED
 #include "mapper.cuh"
@@ -172,7 +176,7 @@ parseCommandLine(Options & options, ArgumentParser & parser, int argc, char cons
 // Function configureMapper()
 // ----------------------------------------------------------------------------
 
-int configureMapper(Options const & options)
+void configureMapper(Options const & options)
 {
 #ifndef CUDA_DISABLED
     if (options.noCuda)
@@ -182,8 +186,6 @@ int configureMapper(Options const & options)
     else
         spawnMapper(options, ExecDevice());
 #endif
-
-    return 0;
 }
 
 // ----------------------------------------------------------------------------
@@ -201,5 +203,15 @@ int main(int argc, char const ** argv)
     if (res != seqan::ArgumentParser::PARSE_OK)
         return res == seqan::ArgumentParser::PARSE_ERROR;
 
-    return configureMapper(options);
+    try
+    {
+        configureMapper(options);
+    }
+    catch (Exception const & e)
+    {
+        std::cout << e.what() << std::endl;
+        return 1;
+    }
+
+    return 0;
 }

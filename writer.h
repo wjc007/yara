@@ -32,14 +32,40 @@
 // Author: Enrico Siragusa <enrico.siragusa@fu-berlin.de>
 // ==========================================================================
 
-#ifndef SEQAN_EXTRAS_CUDAMAPPER_MAPPER_CUH_
-#define SEQAN_EXTRAS_CUDAMAPPER_MAPPER_CUH_
+#ifndef APP_CUDAMAPPER_WRITER_H_
+#define APP_CUDAMAPPER_WRITER_H_
+
+using namespace seqan;
 
 // ============================================================================
-// Forwards
+// Classes
 // ============================================================================
 
-void mapReads(Mapper<ExecDevice> & mapper);
-void spawnMapper(Options const & options, ExecDevice const & /* tag */);
+// ----------------------------------------------------------------------------
+// Class WriterConfig
+// ----------------------------------------------------------------------------
 
-#endif  // #ifndef SEQAN_EXTRAS_CUDAMAPPER_MAPPER_CUH_
+template <typename TOptions_, typename TReadSeqs_>
+struct WriterConfig
+{
+    typedef TOptions_    TOptions;
+    typedef TReadSeqs_   TReadSeqs;
+};
+
+// ----------------------------------------------------------------------------
+// Class Writer
+// ----------------------------------------------------------------------------
+
+template <typename TExecSpace, typename TConfig>
+struct Writer
+{
+    typedef typename TConfig::TOptions                      TOptions;
+
+    TOptions const &    options;
+
+    Writer(TOptions const & options) :
+        options(options)
+    {}
+};
+
+#endif  // #ifndef APP_CUDAMAPPER_WRITER_H_

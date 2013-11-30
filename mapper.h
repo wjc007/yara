@@ -38,266 +38,6 @@
 using namespace seqan;
 
 // ============================================================================
-// Metafunctions
-// ============================================================================
-
-// ----------------------------------------------------------------------------
-// Metafunction Space
-// ----------------------------------------------------------------------------
-
-template <typename TObject, typename TSpec = void>
-struct Space
-{
-    typedef TObject Type;
-};
-
-template <typename TObject>
-struct Space<TObject, ExecDevice>
-{
-    typedef typename Device<TObject>::Type  Type;
-};
-
-// ============================================================================
-// Tags
-// ============================================================================
-
-// ----------------------------------------------------------------------------
-// Tag Ranges_
-// ----------------------------------------------------------------------------
-
-struct Ranges_;
-
-template <typename TSpec = void>
-struct Count;
-
-// ----------------------------------------------------------------------------
-// Class Hits
-// ----------------------------------------------------------------------------
-
-template <typename TIndex, typename TSpec = void>
-struct Hits
-{
-    typename Member<Hits, Ranges_>::Type    ranges;
-
-    template <typename TFinder>
-    inline SEQAN_HOST_DEVICE void
-    operator() (TFinder const & finder)
-    {
-        appendRange(*this, finder);
-    }
-};
-
-// ============================================================================
-// Metafunctions
-// ============================================================================
-
-// ----------------------------------------------------------------------------
-// Member Ranges_
-// ----------------------------------------------------------------------------
-
-struct Ranges_;
-
-namespace seqan {
-template <typename TIndex, typename TSpec>
-struct Member<Hits<TIndex, TSpec>, Ranges_>
-{
-    typedef Pair<typename Size<TIndex>::Type>   TRange_;
-    typedef String<TRange_>                     Type;
-};
-
-#ifdef PLATFORM_CUDA
-template <typename TIndex, typename TSpec>
-struct Member<Hits<TIndex, Device<TSpec> >, Ranges_>
-{
-    typedef Pair<typename Size<TIndex>::Type>   TRange_;
-    typedef thrust::device_vector<TRange_>      Type;
-};
-#endif
-
-template <typename TIndex, typename TSpec>
-struct Member<Hits<TIndex, View<TSpec> >, Ranges_>
-{
-    typedef typename Member<Hits<TIndex, TSpec>, Ranges_>::Type TRanges_;
-    typedef ContainerView<TRanges_, Resizable<TSpec> >          Type;
-};
-}
-
-// ----------------------------------------------------------------------------
-// Metafunction View
-// ----------------------------------------------------------------------------
-
-namespace seqan {
-template <typename TIndex, typename TSpec>
-struct View<Hits<TIndex, TSpec> >
-{
-    typedef Hits<TIndex, View<TSpec> >  Type;
-};
-}
-
-// ----------------------------------------------------------------------------
-// Metafunction Device
-// ----------------------------------------------------------------------------
-
-namespace seqan {
-template <typename TIndex, typename TSpec>
-struct Device<Hits<TIndex, TSpec> >
-{
-    typedef Hits<TIndex, Device<TSpec> >  Type;
-};
-}
-
-// ----------------------------------------------------------------------------
-// Metafunction Seed
-// ----------------------------------------------------------------------------
-
-template <typename TNeedles, typename TSpec = void>
-struct Seed
-{
-    typedef typename Value<TNeedles>::Type  TNeedle_;
-    typedef typename View<TNeedle_>::Type   Type;
-};
-
-// ============================================================================
-// Functions
-// ============================================================================
-
-// ----------------------------------------------------------------------------
-// Function init()
-// ----------------------------------------------------------------------------
-
-template <typename TIndex, typename TSpec, typename TPattern>
-inline void
-init(Hits<TIndex, TSpec> & hits, TPattern const & pattern)
-{
-    reserve(hits.ranges, length(needle(pattern)), Exact());
-}
-
-// ----------------------------------------------------------------------------
-// Function view()
-// ----------------------------------------------------------------------------
-
-template <typename TIndex, typename TSpec>
-typename View<Hits<TIndex, TSpec> >::Type
-view(Hits<TIndex, TSpec> & hits)
-{
-    typename View<Hits<TIndex, TSpec> >::Type hitsView;
-
-    hitsView.ranges = view(hits.ranges);
-
-    return hitsView;
-}
-
-// ----------------------------------------------------------------------------
-// Function appendRange()
-// ----------------------------------------------------------------------------
-
-template <typename TIndex, typename TSpec, typename TFinder>
-inline void
-appendRange(Hits<TIndex, TSpec> & hits, TFinder const & finder)
-{
-    SEQAN_OMP_PRAGMA(critical(Hits_appendRange))
-    appendValue(hits.ranges, range(textIterator(finder)));
-}
-
-#ifdef PLATFORM_CUDA
-template <typename TIndex, typename TSpec, typename TFinder>
-inline SEQAN_HOST_DEVICE void
-appendRange(Hits<TIndex, View<Device<TSpec> > > & /* hits */, TFinder const & /* finder */)
-{
-    // TODO(esiragusa): Global lock.
-//    appendValue(hits.ranges, range(textIterator(finder)));
-}
-#endif
-
-// ----------------------------------------------------------------------------
-// Kernel _fillSeedsKernel()
-// ----------------------------------------------------------------------------
-
-#ifdef PLATFORM_CUDA
-template <typename TSeeds, typename TReadSeqs, typename TSize>
-SEQAN_GLOBAL void
-_fillSeedsKernel(TSeeds seeds, TReadSeqs readSeqs, TSize seedLength, TSize readSeqsCount, TSize seedsPerReadSeq)
-{
-    typedef typename Value<TReadSeqs>::Type                 TReadSeq;
-
-    TSize readSeqId = getThreadId();
-
-    if (readSeqId >= readSeqsCount) return;
-
-    TReadSeq const & readSeq = readSeqs[readSeqId];
-
-    for (TSize seedId = 0; seedId < seedsPerReadSeq; ++seedId)
-        seeds[readSeqId * seedsPerReadSeq + seedId] = infix(readSeq, seedId * seedLength, (seedId + 1) * seedLength);
-}
-#endif
-
-// ----------------------------------------------------------------------------
-// Function _fillSeeds(); ExecDevice
-// ----------------------------------------------------------------------------
-
-#ifdef PLATFORM_CUDA
-template <typename TSeeds, typename TReadSeqs, typename TSize>
-inline void
-_fillSeeds(TSeeds & seeds, TReadSeqs /* const */ & readSeqs,
-           TSize seedLength, TSize readSeqsCount, TSize seedsPerReadSeq,
-           ExecDevice const & /* tag */)
-{
-    // Compute grid size.
-    unsigned ctaSize = 256;
-    unsigned activeBlocks = (readSeqsCount + ctaSize - 1) / ctaSize;
-
-    _fillSeedsKernel<<<activeBlocks, ctaSize>>>(view(seeds), view(readSeqs), seedLength, readSeqsCount, seedsPerReadSeq);
-}
-#endif
-
-// ----------------------------------------------------------------------------
-// Function _fillSeeds(); ExecHost
-// ----------------------------------------------------------------------------
-
-template <typename TSeeds, typename TReadSeqs, typename TSize>
-inline void
-_fillSeeds(TSeeds & seeds, TReadSeqs /* const */ & readSeqs,
-           TSize seedLength, TSize readSeqsCount, TSize seedsPerReadSeq,
-           ExecHost const & /* tag */)
-{
-    typedef typename Value<TReadSeqs>::Type                 TReadSeq;
-    typedef typename Infix<TReadSeqs>::Type                 TReadSeqInfix;
-
-    for (TSize readSeqId = 0; readSeqId != readSeqsCount; ++readSeqId)
-    {
-        TReadSeq const & readSeq = readSeqs[readSeqId];
-
-        for (TSize seedId = 0; seedId < seedsPerReadSeq; ++seedId)
-        {
-            TReadSeqInfix seedInfix = infix(readSeq, seedId * seedLength, (seedId + 1) * seedLength);
-            seeds[readSeqId * seedsPerReadSeq + seedId] = view(seedInfix);
-        }
-    }
-}
-
-// ----------------------------------------------------------------------------
-// Function fillSeeds()
-// ----------------------------------------------------------------------------
-
-template <typename TSeeds, typename TReadSeqs, typename TSeedLength, typename TExecSpace>
-inline void
-fillSeeds(TSeeds & seeds, TReadSeqs /* const */ & readSeqs, TSeedLength seedLength, TExecSpace const & tag)
-{
-    typedef typename Size<TReadSeqs>::Type  TSize;
-
-    TSize readSeqsCount = length(readSeqs);
-    TSize readSeqLength = length(back(readSeqs));
-    TSize seedsPerReadSeq = readSeqLength / seedLength;
-
-    resize(seeds, readSeqsCount * seedsPerReadSeq, Exact());
-
-    _fillSeeds(seeds, readSeqs, static_cast<TSize>(seedLength), readSeqsCount, seedsPerReadSeq, tag);
-}
-
-
-
-
-// ============================================================================
 // Classes
 // ============================================================================
 
@@ -344,6 +84,22 @@ struct Mapper
     typedef ReadsConfig<False, False, True, True, CUDAStoreConfig>  TReadsConfig;
     typedef Reads<void, TReadsConfig>                               TReads;
     typedef ReadsLoader<void, TReadsConfig>                         TReadsLoader;
+    typedef typename TStore::TReadSeqStore                          THostReadSeqs;
+    typedef typename Space<THostReadSeqs, TExecSpace>::Type         TReadSeqs;
+
+    typedef SeederConfig<Options, TIndex, TReadSeqs>                TSeederConfig;
+    typedef Seeder<TExecSpace, TSeederConfig>                       TSeeder;
+
+    typedef OccurrencesCounter<TIndex>                              TLocator;
+
+    typedef VerifierConfig<Options, TReadSeqs>                      TVerifierConfig;
+    typedef Verifier<TExecSpace, TVerifierConfig>                   TVerifier;
+
+    typedef WriterConfig<Options, TReadSeqs>                        TWriterConfig;
+    typedef Writer<TExecSpace, TWriterConfig>                       TWriter;
+
+    Timer<double>       timer;
+    Options const &     options;
 
     TGenome             genome;
 #ifdef ENABLE_GENOME_LOADING
@@ -354,9 +110,13 @@ struct Mapper
     TReads              reads;
     TReadsLoader        readsLoader;
 
-    Timer<double>       timer;
+    TSeeder             seeder;
+    TLocator            locator;
+//    TVerifier           verifier;
+//    TWriter             writer;
 
-    Mapper() :
+    Mapper(Options const & options) :
+        options(options),
         genome(),
 #ifdef ENABLE_GENOME_LOADING
         genomeLoader(genome),
@@ -364,7 +124,12 @@ struct Mapper
         index(),
         store(),
         reads(store),
-        readsLoader(reads)
+        readsLoader(reads),
+        seeder(index, options),
+        locator()
+//        locator(index, options),
+//        verifier(contigs(genome), options),
+//        writer(genome, options)
     {};
 };
 
@@ -378,13 +143,13 @@ struct Mapper
 // Sets the number of threads that OpenMP can spawn.
 
 template <typename TExecSpace>
-void configureThreads(Mapper<TExecSpace> & /* mapper */, Options const & options)
+void configureThreads(Mapper<TExecSpace> & mapper)
 {
 #ifdef _OPENMP
-    omp_set_num_threads(options.threadsCount);
+    omp_set_num_threads(mapper.options.threadsCount);
     std::cout << "Threads count:\t\t\t" << omp_get_max_threads() << std::endl;
 #else
-    ignoreUnusedVariableWarning(options);
+    ignoreUnusedVariableWarning(mapper);
 #endif
 }
 
@@ -393,10 +158,10 @@ void configureThreads(Mapper<TExecSpace> & /* mapper */, Options const & options
 // ----------------------------------------------------------------------------
 
 template <typename TExecSpace>
-void loadGenome(Mapper<TExecSpace> & mapper, Options const & options)
+void loadGenome(Mapper<TExecSpace> & mapper)
 {
 #ifdef ENABLE_GENOME_LOADING
-    open(mapper.genomeLoader, options.genomeFile);
+    open(mapper.genomeLoader, mapper.options.genomeFile);
 
     std::cout << "Loading genome:\t\t\t" << std::flush;
     start(mapper.timer);
@@ -405,7 +170,6 @@ void loadGenome(Mapper<TExecSpace> & mapper, Options const & options)
     std::cout << mapper.timer << std::endl;
 #else
     ignoreUnusedVariableWarning(mapper);
-    ignoreUnusedVariableWarning(options);
 #endif
 }
 
@@ -414,7 +178,7 @@ void loadGenome(Mapper<TExecSpace> & mapper, Options const & options)
 // ----------------------------------------------------------------------------
 
 template <typename TExecSpace>
-void loadGenomeIndex(Mapper<TExecSpace> & mapper, Options const & options)
+void loadGenomeIndex(Mapper<TExecSpace> & mapper)
 {
 #ifdef PLATFORM_CUDA
     cudaPrintFreeMemory();
@@ -423,7 +187,7 @@ void loadGenomeIndex(Mapper<TExecSpace> & mapper, Options const & options)
     std::cout << "Loading genome index:\t\t" << std::flush;
     start(mapper.timer);
 
-    if (!open(mapper.index, toCString(options.genomeIndexFile)))
+    if (!open(mapper.index, toCString(mapper.options.genomeIndexFile)))
         throw RuntimeError("Error while opening genome index file.");
 
     stop(mapper.timer);
@@ -439,11 +203,11 @@ void loadGenomeIndex(Mapper<TExecSpace> & mapper, Options const & options)
 // ----------------------------------------------------------------------------
 
 template <typename TExecSpace>
-void loadReads(Mapper<TExecSpace> & mapper, Options const & options)
+void loadReads(Mapper<TExecSpace> & mapper)
 {
     std::cout << "Loading reads:\t\t\t" << std::flush;
     start(mapper.timer);
-    load(mapper.readsLoader, options.mappingBlock);
+    load(mapper.readsLoader, mapper.options.mappingBlock);
     stop(mapper.timer);
     std::cout << mapper.timer << std::endl;
 
@@ -455,9 +219,12 @@ void loadReads(Mapper<TExecSpace> & mapper, Options const & options)
 // ----------------------------------------------------------------------------
 
 template <typename TExecSpace>
-void mapReads(Mapper<TExecSpace> & mapper, Options const & options)
+void mapReads(Mapper<TExecSpace> & mapper)
 {
-    _mapReads(mapper, options, getSeqs(mapper.reads));
+//SEQAN_OMP_PRAGMA(critical(_mapper_mapReads_filter))
+//{
+    _mapReads(mapper, getSeqs(mapper.reads));
+//}
 }
 
 // ----------------------------------------------------------------------------
@@ -465,57 +232,28 @@ void mapReads(Mapper<TExecSpace> & mapper, Options const & options)
 // ----------------------------------------------------------------------------
 
 template <typename TExecSpace, typename TReadSeqs>
-void _mapReads(Mapper<TExecSpace> & mapper, Options const & options, TReadSeqs & readSeqs)
+void _mapReads(Mapper<TExecSpace> & mapper, TReadSeqs & readSeqs)
 {
-    typedef Mapper<TExecSpace>                              TMapper;
-    typedef typename TMapper::TIndex                        TIndex;
-
-    typedef String<typename Seed<TReadSeqs>::Type>          TSeedsString;
-    typedef typename Space<TSeedsString, TExecSpace>::Type  TSeeds;
-
-//    typedef Multiple<Backtracking<HammingDistance> >    TAlgoSpec;
-    typedef Multiple<FinderSTree>                       TAlgoSpec;
-    typedef Pattern<TSeeds, TAlgoSpec>                  TPattern;
-    typedef Finder2<TIndex, TPattern, TAlgoSpec>        TFinder;
-    typedef OccurrencesCounter<TIndex>                  TCounter;
-
-#ifdef PLATFORM_CUDA
-    cudaDeviceSynchronize();
-#endif
-
     start(mapper.timer);
-
-//SEQAN_OMP_PRAGMA(critical(_mapper_mapReads_filter))
-//{
-    // Instantiate a multiple finder.
-    TFinder finder(mapper.index);
-//    setScoreThreshold(finder, options.errorsPerSeed);
-
-    // Collect seeds from read seqs.
-    TSeeds seeds;
-    fillSeeds(seeds, readSeqs, options.seedLength, TExecSpace());
-    std::cout << "Seeds count:\t\t\t" << length(seeds) << std::endl;
-
-    // Instantiate a pattern object.
-    TPattern pattern(seeds);
-
-    // Instantiate an object to save the hits.
-    TCounter hits;
-
-    // Resize space for hits.
-    init(hits, pattern);
-
-    // Find hits.
-    find(finder, pattern, hits);
-//}
-
-#ifdef PLATFORM_CUDA
-    cudaDeviceSynchronize();
-#endif
-
+    runSeeder(mapper.seeder, readSeqs, mapper.locator);
     stop(mapper.timer);
-    std::cout << "Mapping time:\t\t\t" << mapper.timer << std::endl;
-    std::cout << "Hits count:\t\t\t" << getCount(hits) << std::endl;
+    std::cout << "Seeding time:\t\t\t" << mapper.timer << std::endl;
+    std::cout << "Hits count:\t\t\t" << getCount(mapper.locator) << std::endl;
+
+//    start(mapper.timer);
+//    runLocator(mapper.locator, mapper.verifier);
+//    stop(mapper.timer);
+//    std::cout << "Location time:\t\t\t" << mapper.timer << std::endl;
+
+//    start(mapper.timer);
+//    runVerifier(mapper.verifier, readSeqs, mapper.writer);
+//    stop(mapper.timer);
+//    std::cout << "Verification time:\t\t" << mapper.timer << std::endl;
+
+//    start(mapper.timer);
+//    runWriter(mapper.writer, readSeqs);
+//    stop(mapper.timer);
+//    std::cout << "Writing time:\t\t\t" << mapper.timer << std::endl;
 }
 
 // ----------------------------------------------------------------------------
@@ -523,27 +261,27 @@ void _mapReads(Mapper<TExecSpace> & mapper, Options const & options, TReadSeqs &
 // ----------------------------------------------------------------------------
 
 template <typename TExecSpace>
-void runMapper(Mapper<TExecSpace> & mapper, Options const & options)
+void runMapper(Mapper<TExecSpace> & mapper)
 {
-    configureThreads(mapper, options);
+    configureThreads(mapper);
 
-    loadGenome(mapper, options);
-    loadGenomeIndex(mapper, options);
+    loadGenome(mapper);
+    loadGenomeIndex(mapper);
 
     // Open reads file.
-    open(mapper.readsLoader, options.readsFile);
+    open(mapper.readsLoader, mapper.options.readsFile);
 
     // Reserve space for reads.
-    reserve(mapper.reads, options.mappingBlock);
+    reserve(mapper.reads, mapper.options.mappingBlock);
 
     // Process reads in blocks.
     while (!atEnd(mapper.readsLoader))
     {
         // Load one block of reads.
-        loadReads(mapper, options);
+        loadReads(mapper);
 
         // Map this block of reads.
-        mapReads(mapper, options);
+        mapReads(mapper);
 
         // Clear mapped reads.
         clear(mapper.reads);
@@ -557,21 +295,19 @@ void runMapper(Mapper<TExecSpace> & mapper, Options const & options)
 // Function runMapper()
 // ----------------------------------------------------------------------------
 
-#if false
 template <typename TExecSpace>
-void runMapper(Mapper<TExecSpace> & mapper, Options const & options)
+void runMapper(Mapper<TExecSpace> & mapper, Parallel)
 {
-    typedef Timer<double>                               TTimer;
+    typedef Mapper<TExecSpace>                          TMapper;
+    typedef Reads<void, typename TMapper::TReadsConfig> TReads;
     typedef Logger<std::ostream>                        TLogger;
-    typedef Mapper<TExecSpace>                             TMapper;
-    typedef Reads<void, typename TMapper::TReadsConfig>    TReads;
 
-    TTimer timer;
+    Timer<double> timer;
     TLogger cout(std::cout);
     TLogger cerr(std::cerr);
 
 #ifdef _OPENMP
-    cout << "Threads count:\t\t\t" << options.threadsCount << std::endl;
+    cout << "Threads count:\t\t\t" << mapper.options.threadsCount << std::endl;
 #endif
 
 #ifdef _OPENMP
@@ -579,18 +315,18 @@ void runMapper(Mapper<TExecSpace> & mapper, Options const & options)
     omp_set_nested(false);
 #endif
 
-    loadGenome(mapper, options);
-    loadGenomeIndex(mapper, options);
+    loadGenome(mapper);
+    loadGenomeIndex(mapper);
 
     // Open reads file.
-    open(mapper.readsLoader, options.readsFile);
+    open(mapper.readsLoader);
 
     // Process reads in parallel.
     SEQAN_OMP_PRAGMA(parallel firstprivate(timer) num_threads(3))
     {
         // Reserve space for reads.
         TReads reads;
-        reserve(reads, options.mappingBlock);
+        reserve(reads, mapper.options.mappingBlock);
 
         // Process reads.
         while (true)
@@ -601,12 +337,12 @@ void runMapper(Mapper<TExecSpace> & mapper, Options const & options)
                 // No more reads.
                 if (!atEnd(mapper.readsLoader))
                 {
-                    start(timer);
+                    start(mapper.timer);
                     setReads(mapper.readsLoader, reads);
-                    load(mapper.readsLoader, options.mappingBlock);
-                    stop(timer);
+                    load(mapper.readsLoader, mapper.options.mappingBlock);
+                    stop(mapper.timer);
 
-                    cout << "Loading reads:\t\t\t" << timer << "\t\t[" << omp_get_thread_num() << "]" << std::endl;// <<
+                    cout << "Loading reads:\t\t\t" << mapper.timer << "\t\t[" << omp_get_thread_num() << "]" << std::endl;// <<
 //                            "Reads count:\t\t\t" << reads.readsCount << "\t\t\t[" << omp_get_thread_num() << "]" << std::endl;
                 }
             }
@@ -623,14 +359,14 @@ void runMapper(Mapper<TExecSpace> & mapper, Options const & options)
                 #endif
 
                 #ifdef _OPENMP
-                omp_set_num_threads(options.threadsCount);
+                omp_set_num_threads(mapper.options.threadsCount);
                 #endif
 
-                start(timer);
-                mapReads(mapper, options, getSeqs(reads));
-                stop(timer);
+                start(mapper.timer);
+                mapReads(mapper, mapper.options, getSeqs(reads));
+                stop(mapper.timer);
 
-                cout << "Mapping reads:\t\t\t" << timer << "\t\t[" << omp_get_thread_num() << "]" << std::endl;
+                cout << "Mapping reads:\t\t\t" << mapper.timer << "\t\t[" << omp_get_thread_num() << "]" << std::endl;
 
                 #ifdef _OPENMP
                 omp_set_num_threads(1);
@@ -645,11 +381,11 @@ void runMapper(Mapper<TExecSpace> & mapper, Options const & options)
             // Writer results.
             SEQAN_OMP_PRAGMA(critical(_mapper_samWriter_write))
             {
-                start(timer);
+                start(mapper.timer);
                 sleep(reads.readsCount / 1000000.0);
-                stop(timer);
+                stop(mapper.timer);
                 
-                cout << "Writing results:\t\t" << timer << "\t\t[" << omp_get_thread_num() << "]" << std::endl;
+                cout << "Writing results:\t\t" << mapper.timer << "\t\t[" << omp_get_thread_num() << "]" << std::endl;
             }
 
             // Clear mapped reads.
@@ -660,7 +396,6 @@ void runMapper(Mapper<TExecSpace> & mapper, Options const & options)
     // Close reads file.
     close(mapper.readsLoader);
 }
-#endif
 
 // ----------------------------------------------------------------------------
 // Function spawnMapper()
@@ -669,8 +404,8 @@ void runMapper(Mapper<TExecSpace> & mapper, Options const & options)
 template <typename TExecSpace>
 void spawnMapper(Options const & options, TExecSpace const & /* tag */)
 {
-    Mapper<TExecSpace> mapper;
-    runMapper(mapper, options);
+    Mapper<TExecSpace> mapper(options);
+    runMapper(mapper);
 }
 
 #endif  // #ifndef APP_CUDAMAPPER_MAPPER_H_

@@ -37,6 +37,25 @@
 
 using namespace seqan;
 
+// ============================================================================
+// Metafunctions
+// ============================================================================
+
+// ----------------------------------------------------------------------------
+// Metafunction Space
+// ----------------------------------------------------------------------------
+
+template <typename TObject, typename TSpec = void>
+struct Space
+{
+    typedef TObject Type;
+};
+
+template <typename TObject>
+struct Space<TObject, ExecDevice>
+{
+    typedef typename Device<TObject>::Type  Type;
+};
 
 // ============================================================================
 // Classes
@@ -57,12 +76,20 @@ struct Timer
 template <typename TValue, typename TSpec>
 inline void start(Timer<TValue, TSpec> & timer)
 {
+#ifdef PLATFORM_CUDA
+    cudaDeviceSynchronize();
+#endif
+
     timer._begin = sysTime();
 }
 
 template <typename TValue, typename TSpec>
 inline void stop(Timer<TValue, TSpec> & timer)
 {
+#ifdef PLATFORM_CUDA
+    cudaDeviceSynchronize();
+#endif
+
     timer._end = sysTime();
 }
 

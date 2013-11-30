@@ -32,14 +32,40 @@
 // Author: Enrico Siragusa <enrico.siragusa@fu-berlin.de>
 // ==========================================================================
 
-#ifndef SEQAN_EXTRAS_CUDAMAPPER_MAPPER_CUH_
-#define SEQAN_EXTRAS_CUDAMAPPER_MAPPER_CUH_
+#ifndef APP_CUDAMAPPER_VERIFIER_H_
+#define APP_CUDAMAPPER_VERIFIER_H_
+
+using namespace seqan;
 
 // ============================================================================
-// Forwards
+// Classes
 // ============================================================================
 
-void mapReads(Mapper<ExecDevice> & mapper);
-void spawnMapper(Options const & options, ExecDevice const & /* tag */);
+// ----------------------------------------------------------------------------
+// Class VerifierConfig
+// ----------------------------------------------------------------------------
 
-#endif  // #ifndef SEQAN_EXTRAS_CUDAMAPPER_MAPPER_CUH_
+template <typename TOptions_, typename TReadSeqs_>
+struct VerifierConfig
+{
+    typedef TOptions_    TOptions;
+    typedef TReadSeqs_   TReadSeqs;
+};
+
+// ----------------------------------------------------------------------------
+// Class Verifier
+// ----------------------------------------------------------------------------
+
+template <typename TExecSpace, typename TConfig>
+struct Verifier
+{
+    typedef typename TConfig::TOptions                      TOptions;
+
+    TOptions const &    options;
+
+    Verifier(TOptions const & options) :
+        options(options)
+    {}
+};
+
+#endif  // #ifndef APP_CUDAMAPPER_VERIFIER_H_

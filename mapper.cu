@@ -58,12 +58,15 @@
 // App headers
 // ----------------------------------------------------------------------------
 
-#include "types.h"
 #include "misc.h"
 //#include "options.h"
+#include "types.h"
 #include "index.h"
+#include "filter.h"
+#include "locator.h"
+#include "verifier.h"
+#include "writer.h"
 #include "mapper.h"
-#include "mapper.cuh"
 
 using namespace seqan;
 
@@ -75,16 +78,14 @@ using namespace seqan;
 // Function mapReads()
 // --------------------------------------------------------------------------
 
-void mapReads(Mapper<ExecDevice> & mapper, Options const & options)
+void mapReads(Mapper<ExecDevice> & mapper)
 {
-    typedef typename Device<TReadSeqs>::Type                    TDeviceReadSeqs;
-
     // Copy read seqs to device.
-    TDeviceReadSeqs deviceReadSeqs;
+    typename Mapper<ExecDevice>::TReadSeqs deviceReadSeqs;
     assign(deviceReadSeqs, getSeqs(mapper.reads));
 
     // Map reads.
-    _mapReads(mapper, options, deviceReadSeqs);
+    _mapReads(mapper, deviceReadSeqs);
 }
 
 // --------------------------------------------------------------------------
@@ -93,6 +94,6 @@ void mapReads(Mapper<ExecDevice> & mapper, Options const & options)
 
 void spawnMapper(Options const & options, ExecDevice const & /* tag */)
 {
-    Mapper<ExecDevice> mapper;
-    runMapper(mapper, options);
+    Mapper<ExecDevice> mapper(options);
+    runMapper(mapper);
 }
