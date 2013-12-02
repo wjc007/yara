@@ -42,6 +42,7 @@
 #include <seqan/basic.h>
 #include <seqan/sequence.h>
 #include <seqan/seq_io.h>
+#include <seqan/random.h>
 
 using namespace seqan;
 
@@ -113,6 +114,29 @@ struct GenomeLoader
 // ============================================================================
 // Metafunctions
 // ============================================================================
+
+template <typename TSpec>
+void convertToDna(String<Dna5, TSpec> & contig)
+{
+    typedef String<Dna5, TSpec>                         TContig;
+    typedef typename Iterator<TContig, Standard>::Type  TContigIt;
+
+    TContigIt cIt = begin(contig, Standard());
+    TContigIt cEnd = end(contig, Standard());
+
+    Rng<MersenneTwister> rng;
+
+    while (cIt != cEnd)
+    {
+        for (; cIt != cEnd && value(cIt) != Dna5('N'); ++cIt) ;
+
+        if (cIt == cEnd) break;
+
+        reSeed(rng, 0xDEADBEEF);
+        for (; cIt != cEnd && value(cIt) == Dna5('N'); ++cIt)
+            value(cIt) = pickRandomNumber(rng) % ValueSize<Dna>::VALUE;
+    }
+}
 
 // ----------------------------------------------------------------------------
 // Metafunction GenomeHost<T>::Type                                   [TObject]
@@ -348,7 +372,7 @@ void load(GenomeLoader<TSpec, TConfig> & loader, TFormat const & /* tag */)
     reserve(getGenome(loader), loader._fileSize);
 
     CharString contigName;
-    typename TConfig::TContigSeq contigSeq;
+    Dna5String contigSeq;
 
     // Read records.
     while (!atEnd(*(loader._reader)))
@@ -356,6 +380,7 @@ void load(GenomeLoader<TSpec, TConfig> & loader, TFormat const & /* tag */)
         if (readRecord(contigName, contigSeq, *(loader._reader), TFormat()) != 0)
             throw std::runtime_error("Error while reading genome contig.");
 
+        convertToDna(contigSeq);
         appendValue(contigs(getGenome(loader)), contigSeq);
     }
 }
