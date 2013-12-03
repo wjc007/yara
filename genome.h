@@ -103,10 +103,12 @@ struct GenomeLoader
     unsigned long                   _fileSize;
     AutoSeqStreamFormat             _fileFormat;
     std::auto_ptr<TRecordReader>    _reader;
+    Rng<MersenneTwister>            _rng;
     Holder<TGenome>                 genome;
 
     GenomeLoader(TGenome & genome) :
         _fileSize(0),
+        _rng(0xDEADBEEF),
         genome(genome)
     {}
 };
@@ -114,29 +116,6 @@ struct GenomeLoader
 // ============================================================================
 // Metafunctions
 // ============================================================================
-
-template <typename TSpec>
-void convertToDna(String<Dna5, TSpec> & contig)
-{
-    typedef String<Dna5, TSpec>                         TContig;
-    typedef typename Iterator<TContig, Standard>::Type  TContigIt;
-
-    TContigIt cIt = begin(contig, Standard());
-    TContigIt cEnd = end(contig, Standard());
-
-    Rng<MersenneTwister> rng;
-
-    while (cIt != cEnd)
-    {
-        for (; cIt != cEnd && value(cIt) != Dna5('N'); ++cIt) ;
-
-        if (cIt == cEnd) break;
-
-        reSeed(rng, 0xDEADBEEF);
-        for (; cIt != cEnd && value(cIt) == Dna5('N'); ++cIt)
-            value(cIt) = pickRandomNumber(rng) % ValueSize<Dna>::VALUE;
-    }
-}
 
 // ----------------------------------------------------------------------------
 // Metafunction GenomeHost<T>::Type                                   [TObject]
@@ -349,6 +328,32 @@ void open(GenomeLoader<TSpec, TConfig> & loader, TString const & genomeFile)
 }
 
 // ----------------------------------------------------------------------------
+// Function convertContig()                                      [GenomeLoader]
+// ----------------------------------------------------------------------------
+
+template <typename TSpec, typename TConfig>
+void convertContig(GenomeLoader<TSpec, TConfig> & /* loader */, Dna5String & /* contig */, Dna5) {}
+
+template <typename TSpec, typename TConfig>
+void convertContig(GenomeLoader<TSpec, TConfig> & loader, Dna5String & contig, Dna)
+{
+    typedef typename Iterator<Dna5String, Standard>::Type   TContigIt;
+
+    TContigIt cIt = begin(contig, Standard());
+    TContigIt cEnd = end(contig, Standard());
+
+    while (cIt != cEnd)
+    {
+        for (; cIt != cEnd && value(cIt) != Dna5('N'); ++cIt) ;
+
+        if (cIt == cEnd) break;
+
+        for (; cIt != cEnd && value(cIt) == Dna5('N'); ++cIt)
+            value(cIt) = pickRandomNumber(loader._rng) % ValueSize<Dna>::VALUE;
+    }
+}
+
+// ----------------------------------------------------------------------------
 // Function load()                                               [GenomeLoader]
 // ----------------------------------------------------------------------------
 
@@ -368,6 +373,9 @@ void load(GenomeLoader<TSpec, TConfig> & loader)
 template <typename TSpec, typename TConfig, typename TFormat>
 void load(GenomeLoader<TSpec, TConfig> & loader, TFormat const & /* tag */)
 {
+    typedef typename TConfig::TContigSeq        TContigSeq;
+    typedef typename Value<TContigSeq>::Type    TContigAlphabet;
+
     // Reserve space for contigs.
     reserve(getGenome(loader), loader._fileSize);
 
@@ -380,7 +388,7 @@ void load(GenomeLoader<TSpec, TConfig> & loader, TFormat const & /* tag */)
         if (readRecord(contigName, contigSeq, *(loader._reader), TFormat()) != 0)
             throw std::runtime_error("Error while reading genome contig.");
 
-        convertToDna(contigSeq);
+        convertContig(loader, contigSeq, TContigAlphabet());
         appendValue(contigs(getGenome(loader)), contigSeq);
     }
 }
