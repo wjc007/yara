@@ -90,8 +90,8 @@ struct Mapper
 
     typedef FragmentStore<void, CUDAStoreConfig>                    TStore;
     typedef ReadsConfig<False, False, True, True, CUDAStoreConfig>  TReadsConfig;
-    typedef Reads<void, TReadsConfig>                               TReads;
-    typedef ReadsLoader<void, TReadsConfig>                         TReadsLoader;
+    typedef Reads<PairedEnd, TReadsConfig>                          TReads;
+    typedef ReadsLoader<PairedEnd, TReadsConfig>                    TReadsLoader;
     typedef typename TStore::TReadSeqStore                          THostReadSeqs;
     typedef typename Space<THostReadSeqs, TExecSpace>::Type         TReadSeqs;
 
