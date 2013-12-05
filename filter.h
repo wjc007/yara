@@ -112,7 +112,7 @@ struct Seeder
 #ifdef PLATFORM_CUDA
 template <typename TSeeds, typename TReadSeqs, typename TSize>
 SEQAN_GLOBAL void
-_fillSeedsKernel(TSeeds seeds, TReadSeqs readSeqs, TSize seedLength, TSize readSeqsCount, TSize seedsPerReadSeq)
+_fillSeedsKernel(TSeeds seeds, TReadSeqs readSeqs, TSize readSeqsCount, TSize seedsPerReadSeq, TSize seedLength)
 {
     typedef typename Value<TReadSeqs>::Type                 TReadSeq;
 
@@ -134,15 +134,14 @@ _fillSeedsKernel(TSeeds seeds, TReadSeqs readSeqs, TSize seedLength, TSize readS
 #ifdef PLATFORM_CUDA
 template <typename TConfig, typename TReadSeqs, typename TSize>
 inline void _fillSeeds(Seeder<ExecDevice, TConfig> & seeder, TReadSeqs & readSeqs,
-                       TSize readSeqsCount, TSize seedsPerReadSeq)
+                       TSize readSeqsCount, TSize seedsPerReadSeq, TSize seedLength)
 {
     // Compute grid size.
     unsigned ctaSize = 256;
     unsigned activeBlocks = (readSeqsCount + ctaSize - 1) / ctaSize;
 
     _fillSeedsKernel<<<activeBlocks, ctaSize>>>(view(seeder.seeds), view(readSeqs),
-                                                static_cast<TSize>(seeder.options.seedLength),
-                                                readSeqsCount, seedsPerReadSeq);
+                                                readSeqsCount, seedsPerReadSeq, seedLength);
 }
 #endif
 
@@ -152,7 +151,7 @@ inline void _fillSeeds(Seeder<ExecDevice, TConfig> & seeder, TReadSeqs & readSeq
 
 template <typename TConfig, typename TReadSeqs, typename TSize>
 inline void _fillSeeds(Seeder<ExecHost, TConfig> & seeder, TReadSeqs & readSeqs,
-                       TSize readSeqsCount, TSize seedsPerReadSeq)
+                       TSize readSeqsCount, TSize seedsPerReadSeq, TSize seedLength)
 {
     typedef typename Value<TReadSeqs>::Type                 TReadSeq;
     typedef typename Infix<TReadSeqs>::Type                 TReadSeqInfix;
@@ -163,8 +162,7 @@ inline void _fillSeeds(Seeder<ExecHost, TConfig> & seeder, TReadSeqs & readSeqs,
 
         for (TSize seedId = 0; seedId < seedsPerReadSeq; ++seedId)
         {
-            TReadSeqInfix seedInfix = infix(readSeq, seedId * seeder.options.seedLength,
-                                                     (seedId + 1) * seeder.options.seedLength);
+            TReadSeqInfix seedInfix = infix(readSeq, seedId * seedLength, (seedId + 1) * seedLength);
 
             seeder.seeds[readSeqId * seedsPerReadSeq + seedId] = view(seedInfix);
         }
@@ -182,11 +180,13 @@ inline void _fillSeeds(Seeder<TExecSpace, TConfig> & seeder, TReadSeqs & readSeq
 
     TSize readSeqsCount = length(readSeqs);
     TSize readSeqLength = length(back(readSeqs));
-    TSize seedsPerReadSeq = readSeqLength / seeder.options.seedLength;
+    TSize readSeqErrors = std::ceil(readSeqLength * (seeder.options.errorRate / 100.0));
+    TSize seedLength    = readSeqLength / (readSeqErrors + 1);
+    TSize seedsPerReadSeq = readSeqLength / seedLength;
 
     resize(seeder.seeds, readSeqsCount * seedsPerReadSeq, Exact());
 
-    _fillSeeds(seeder, readSeqs, readSeqsCount, seedsPerReadSeq);
+    _fillSeeds(seeder, readSeqs, readSeqsCount, seedsPerReadSeq, seedLength);
 }
 
 // ----------------------------------------------------------------------------
