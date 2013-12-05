@@ -47,22 +47,30 @@ using namespace seqan;
 
 struct Options
 {
-    CharString  genomeFile;
-    CharString  genomeIndexFile;
-    CharString  readsFile;
+    CharString          genomeFile;
+    CharString          genomeIndexFile;
+    Pair<CharString>    readsFile;
 
-    bool        noCuda;
-    unsigned    threadsCount;
-    int         mappingBlock;
-    unsigned    seedLength;
-    unsigned    errorsPerSeed;
+    unsigned            libraryLength;
+    unsigned            libraryError;
+
+    unsigned            errorRate;
+    unsigned            seedLength;
+    unsigned            errorsPerSeed;
+
+    unsigned            mappingBlock;
+    bool                noCuda;
+    unsigned            threadsCount;
 
     Options() :
-        noCuda(false),
-        threadsCount(1),
-        mappingBlock(200000),
+        libraryLength(220),
+        libraryError(50),
+        errorRate(5),
         seedLength(33),
-        errorsPerSeed(0)
+        errorsPerSeed(0),
+        mappingBlock(200000),
+        noCuda(false),
+        threadsCount(1)
     {}
 };
 
