@@ -173,11 +173,11 @@ inline void _fillSeeds(Seeder<ExecHost, TConfig> & seeder, TReadSeqs & readSeqs,
 }
 
 // ----------------------------------------------------------------------------
-// Function _fillSeeds()
+// Function fillSeeds()
 // ----------------------------------------------------------------------------
 
 template <typename TExecSpace, typename TConfig, typename TReadSeqs>
-inline void _fillSeeds(Seeder<TExecSpace, TConfig> & seeder, TReadSeqs & readSeqs)
+inline void fillSeeds(Seeder<TExecSpace, TConfig> & seeder, TReadSeqs & readSeqs)
 {
     typedef typename Size<TReadSeqs>::Type  TSize;
 
@@ -187,27 +187,22 @@ inline void _fillSeeds(Seeder<TExecSpace, TConfig> & seeder, TReadSeqs & readSeq
     TSize seedLength    = readSeqLength / (readSeqErrors + 1);
     TSize seedsPerReadSeq = readSeqLength / seedLength;
 
+    // Resize space for seeds.
+    clear(seeder.seeds);
     resize(seeder.seeds, readSeqsCount * seedsPerReadSeq, Exact());
 
     _fillSeeds(seeder, readSeqs, readSeqsCount, seedsPerReadSeq, seedLength);
 }
 
 // ----------------------------------------------------------------------------
-// Function runSeeder()
+// Function findSeeds()
 // ----------------------------------------------------------------------------
 
 template <typename TExecSpace, typename TConfig>
-void runSeeder(Seeder<TExecSpace, TConfig> & seeder, typename TConfig::TReadSeqs & readSeqs)
+void findSeeds(Seeder<TExecSpace, TConfig> & seeder)
 {
     typedef Seeder<TExecSpace, TConfig>     TSeeder;
     typedef typename TSeeder::TPattern      TPattern;
-
-    clear(seeder.seeds);
-    clear(seeder.hits);
-
-    // Collect seeds from read seqs.
-    _fillSeeds(seeder, readSeqs);
-    std::cout << "Seeds count:\t\t\t" << length(seeder.seeds) << std::endl;
 
 #ifdef PLATFORM_CUDA
     cudaPrintFreeMemory();
@@ -217,6 +212,7 @@ void runSeeder(Seeder<TExecSpace, TConfig> & seeder, typename TConfig::TReadSeqs
     TPattern pattern(seeder.seeds);
 
     // Resize space for hits.
+    clear(seeder.hits);
     init(seeder.hits, pattern);
 
     // Find hits.
