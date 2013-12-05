@@ -129,6 +129,28 @@ struct ReadsLoader
     {}
 };
 
+// ----------------------------------------------------------------------------
+// Class ReadsLoader; PaiedEnd
+// ----------------------------------------------------------------------------
+
+template <typename TConfig>
+struct ReadsLoader<PairedEnd, TConfig>
+{
+    typedef std::fstream                            TStream;
+    typedef RecordReader<TStream, SinglePass<> >    TRecordReader;
+    typedef Reads<PairedEnd, TConfig>               TReads;
+
+    TStream                             _file1;
+    TStream                             _file2;
+    Pair<AutoSeqStreamFormat>           _fileFormat;
+    Pair<std::auto_ptr<TRecordReader> > _reader;
+    Holder<TReads>                      reads;
+
+    ReadsLoader(TReads & reads) :
+        reads(reads)
+    {}
+};
+
 // ============================================================================
 // Metafunctions
 // ============================================================================
@@ -465,14 +487,26 @@ void open(ReadsLoader<TSpec, TConfig> & loader, TString const & readsFile)
 }
 
 template <typename TConfig, typename TString>
-void open(ReadsLoader<PairedEnd, TConfig> & loader, TString const & readsLeftFile, TString const & readsRightFile)
+void open(ReadsLoader<PairedEnd, TConfig> & loader, Pair<TString> const & readsFile)
 {
-    if (!loadReads(value(getReads(loader)._store), readsLeftFile, readsRightFile))
-        throw std::runtime_error("Error while loading reads file.");
+    typedef ReadsLoader<PairedEnd, TConfig>         TReadsLoader;
+    typedef typename TReadsLoader::TRecordReader    TRecordReader;
 
-    getReads(loader).readsCount = length(getSeqs(getReads(loader)));
+    // Open files.
+    loader._file1.open(toCString(readsFile.i1), std::ios::binary | std::ios::in);
+    loader._file2.open(toCString(readsFile.i2), std::ios::binary | std::ios::in);
 
-    _loadReverseComplement(loader);
+    if (!loader._file1.is_open() || !loader._file2.is_open())
+        throw std::runtime_error("Error while opening reads file.");
+
+    // Initialize record reader.
+    loader._reader.i1.reset(new TRecordReader(loader._file1));
+    loader._reader.i2.reset(new TRecordReader(loader._file2));
+
+    // Autodetect file format.
+    if (!guessStreamFormat(*(loader._reader.i1), loader._fileFormat.i1) ||
+        !guessStreamFormat(*(loader._reader.i2), loader._fileFormat.i2))
+        throw std::runtime_error("Error while guessing reads file format.");
 }
 
 // ----------------------------------------------------------------------------
@@ -486,43 +520,18 @@ void close(ReadsLoader<TSpec, TConfig> & loader)
 }
 
 template <typename TConfig>
-void close(ReadsLoader<PairedEnd, TConfig> & /* loader */)
+void close(ReadsLoader<PairedEnd, TConfig> & loader)
 {
+    loader._file1.close();
+    loader._file2.close();
 }
 
 // ----------------------------------------------------------------------------
 // Function load()                                                [ReadsLoader]
 // ----------------------------------------------------------------------------
 
-template <typename TSpec, typename TConfig>
-void load(ReadsLoader<TSpec, TConfig> & loader)
-{
-    load(loader, MaxValue<unsigned long>::VALUE);
-}
-
-template <typename TConfig>
-void load(ReadsLoader<PairedEnd, TConfig> & /* loader */)
-{
-}
-
-template <typename TSpec, typename TConfig, typename TSize>
-void load(ReadsLoader<TSpec, TConfig> & loader, TSize count)
-{
-    switch (loader._fileFormat.tagId)
-    {
-    case Find<AutoSeqStreamFormat, Fasta>::VALUE:
-        load(loader, count, Fasta());
-        break;
-    case Find<AutoSeqStreamFormat, Fastq>::VALUE:
-        load(loader, count, Fastq());
-        break;
-    default:
-        throw std::runtime_error("Unsupported reads file format.");
-    }
-}
-
-template <typename TSpec, typename TConfig, typename TSize, typename TFormat>
-void load(ReadsLoader<TSpec, TConfig> & loader, TSize count, TFormat const & /* tag */)
+template <typename TSpec, typename TConfig, typename TSize, typename TReader, typename TFormat>
+void _load(ReadsLoader<TSpec, TConfig> & loader, TSize count, TReader & reader, TFormat & format)
 {
     typedef FragmentStore<TSpec, typename TConfig::TFragStoreConfig>    TFragmentStore;
     typedef typename Value<typename TFragmentStore::TReadStore>::Type   TReadStoreElement;
@@ -532,18 +541,33 @@ void load(ReadsLoader<TSpec, TConfig> & loader, TSize count, TFormat const & /* 
     TReadSeq    seq;
 
     // Read records.
-    for (; count > 0 && !atEnd(loader); count--)
+    for (; count > 0 && !atEnd(reader); count--)
     {
-        // NOTE(esiragusa): AutoFormat seems to thrash memory allocation.
-//        if (readRecord(seqName, seq, *(loader._reader), loader._fileFormat) != 0)
-
-        if (readRecord(seqName, seq, *(loader._reader), TFormat()) != 0)
+        if (readRecord(seqName, seq, reader, format) != 0)
             throw std::runtime_error("Error while reading read record.");
 
         appendSeq(getReads(loader), seq);
         appendName(getReads(loader), seqName, typename TConfig::TUseReadNameStore());
         appendId(getReads(loader), TReadStoreElement::INVALID_ID, typename TConfig::TUseReadStore());
     }
+}
+
+template <typename TSpec, typename TConfig, typename TSize>
+void load(ReadsLoader<TSpec, TConfig> & loader, TSize count)
+{
+    _load(loader, count, *(loader._reader), loader._fileFormat);
+
+    getReads(loader).readsCount = length(getSeqs(getReads(loader)));
+
+    // Append reverse complemented reads.
+    _loadReverseComplement(loader);
+}
+
+template <typename TConfig, typename TSize>
+void load(ReadsLoader<PairedEnd, TConfig> & loader, TSize count)
+{
+    _load(loader, count, *(loader._reader.i1), loader._fileFormat.i1);
+    _load(loader, count, *(loader._reader.i2), loader._fileFormat.i2);
 
     getReads(loader).readsCount = length(getSeqs(getReads(loader)));
 
@@ -578,6 +602,12 @@ template <typename TSpec, typename TConfig>
 inline bool atEnd(ReadsLoader<TSpec, TConfig> & reads)
 {
     return atEnd(*(reads._reader));
+}
+
+template <typename TConfig>
+inline bool atEnd(ReadsLoader<PairedEnd, TConfig> & reads)
+{
+    return atEnd(*(reads._reader.i1)) && atEnd(*(reads._reader.i2));
 }
 
 #endif  // #ifndef APP_CUDAMAPPER_READS_H_
