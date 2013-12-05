@@ -51,23 +51,18 @@ struct Options
     CharString          genomeIndexFile;
     Pair<CharString>    readsFile;
 
+    unsigned            errorRate;
     unsigned            libraryLength;
     unsigned            libraryError;
-
-    unsigned            errorRate;
-    unsigned            seedLength;
-    unsigned            errorsPerSeed;
 
     unsigned            mappingBlock;
     bool                noCuda;
     unsigned            threadsCount;
 
     Options() :
+        errorRate(5),
         libraryLength(220),
         libraryError(50),
-        errorRate(5),
-        seedLength(33),
-        errorsPerSeed(0),
         mappingBlock(200000),
         noCuda(false),
         threadsCount(1)

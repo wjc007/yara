@@ -99,24 +99,6 @@ void setupArgumentParser(ArgumentParser & parser, Options const & options)
     setValidValues(parser, 1, "fastq fasta fa");
     setValidValues(parser, 2, "fastq fasta fa");
 
-    // Setup main index options.
-    addSection(parser, "Main Options");
-
-#ifndef CUDA_DISABLED
-    addOption(parser, ArgParseOption("nc", "no-cuda", "Do not use CUDA accelerated code."));
-#endif
-
-#ifdef _OPENMP
-    addOption(parser, ArgParseOption("t", "threads", "Specify the number of threads to use.", ArgParseOption::INTEGER));
-    setMinValue(parser, "threads", "1");
-    setMaxValue(parser, "threads", "2048");
-    setDefaultValue(parser, "threads", options.threadsCount);
-#endif
-
-    addOption(parser, ArgParseOption("mb", "mapping-block", "Maximum number of reads to be mapped at once.", ArgParseOption::INTEGER));
-    setMinValue(parser, "mapping-block", "1000");
-    setDefaultValue(parser, "mapping-block", options.mappingBlock);
-
     // Setup mapping options.
     addSection(parser, "Mapping Options");
 
@@ -124,19 +106,6 @@ void setupArgumentParser(ArgumentParser & parser, Options const & options)
     setMinValue(parser, "error-rate", "0");
     setMaxValue(parser, "error-rate", "10");
     setDefaultValue(parser, "error-rate", options.errorRate);
-
-    addOption(parser, ArgParseOption("sl", "seed-length", "Minimum seed length.", ArgParseOption::INTEGER));
-    setMinValue(parser, "seed-length", "10");
-    setMaxValue(parser, "seed-length", "100");
-    setDefaultValue(parser, "seed-length", options.seedLength);
-
-    addOption(parser, ArgParseOption("se", "seed-errors", "Maximum number of errors per seed.", ArgParseOption::INTEGER));
-    setMinValue(parser, "seed-errors", "0");
-    setMaxValue(parser, "seed-errors", "2");
-    setDefaultValue(parser, "seed-errors", options.errorsPerSeed);
-
-    // Setup paired-end options.
-    addSection(parser, "Paired-End Options");
 
     addOption(parser, ArgParseOption("ll", "library-length", "Paired-end library length.", ArgParseOption::INTEGER));
     setMinValue(parser, "library-length", "1");
@@ -146,11 +115,28 @@ void setupArgumentParser(ArgumentParser & parser, Options const & options)
     setMinValue(parser, "library-error", "0");
     setDefaultValue(parser, "library-error", options.libraryError);
 
-
-    // Setup genome index options.
-    addSection(parser, "Genome Index Options");
+    // Setup index options.
+    addSection(parser, "Index Options");
 
     setIndexPrefix(parser);
+
+    // Setup performance options.
+    addSection(parser, "Performance Options");
+
+#ifdef _OPENMP
+    addOption(parser, ArgParseOption("t", "threads", "Specify the number of threads to use.", ArgParseOption::INTEGER));
+    setMinValue(parser, "threads", "1");
+    setMaxValue(parser, "threads", "2048");
+    setDefaultValue(parser, "threads", options.threadsCount);
+#endif
+
+#ifndef CUDA_DISABLED
+    addOption(parser, ArgParseOption("nc", "no-cuda", "Do not use CUDA accelerated code."));
+#endif
+
+    addOption(parser, ArgParseOption("mb", "mapping-block", "Maximum number of reads to be mapped at once.", ArgParseOption::INTEGER));
+    setMinValue(parser, "mapping-block", "1000");
+    setDefaultValue(parser, "mapping-block", options.mappingBlock);
 }
 
 // ----------------------------------------------------------------------------
@@ -172,30 +158,26 @@ parseCommandLine(Options & options, ArgumentParser & parser, int argc, char cons
     getArgumentValue(options.readsFile.i1, parser, 1);
     getArgumentValue(options.readsFile.i2, parser, 2);
 
-    // Parse CUDA options.
-#ifndef CUDA_DISABLED
-    getOptionValue(options.noCuda, parser, "no-cuda");
-#endif
+    // Parse mapping options.
+    getOptionValue(options.errorRate, parser, "error-rate");
+    getOptionValue(options.libraryLength, parser, "library-length");
+    getOptionValue(options.libraryError, parser, "library-error");
+
+    // Parse genome index prefix.
+    getIndexPrefix(options, parser);
 
 #ifdef _OPENMP
     // Parse the number of threads.
     getOptionValue(options.threadsCount, parser, "threads");
 #endif
 
-    // Parse mapping block.
+    // Parse CUDA options.
+#ifndef CUDA_DISABLED
+    getOptionValue(options.noCuda, parser, "no-cuda");
+#endif
+
+    // Parse mapping block option.
     getOptionValue(options.mappingBlock, parser, "mapping-block");
-
-    // Parse mapping options.
-    getOptionValue(options.errorRate, parser, "error-rate");
-    getOptionValue(options.seedLength, parser, "seed-length");
-    getOptionValue(options.errorsPerSeed, parser, "seed-errors");
-
-    // Parse pairing options.
-    getOptionValue(options.libraryLength, parser, "library-length");
-    getOptionValue(options.libraryError, parser, "library-error");
-
-    // Parse genome index prefix.
-    getIndexPrefix(options, parser);
 
     return seqan::ArgumentParser::PARSE_OK;
 }
