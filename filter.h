@@ -83,12 +83,15 @@ struct Seeder
     typedef String<typename Seed<TReadSeqs>::Type>          TSeedsString;
     typedef typename Space<TSeedsString, TExecSpace>::Type  TSeeds;
 
+    typedef Hits<TIndex, void>                              THits;
+
 //    typedef Multiple<Backtracking<HammingDistance> >        TAlgorithm;
     typedef Multiple<FinderSTree>                           TAlgorithm;
     typedef Pattern<TSeeds, TAlgorithm>                     TPattern;
     typedef Finder2<TIndex, TPattern, TAlgorithm>           TFinder;
 
     TSeeds              seeds;
+    THits               hits;
     TFinder             finder;
     TOptions const &    options;
 
@@ -193,13 +196,14 @@ inline void _fillSeeds(Seeder<TExecSpace, TConfig> & seeder, TReadSeqs & readSeq
 // Function runSeeder()
 // ----------------------------------------------------------------------------
 
-template <typename TExecSpace, typename TConfig, typename TDelegate>
-void runSeeder(Seeder<TExecSpace, TConfig> & seeder, typename TConfig::TReadSeqs & readSeqs, TDelegate & delegate)
+template <typename TExecSpace, typename TConfig>
+void runSeeder(Seeder<TExecSpace, TConfig> & seeder, typename TConfig::TReadSeqs & readSeqs)
 {
     typedef Seeder<TExecSpace, TConfig>     TSeeder;
     typedef typename TSeeder::TPattern      TPattern;
 
     clear(seeder.seeds);
+    clear(seeder.hits);
 
     // Collect seeds from read seqs.
     _fillSeeds(seeder, readSeqs);
@@ -213,10 +217,10 @@ void runSeeder(Seeder<TExecSpace, TConfig> & seeder, typename TConfig::TReadSeqs
     TPattern pattern(seeder.seeds);
 
     // Resize space for hits.
-    init(delegate, pattern);
+    init(seeder.hits, pattern);
 
     // Find hits.
-    find(seeder.finder, pattern, delegate);
+    find(seeder.finder, pattern, seeder.hits);
 
 #ifdef PLATFORM_CUDA
     cudaPrintFreeMemory();
