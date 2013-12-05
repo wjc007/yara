@@ -55,7 +55,7 @@ struct Ranges_;
 // Class Hits
 // ----------------------------------------------------------------------------
 
-template <typename TIndex, typename TSpec = void>
+template <typename TSize, typename TSpec = void>
 struct Hits
 {
     typename Member<Hits, Ranges_>::Type    ranges;
@@ -79,26 +79,26 @@ struct Hits
 struct Ranges_;
 
 namespace seqan {
-template <typename TIndex, typename TSpec>
-struct Member<Hits<TIndex, TSpec>, Ranges_>
+template <typename TSize, typename TSpec>
+struct Member<Hits<TSize, TSpec>, Ranges_>
 {
-    typedef Pair<typename Size<TIndex>::Type>   TRange_;
+    typedef Pair<TSize>                         TRange_;
     typedef String<TRange_>                     Type;
 };
 
 #ifdef PLATFORM_CUDA
-template <typename TIndex, typename TSpec>
-struct Member<Hits<TIndex, Device<TSpec> >, Ranges_>
+template <typename TSize, typename TSpec>
+struct Member<Hits<TSize, Device<TSpec> >, Ranges_>
 {
-    typedef Pair<typename Size<TIndex>::Type>   TRange_;
+    typedef Pair<TSize>                         TRange_;
     typedef thrust::device_vector<TRange_>      Type;
 };
 #endif
 
-template <typename TIndex, typename TSpec>
-struct Member<Hits<TIndex, View<TSpec> >, Ranges_>
+template <typename TSize, typename TSpec>
+struct Member<Hits<TSize, View<TSpec> >, Ranges_>
 {
-    typedef typename Member<Hits<TIndex, TSpec>, Ranges_>::Type  TRanges_;
+    typedef typename Member<Hits<TSize, TSpec>, Ranges_>::Type  TRanges_;
     typedef typename View<TRanges_>::Type   Type;
 };
 }
@@ -108,10 +108,10 @@ struct Member<Hits<TIndex, View<TSpec> >, Ranges_>
 // ----------------------------------------------------------------------------
 
 namespace seqan {
-template <typename TIndex, typename TSpec>
-struct View<Hits<TIndex, TSpec> >
+template <typename TSize, typename TSpec>
+struct View<Hits<TSize, TSpec> >
 {
-    typedef Hits<TIndex, View<TSpec> >  Type;
+    typedef Hits<TSize, View<TSpec> >  Type;
 };
 }
 
@@ -120,10 +120,10 @@ struct View<Hits<TIndex, TSpec> >
 // ----------------------------------------------------------------------------
 
 namespace seqan {
-template <typename TIndex, typename TSpec>
-struct Device<Hits<TIndex, TSpec> >
+template <typename TSize, typename TSpec>
+struct Device<Hits<TSize, TSpec> >
 {
-    typedef Hits<TIndex, Device<TSpec> >  Type;
+    typedef Hits<TSize, Device<TSpec> >  Type;
 };
 }
 
@@ -135,8 +135,8 @@ struct Device<Hits<TIndex, TSpec> >
 // Function init()
 // ----------------------------------------------------------------------------
 
-template <typename TIndex, typename TSpec, typename TPattern>
-inline void init(Hits<TIndex, TSpec> & hits, TPattern const & pattern)
+template <typename TSize, typename TSpec, typename TPattern>
+inline void init(Hits<TSize, TSpec> & hits, TPattern const & pattern)
 {
     resize(hits.ranges, length(needle(pattern)), Exact());
 }
@@ -145,11 +145,11 @@ inline void init(Hits<TIndex, TSpec> & hits, TPattern const & pattern)
 // Function view()
 // ----------------------------------------------------------------------------
 
-template <typename TIndex, typename TSpec>
-inline typename View<Hits<TIndex, TSpec> >::Type
-view(Hits<TIndex, TSpec> & hits)
+template <typename TSize, typename TSpec>
+inline typename View<Hits<TSize, TSpec> >::Type
+view(Hits<TSize, TSpec> & hits)
 {
-    typename View<Hits<TIndex, TSpec> >::Type hitsView;
+    typename View<Hits<TSize, TSpec> >::Type hitsView;
 
     hitsView.ranges = view(hits.ranges);
 
@@ -160,14 +160,20 @@ view(Hits<TIndex, TSpec> & hits)
 // Function clear()
 // ----------------------------------------------------------------------------
 
-template <typename TIndex, typename TSpec>
-inline void clear(Hits<TIndex, TSpec> & hits)
+template <typename TSize, typename TSpec>
+inline void clear(Hits<TSize, TSpec> & hits)
 {
     clear(hits.ranges);
 }
 
+//template <typename TSize, typename TSpec>
+//inline TSize getCount(Hits<TSize, TSpec> const & hits, TReadId readId)
+//{
+//    return std::count_if(begin(hits.ranges, Standard()), end(hits.ranges, Standard()), isValid<TSize>);
+//}
+
 // ----------------------------------------------------------------------------
-// Function clear()
+// Function getCount()
 // ----------------------------------------------------------------------------
 
 template <typename TSize>
@@ -176,11 +182,10 @@ inline bool isValid(Pair<TSize> range)
     return range.i1 < range.i2;
 }
 
-template <typename TIndex, typename TSpec>
-inline typename Size<TIndex>::Type
-getCount(Hits<TIndex, TSpec> const & hits)
+template <typename TSize, typename TSpec>
+inline TSize getCount(Hits<TSize, TSpec> const & hits)
 {
-    return std::count_if(begin(hits.ranges, Standard()), end(hits.ranges, Standard()), isValid<typename Size<TIndex>::Type>);
+    return std::count_if(begin(hits.ranges, Standard()), end(hits.ranges, Standard()), isValid<TSize>);
 }
 
 #endif  // #ifndef APP_CUDAMAPPER_LOCATOR_H_

@@ -83,7 +83,8 @@ struct Seeder
     typedef String<typename Seed<TReadSeqs>::Type>          TSeedsString;
     typedef typename Space<TSeedsString, TExecSpace>::Type  TSeeds;
 
-    typedef Hits<TIndex, void>                              THits;
+    typedef typename Size<TIndex>::Type                     TSize;
+    typedef Hits<TSize, void>                               THits;
 
 //    typedef Multiple<Backtracking<HammingDistance> >        TAlgorithm;
     typedef Multiple<FinderSTree>                           TAlgorithm;
