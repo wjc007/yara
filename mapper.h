@@ -251,7 +251,7 @@ void _mapReads(Mapper<TExecSpace> & mapper, TReadSeqs & readSeqs)
 //    std::cout << "Location time:\t\t\t" << mapper.timer << std::endl;
 
     start(mapper.timer);
-    verifyHits(mapper.verifier, readSeqs, mapper.seeder.hits, indexSA(mapper.index));
+    anchorPairs(mapper.verifier, readSeqs, mapper.seeder.hits, indexSA(mapper.index));
     stop(mapper.timer);
     std::cout << "Verification time:\t\t" << mapper.timer << std::endl;
     std::cout << "Verifications count:\t\t" << mapper.verifier.verificationsCount << std::endl;

@@ -311,11 +311,11 @@ inline bool verifyHit(Verifier<TExecSpace, TConfig> & verifier,
 }
 
 // ----------------------------------------------------------------------------
-// Function verifyHits()
+// Function anchorPairs()
 // ----------------------------------------------------------------------------
 
 template <typename TExecSpace, typename TConfig, typename TReadSeqs, typename THits, typename TSA>
-inline void verifyHits(Verifier<TExecSpace, TConfig> & verifier, TReadSeqs & readSeqs, THits const & hits, TSA const & sa)
+inline void anchorPairs(Verifier<TExecSpace, TConfig> & verifier, TReadSeqs & readSeqs, THits const & hits, TSA const & sa)
 {
     typedef Verifier<TExecSpace, TConfig>                               TVerifier;
     typedef typename TVerifier::TContig                                 TContig;
@@ -345,25 +345,28 @@ inline void verifyHits(Verifier<TExecSpace, TConfig> & verifier, TReadSeqs & rea
         // Skip the pair if the anchor is hard.
         if (anchorHits > verifier.hitsThreshold) continue;
 
+        verifier.verificationsCount += anchorHits;
+
         // Consider the hits of all seeds of the anchor.
         THitId hitsBegin = anchorId * (verifier.readErrors + 1);
         THitId hitsEnd = (anchorId + 1) * (verifier.readErrors + 1);
         for (THitId hitId = hitsBegin; hitId < hitsEnd; ++hitId)
         {
             // Verify all hits of a seed of the anchor.
-            for (THitPos hitPos = getValueI1(hits.ranges[hitId]); hitPos < getValueI2(hits.ranges[hitId]); ++hitPos)
-            {
-                THit hit = toSuffixPosition(verifier.index, sa[hitPos], verifier.seedLength);
-
-                if (verifyHit(verifier,
-                              readSeqs,
-                              anchorId, (hitId - hitsBegin) * verifier.seedLength, (hitId - hitsBegin + 1) * verifier.seedLength,
-                              getValueI1(hit), getValueI2(hit), getValueI2(hit) + verifier.seedLength,
-                              verifier.seedErrors))
-                {
-                    verifier.matchesCount++;
-                }
-            }
+//            for (THitPos hitPos = getValueI1(hits.ranges[hitId]); hitPos < getValueI2(hits.ranges[hitId]); ++hitPos)
+//            {
+//                verifier.verificationsCount++;
+//                THit hit = toSuffixPosition(verifier.index, sa[hitPos], verifier.seedLength);
+//
+//                if (verifyHit(verifier,
+//                              readSeqs,
+//                              anchorId, (hitId - hitsBegin) * verifier.seedLength, (hitId - hitsBegin + 1) * verifier.seedLength,
+//                              getValueI1(hit), getValueI2(hit), getValueI2(hit) + verifier.seedLength,
+//                              verifier.seedErrors))
+//                {
+//                    verifier.matchesCount++;
+//                }
+//            }
         }
     }
 }
