@@ -90,10 +90,8 @@ struct Mapper
     typedef typename TStore::TReadSeqStore                          THostReadSeqs;
     typedef typename Space<THostReadSeqs, TExecSpace>::Type         TReadSeqs;
 
-    typedef SeederConfig<Options, TIndex, TReadSeqs>                TSeederConfig;
+    typedef SeederConfig<Options, TIndex, TReadSeqs, Exact>         TSeederConfig;
     typedef Seeder<TExecSpace, TSeederConfig>                       TSeeder;
-
-//    typedef OccurrencesCounter<TIndex>                              TLocator;
 
 //    typedef VerifierConfig<Options, TReadSeqs>                      TVerifierConfig;
 //    typedef Verifier<TExecSpace, TVerifierConfig>                   TVerifier;
@@ -128,7 +126,7 @@ struct Mapper
         store(),
         reads(store),
         readsLoader(reads),
-        seeder(index, options)
+        seeder(options, index, 0u)
 //        locator()
 //        locator(index, options),
 //        verifier(contigs(genome), options),
