@@ -331,7 +331,6 @@ inline void anchorRead(Verifier<TExecSpace, TConfig> & verifier, TReadSeqs & rea
         // Verify all hits of a seed of the anchor.
         for (THitPos hitPos = getValueI1(hits.ranges[hitId]); hitPos < getValueI2(hits.ranges[hitId]); ++hitPos)
         {
-            verifier.verificationsCount++;
             THit hit = toSuffixPosition(verifier.index, sa[hitPos], verifier.seedLength);
 
             if (verifyHit(verifier,
