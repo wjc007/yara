@@ -60,12 +60,13 @@ struct Seed
 // Class SeederConfig
 // ----------------------------------------------------------------------------
 
-template <typename TOptions_, typename TIndex_, typename TReadSeqs_>
+template <typename TOptions_, typename TIndex_, typename TReadSeqs_, typename TDistance_>
 struct SeederConfig
 {
     typedef TOptions_    TOptions;
     typedef TIndex_      TIndex;
     typedef TReadSeqs_   TReadSeqs;
+    typedef TDistance_   TDistance;
 };
 
 // ----------------------------------------------------------------------------
@@ -78,7 +79,7 @@ struct Seeder
     typedef typename TConfig::TOptions                      TOptions;
     typedef typename TConfig::TIndex                        TIndex;
     typedef typename TConfig::TReadSeqs                     TReadSeqs;
-//    typedef typename TConfig::TAlgorithm                    TAlgorithm;
+    typedef typename TConfig::TDistance                     TDistance;
 
     typedef String<typename Seed<TReadSeqs>::Type>          TSeedsString;
     typedef typename Space<TSeedsString, TExecSpace>::Type  TSeeds;
@@ -86,22 +87,28 @@ struct Seeder
     typedef typename Size<TIndex>::Type                     TSize;
     typedef Hits<TSize, void>                               THits;
 
-//    typedef Multiple<Backtracking<HammingDistance> >        TAlgorithm;
-    typedef Multiple<FinderSTree>                           TAlgorithm;
+    typedef typename If<IsSameType<TDistance, Exact>,
+                        FinderSTree,
+                        Backtracking<HammingDistance>
+                       >::Type                              TAlgorithmSpec;
+    typedef Multiple<TAlgorithmSpec>                        TAlgorithm;
     typedef Pattern<TSeeds, TAlgorithm>                     TPattern;
     typedef Finder2<TIndex, TPattern, TAlgorithm>           TFinder;
 
+    TOptions const &    options;
+    TFinder             finder;
     TSeeds              seeds;
     THits               hits;
-    TFinder             finder;
-    TOptions const &    options;
+    TSize               errorsPerSeed;
 
-    Seeder(TIndex & index, TOptions const & options) :
+    template <typename TErrors>
+    Seeder(TOptions const & options, TIndex & index, TErrors errorsPerSeed) :
+        options(options),
         finder(index),
-        options(options)
+        errorsPerSeed(errorsPerSeed)
     {
         // Set the error threshold.
-    //    setScoreThreshold(finder, options.errorsPerSeed);
+    //    setScoreThreshold(finder, errorsPerSeed);
     }
 };
 
@@ -185,8 +192,8 @@ inline void fillSeeds(Seeder<TExecSpace, TConfig> & seeder, TReadSeqs & readSeqs
     TSize readSeqsCount = length(readSeqs);
     TSize readSeqLength = length(back(readSeqs));
     TSize readSeqErrors = std::ceil(readSeqLength * (seeder.options.errorRate / 100.0));
-    TSize seedLength    = readSeqLength / (readSeqErrors + 1);
-    TSize seedsPerReadSeq = readSeqLength / seedLength;
+    TSize seedsPerReadSeq = std::ceil(readSeqErrors / (seeder.errorsPerSeed + 1.0));
+    TSize seedLength = readSeqErrors / seedsPerReadSeq;
 
     // Resize space for seeds.
     clear(seeder.seeds);
