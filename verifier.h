@@ -311,18 +311,49 @@ inline bool verifyHit(Verifier<TExecSpace, TConfig> & verifier,
 }
 
 // ----------------------------------------------------------------------------
+// Function anchorRead()
+// ----------------------------------------------------------------------------
+
+template <typename TExecSpace, typename TConfig, typename TReadSeqs, typename THits, typename TSA, typename TReadId>
+inline void anchorRead(Verifier<TExecSpace, TConfig> & verifier, TReadSeqs & readSeqs, THits const & hits, TSA const & sa, TReadId anchorId)
+{
+    typedef Verifier<TExecSpace, TConfig>                               TVerifier;
+    typedef typename TVerifier::TContig                                 TContig;
+    typedef typename Size<TContig>::Type                                THitPos;
+    typedef typename Size<THits>::Type                                  THitId;
+    typedef typename Value<TSA>::Type                                   THit;
+
+    // Consider the hits of all seeds of the anchor.
+    THitId hitsBegin = anchorId * (verifier.readErrors + 1);
+    THitId hitsEnd = (anchorId + 1) * (verifier.readErrors + 1);
+    for (THitId hitId = hitsBegin; hitId < hitsEnd; ++hitId)
+    {
+        // Verify all hits of a seed of the anchor.
+        for (THitPos hitPos = getValueI1(hits.ranges[hitId]); hitPos < getValueI2(hits.ranges[hitId]); ++hitPos)
+        {
+            verifier.verificationsCount++;
+            THit hit = toSuffixPosition(verifier.index, sa[hitPos], verifier.seedLength);
+
+            if (verifyHit(verifier,
+                          readSeqs,
+                          anchorId, (hitId - hitsBegin) * verifier.seedLength, (hitId - hitsBegin + 1) * verifier.seedLength,
+                          getValueI1(hit), getValueI2(hit), getValueI2(hit) + verifier.seedLength,
+                          verifier.seedErrors))
+            {
+                verifier.matchesCount++;
+            }
+        }
+    }
+}
+
+// ----------------------------------------------------------------------------
 // Function anchorPairs()
 // ----------------------------------------------------------------------------
 
 template <typename TExecSpace, typename TConfig, typename TReadSeqs, typename THits, typename TSA>
 inline void anchorPairs(Verifier<TExecSpace, TConfig> & verifier, TReadSeqs & readSeqs, THits const & hits, TSA const & sa)
 {
-    typedef Verifier<TExecSpace, TConfig>                               TVerifier;
-    typedef typename TVerifier::TContig                                 TContig;
     typedef typename Size<TReadSeqs>::Type                              TReadId;
-    typedef typename Size<THits>::Type                                  THitId;
-    typedef typename Size<TContig>::Type                                THitPos;
-    typedef typename Value<TSA>::Type                                   THit;
 
 #ifdef ENABLE_GENOME_LOADING
     setValue(verifier.index.text, verifier.contigs);
@@ -347,35 +378,16 @@ inline void anchorPairs(Verifier<TExecSpace, TConfig> & verifier, TReadSeqs & re
         unsigned long pairOneTwoHits = std::min(fwdOneHits, revTwoHits);
         unsigned long pairTwoOneHits = std::min(fwdTwoHits, revOneHits);
 
-//        TReadId anchorOneTwoId = (pairOneTwoHits == fwdOneHits) ? fwdOneId : revTwoId;
-//        TReadId anchorOneTwoId = (pairTwoOneHits == fwdTwoHits) ? fwdTwoId : revOneId;
+        TReadId anchorOneTwoId = (pairOneTwoHits == fwdOneHits) ? fwdOneId : revTwoId;
+        TReadId anchorTwoOneId = (pairTwoOneHits == fwdTwoHits) ? fwdTwoId : revOneId;
 
         // Skip the pair if the anchor is hard.
         if (pairOneTwoHits + pairTwoOneHits > verifier.hitsThreshold) continue;
 
         verifier.verificationsCount += pairOneTwoHits + pairTwoOneHits;
 
-        // Consider the hits of all seeds of the anchor.
-//        THitId hitsBegin = anchorId * (verifier.readErrors + 1);
-//        THitId hitsEnd = (anchorId + 1) * (verifier.readErrors + 1);
-//        for (THitId hitId = hitsBegin; hitId < hitsEnd; ++hitId)
-//        {
-            // Verify all hits of a seed of the anchor.
-//            for (THitPos hitPos = getValueI1(hits.ranges[hitId]); hitPos < getValueI2(hits.ranges[hitId]); ++hitPos)
-//            {
-//                verifier.verificationsCount++;
-//                THit hit = toSuffixPosition(verifier.index, sa[hitPos], verifier.seedLength);
-//
-//                if (verifyHit(verifier,
-//                              readSeqs,
-//                              anchorId, (hitId - hitsBegin) * verifier.seedLength, (hitId - hitsBegin + 1) * verifier.seedLength,
-//                              getValueI1(hit), getValueI2(hit), getValueI2(hit) + verifier.seedLength,
-//                              verifier.seedErrors))
-//                {
-//                    verifier.matchesCount++;
-//                }
-//            }
-//        }
+        anchorRead(verifier, readSeqs, hits, sa, anchorOneTwoId);
+        anchorRead(verifier, readSeqs, hits, sa, anchorTwoOneId);
     }
 }
 
