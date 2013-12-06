@@ -38,28 +38,11 @@
 #define APP_CUDAMAPPER_TAGS_H_
 
 #include <seqan/basic.h>
-#include <seqan/sequence.h>
 
 using namespace seqan;
 
 // ============================================================================
-// Forwards
-// ============================================================================
-
-// ============================================================================
-// Tags, Classes, Enums
-// ============================================================================
-
-struct All_;
-struct AllBest_;
-struct KBest_;
-struct AnyBest_;
-
-typedef Tag<All_>       All;
-typedef Tag<AllBest_>   AllBest;
-typedef Tag<KBest_>     KBest;
-typedef Tag<AnyBest_>   AnyBest;
-
+// Tags
 // ============================================================================
 
 struct SingleEnd_;
@@ -79,22 +62,5 @@ struct RightFile_;
 
 typedef Tag<LeftFile_>      LeftFile;
 typedef Tag<RightFile_>     RightFile;
-
-// ============================================================================
-
-struct SingleBacktracking_;
-struct MultipleBacktracking_;
-
-typedef Tag<SingleBacktracking_>    SingleBacktracking;
-typedef Tag<MultipleBacktracking_>  MultipleBacktracking;
-
-
-// ============================================================================
-// Metafunctions
-// ============================================================================
-
-// ============================================================================
-// Functions
-// ============================================================================
 
 #endif  // #ifndef APP_CUDAMAPPER_TAGS_H_
