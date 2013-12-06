@@ -192,8 +192,8 @@ inline void fillSeeds(Seeder<TExecSpace, TConfig> & seeder, TReadSeqs & readSeqs
     TSize readSeqsCount = length(readSeqs);
     TSize readSeqLength = length(back(readSeqs));
     TSize readSeqErrors = std::ceil(readSeqLength * (seeder.options.errorRate / 100.0));
-    TSize seedsPerReadSeq = std::ceil(readSeqErrors / (seeder.errorsPerSeed + 1.0));
-    TSize seedLength = readSeqErrors / seedsPerReadSeq;
+    TSize seedsPerReadSeq = readSeqErrors + 1;// std::ceil(readSeqErrors / (seeder.errorsPerSeed + 1.0));
+    TSize seedLength = readSeqLength / seedsPerReadSeq;
 
     // Resize space for seeds.
     clear(seeder.seeds);
