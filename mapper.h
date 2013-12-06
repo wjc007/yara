@@ -93,7 +93,7 @@ struct Mapper
     typedef SeederConfig<Options, TIndex, TReadSeqs, Exact>         TSeederConfig;
     typedef Seeder<TExecSpace, TSeederConfig>                       TSeeder;
 
-    typedef VerifierConfig<Options, TContigs, TReadSeqs>            TVerifierConfig;
+    typedef VerifierConfig<Options, TIndex, TContigs, TReadSeqs>    TVerifierConfig;
     typedef Verifier<TExecSpace, TVerifierConfig>                   TVerifier;
 //
 //    typedef WriterConfig<Options, TReadSeqs>                        TWriterConfig;
@@ -128,7 +128,7 @@ struct Mapper
         readsLoader(reads),
         seeder(options, index, 0u),
 //        locator(options, index),
-        verifier(options, contigs(genome))
+        verifier(options, index, contigs(genome))
 //        writer(options, genome)
     {};
 };
@@ -252,6 +252,8 @@ void _mapReads(Mapper<TExecSpace> & mapper, TReadSeqs & readSeqs)
     verifyHits(mapper.verifier, readSeqs, mapper.seeder.hits, indexSA(mapper.index));
     stop(mapper.timer);
     std::cout << "Verification time:\t\t" << mapper.timer << std::endl;
+    std::cout << "Verifications count:\t\t" << mapper.verifier.verificationsCount << std::endl;
+    std::cout << "Matches count:\t\t\t" << mapper.verifier.matchesCount << std::endl;
 
 //    start(mapper.timer);
 //    runWriter(mapper.writer, readSeqs);
