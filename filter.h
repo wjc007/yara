@@ -190,7 +190,7 @@ inline void fillSeeds(Seeder<TExecSpace, TConfig> & seeder, TReadSeqs & readSeqs
     typedef typename Size<TReadSeqs>::Type  TSize;
 
     TSize readSeqsCount = length(readSeqs);
-    TSize readSeqLength = length(back(readSeqs));
+    TSize readSeqLength = length(front(readSeqs));
     TSize readSeqErrors = std::ceil(readSeqLength * (seeder.options.errorRate / 100.0));
     TSize seedsPerReadSeq = readSeqErrors + 1;// std::ceil(readSeqErrors / (seeder.errorsPerSeed + 1.0));
     TSize seedLength = readSeqLength / seedsPerReadSeq;
