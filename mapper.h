@@ -93,8 +93,8 @@ struct Mapper
     typedef SeederConfig<Options, TIndex, TReadSeqs, Exact>         TSeederConfig;
     typedef Seeder<TExecSpace, TSeederConfig>                       TSeeder;
 
-//    typedef VerifierConfig<Options, TReadSeqs>                      TVerifierConfig;
-//    typedef Verifier<TExecSpace, TVerifierConfig>                   TVerifier;
+    typedef VerifierConfig<Options, TContigs, TReadSeqs>            TVerifierConfig;
+    typedef Verifier<TExecSpace, TVerifierConfig>                   TVerifier;
 //
 //    typedef WriterConfig<Options, TReadSeqs>                        TWriterConfig;
 //    typedef Writer<TExecSpace, TWriterConfig>                       TWriter;
@@ -113,7 +113,7 @@ struct Mapper
 
     TSeeder             seeder;
 //    TLocator            locator;
-//    TVerifier           verifier;
+    TVerifier           verifier;
 //    TWriter             writer;
 
     Mapper(Options const & options) :
@@ -126,11 +126,10 @@ struct Mapper
         store(),
         reads(store),
         readsLoader(reads),
-        seeder(options, index, 0u)
-//        locator()
-//        locator(index, options),
-//        verifier(contigs(genome), options),
-//        writer(genome, options)
+        seeder(options, index, 0u),
+//        locator(options, index),
+        verifier(options, contigs(genome))
+//        writer(options, genome)
     {};
 };
 
@@ -241,17 +240,18 @@ void _mapReads(Mapper<TExecSpace> & mapper, TReadSeqs & readSeqs)
     stop(mapper.timer);
     std::cout << "Seeding time:\t\t\t" << mapper.timer << std::endl;
     std::cout << "Seeds count:\t\t\t" << length(mapper.seeder.seeds) << std::endl;
-    std::cout << "Hits count:\t\t\t" << getCount(mapper.seeder.hits) << std::endl;
+    std::cout << "Ranges count:\t\t\t" << countRanges(mapper.seeder.hits) << std::endl;
+    std::cout << "Hits count:\t\t\t" << countHits(mapper.seeder.hits) << std::endl;
 
 //    start(mapper.timer);
 //    runLocator(mapper.locator, mapper.verifier);
 //    stop(mapper.timer);
 //    std::cout << "Location time:\t\t\t" << mapper.timer << std::endl;
 
-//    start(mapper.timer);
-//    runVerifier(mapper.verifier, readSeqs, mapper.writer);
-//    stop(mapper.timer);
-//    std::cout << "Verification time:\t\t" << mapper.timer << std::endl;
+    start(mapper.timer);
+    verifyHits(mapper.verifier, readSeqs, mapper.seeder.hits, indexSA(mapper.index));
+    stop(mapper.timer);
+    std::cout << "Verification time:\t\t" << mapper.timer << std::endl;
 
 //    start(mapper.timer);
 //    runWriter(mapper.writer, readSeqs);
