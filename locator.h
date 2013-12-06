@@ -203,14 +203,8 @@ inline void clear(Hits<TSize, TSpec> & hits)
     clear(hits.ranges);
 }
 
-//template <typename TSize, typename TSpec>
-//inline TSize getCount(Hits<TSize, TSpec> const & hits, TReadId readId)
-//{
-//    return std::count_if(begin(hits.ranges, Standard()), end(hits.ranges, Standard()), isValid<TSize>);
-//}
-
 // ----------------------------------------------------------------------------
-// Function getCount()
+// Function countRanges()
 // ----------------------------------------------------------------------------
 
 template <typename TSize>
@@ -228,23 +222,20 @@ inline TSize countRanges(Hits<TSize, TSpec> const & hits)
 template <typename TSize, typename TSpec>
 inline unsigned long countHits(Hits<TSize, TSpec> const & hits)
 {
-    typedef HitsCounter<unsigned long, TSpec>   TCounter;
-
-    return std::for_each(begin(hits.ranges, Standard()), end(hits.ranges, Standard()), TCounter()).count;
+    return std::for_each(begin(hits.ranges, Standard()), end(hits.ranges, Standard()), HitsCounter<unsigned long, TSpec>()).count;
 }
 
 template <typename TSize, typename TSpec, typename TReadId>
 inline TSize countHits(Hits<TSize, TSpec> const & hits, TReadId readId)
 {
-    typedef Hits<TSize, TSpec> const                    THits;
-    typedef HitsCounter<TSize, TSpec>                   THitsCounter;
-    typedef typename Member<THits, Ranges_>::Type       TRanges;
+    typedef Hits<TSize, TSpec> const                            THits;
+    typedef typename Member<THits, Ranges_>::Type               TRanges;
     typedef typename Iterator<TRanges const, Standard>::Type    TRangesIt;
 
     TRangesIt rangesBegin = begin(hits.ranges, Standard()) + (readId * (5u + 1));
     TRangesIt rangesEnd = begin(hits.ranges, Standard()) + ((readId + 1) * (5u + 1));
 
-    return std::for_each(rangesBegin, rangesEnd, THitsCounter()).count;
+    return std::for_each(rangesBegin, rangesEnd, HitsCounter<TSize, TSpec>()).count;
 }
 
 
