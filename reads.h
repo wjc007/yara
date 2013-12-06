@@ -37,8 +37,6 @@
 #ifndef APP_CUDAMAPPER_READS_H_
 #define APP_CUDAMAPPER_READS_H_
 
-#include <stdexcept>
-
 #include <seqan/basic.h>
 #include <seqan/sequence.h>
 #include <seqan/seq_io.h>
