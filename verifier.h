@@ -333,25 +333,33 @@ inline void anchorPairs(Verifier<TExecSpace, TConfig> & verifier, TReadSeqs & re
     for (TReadId pairId = 0; pairId < pairsCount; ++pairId)
     {
         // Get mates ids.
-        TReadId fwdId = pairId;
-        TReadId revId = pairId + 3 * pairsCount;
+        TReadId fwdOneId = pairId;
+        TReadId fwdTwoId = pairId + pairsCount;
+        TReadId revOneId = pairId + 2 * pairsCount;
+        TReadId revTwoId = pairId + 3 * pairsCount;
 
         // Choose the anchor.
-        unsigned long fwdHits = countHits(hits, fwdId);
-        unsigned long revHits = countHits(hits, revId);
-        unsigned long anchorHits = std::min(fwdHits, revHits);
-        TReadId anchorId = (anchorHits == fwdHits) ? fwdId : revId;
+        unsigned long fwdOneHits = countHits(hits, fwdOneId);
+        unsigned long fwdTwoHits = countHits(hits, fwdTwoId);
+        unsigned long revOneHits = countHits(hits, revOneId);
+        unsigned long revTwoHits = countHits(hits, revTwoId);
+
+        unsigned long pairOneTwoHits = std::min(fwdOneHits, revTwoHits);
+        unsigned long pairTwoOneHits = std::min(fwdTwoHits, revOneHits);
+
+//        TReadId anchorOneTwoId = (pairOneTwoHits == fwdOneHits) ? fwdOneId : revTwoId;
+//        TReadId anchorOneTwoId = (pairTwoOneHits == fwdTwoHits) ? fwdTwoId : revOneId;
 
         // Skip the pair if the anchor is hard.
-        if (anchorHits > verifier.hitsThreshold) continue;
+        if (pairOneTwoHits + pairTwoOneHits > verifier.hitsThreshold) continue;
 
-        verifier.verificationsCount += anchorHits;
+        verifier.verificationsCount += pairOneTwoHits + pairTwoOneHits;
 
         // Consider the hits of all seeds of the anchor.
-        THitId hitsBegin = anchorId * (verifier.readErrors + 1);
-        THitId hitsEnd = (anchorId + 1) * (verifier.readErrors + 1);
-        for (THitId hitId = hitsBegin; hitId < hitsEnd; ++hitId)
-        {
+//        THitId hitsBegin = anchorId * (verifier.readErrors + 1);
+//        THitId hitsEnd = (anchorId + 1) * (verifier.readErrors + 1);
+//        for (THitId hitId = hitsBegin; hitId < hitsEnd; ++hitId)
+//        {
             // Verify all hits of a seed of the anchor.
 //            for (THitPos hitPos = getValueI1(hits.ranges[hitId]); hitPos < getValueI2(hits.ranges[hitId]); ++hitPos)
 //            {
@@ -367,7 +375,7 @@ inline void anchorPairs(Verifier<TExecSpace, TConfig> & verifier, TReadSeqs & re
 //                    verifier.matchesCount++;
 //                }
 //            }
-        }
+//        }
     }
 }
 
