@@ -45,10 +45,11 @@ using namespace seqan;
 // Class VerifierConfig
 // ----------------------------------------------------------------------------
 
-template <typename TOptions_, typename TContigs_, typename TReadSeqs_>
+template <typename TOptions_, typename TIndex_, typename TContigs_, typename TReadSeqs_>
 struct VerifierConfig
 {
     typedef TOptions_       TOptions;
+    typedef TIndex_         TIndex;
     typedef TContigs_       TContigs;
     typedef TReadSeqs_      TReadSeqs;
 };
@@ -61,6 +62,7 @@ template <typename TExecSpace, typename TConfig>
 struct Verifier
 {
     typedef typename TConfig::TOptions                                  TOptions;
+    typedef typename TConfig::TIndex                                    TIndex;
     typedef typename TConfig::TContigs                                  TContigs;
     typedef typename TConfig::TReadSeqs                                 TReadSeqs;
 
@@ -75,37 +77,252 @@ struct Verifier
     typedef PatternState_<TReadInfixRev, TAlgorithm>                    TPatternStateRev;
 
     TOptions const &    options;
-    TContigs const &    contigs;
+    TIndex &            index;
+    TContigs &          contigs;
 
     TPatternState       patternState;
     TPatternStateRev    patternStateRev;
 
-    Verifier(TOptions const & options, TContigs const & contigs) :
+    unsigned readErrors;
+    unsigned seedErrors;
+    unsigned seedLength;
+    unsigned hitsThreshold;
+    unsigned long matchesCount;
+
+    Verifier(TOptions const & options, TIndex & index, TContigs & contigs) :
         options(options),
-        contigs(contigs)
+        index(index),
+        contigs(contigs),
+        readErrors(5),
+        seedErrors(0),
+        seedLength(16),
+        hitsThreshold(300),
+        matchesCount(0)
     {}
 };
 
-template <typename TExecSpace, typename TConfig, typename TReadSeq, typename TPos, typename TErrors>
-inline void verifyHit(Verifier<TExecSpace, TConfig> & verifier, TReadSeq & readSeq,
-                      TPos hitBegin, TPos hitEnd, TErrors hitErrors)
+// ----------------------------------------------------------------------------
+// Function _extendLeft()
+// ----------------------------------------------------------------------------
+
+template <typename TExecSpace, typename TConfig, typename TPatternState,
+          typename TContigInfix, typename TReadInfix, typename TContigPos, typename TErrors>
+inline bool _extendLeft(Verifier<TExecSpace, TConfig> & verifier,
+                        TPatternState & patternState,
+                        TContigInfix & contigInfix,
+                        TReadInfix & readInfix,
+                        TContigPos & matchBegin,
+                        TErrors & errors)
 {
-//    TContig const & contig = verifier.contigs[getValueI1(hitBegin)];
+    typedef ModifiedString<TReadInfix, ModReverse>          TReadInfixRev;
+    typedef ModifiedString<TContigInfix, ModReverse>        TContigInfixRev;
+    typedef Finder<TContigInfixRev>                         TFinder;
 
-//    TReadSeqSize readLength = length(readSeq);
+    // Lcp trick.
+    TContigPos lcp = 0;
+    {  // TODO(holtgrew): Workaround to storing and returning copies in host() for nested infixes/modified strings. This is ugly and should be fixed later.
+        TReadInfixRev readInfixRev(readInfix);
+        TContigInfixRev contigInfixRev(contigInfix);
+        lcp = lcpLength(contigInfixRev, readInfixRev);
+    }
+    if (lcp == length(readInfix))
+    {
+        matchBegin -= lcp;
+        return true;
+    }
+    setEndPosition(contigInfix, endPosition(contigInfix) - lcp);
+    setEndPosition(readInfix, endPosition(readInfix) - lcp);
 
+    TErrors remainingErrors = verifier.readErrors - errors;
+    TErrors minErrors = remainingErrors + 1;
+    TContigPos endPos = 0;
+
+    // Stop seed extension.
+    if (!remainingErrors)
+        return false;
+
+    // Align.
+    TReadInfixRev readInfixRev(readInfix);
+    TContigInfixRev contigInfixRev(contigInfix);
+    TFinder finder(contigInfixRev);
+    patternState.leftClip = remainingErrors;
+
+    // TODO(esiragusa): Use a generic type for errors.
+    while (find(finder, readInfixRev, patternState, -static_cast<int>(remainingErrors)))
+    {
+        TErrors currentErrors = -getScore(patternState);
+
+        if (currentErrors <= minErrors)
+        {
+            minErrors = currentErrors;
+            endPos = position(finder) + 1;
+        }
+    }
+
+    errors += minErrors;
+    matchBegin -= endPos + lcp;
+
+    return errors <= verifier.readErrors;
 }
+
+// ----------------------------------------------------------------------------
+// Function _extendRight()
+// ----------------------------------------------------------------------------
+
+template <typename TExecSpace, typename TConfig, typename TPatternState,
+          typename TContigInfix, typename TReadInfix, typename TContigPos, typename TErrors>
+inline bool _extendRight(Verifier<TExecSpace, TConfig> & verifier,
+                         TPatternState & patternState,
+                         TContigInfix & contigInfix,
+                         TReadInfix & readInfix,
+                         TContigPos & matchEnd,
+                         TErrors & errors)
+{
+    typedef Finder<TContigInfix>    TFinder;
+
+    // Lcp trick.
+    TContigPos lcp = lcpLength(contigInfix, readInfix);
+    if (lcp == length(readInfix))
+    {
+        matchEnd += lcp;
+        return true;
+    }
+    else if (lcp == length(contigInfix))
+    {
+        errors += length(readInfix) - length(contigInfix);
+        matchEnd += length(readInfix);
+        return errors <= verifier.readErrors;
+    }
+    setBeginPosition(contigInfix, beginPosition(contigInfix) + lcp);
+    setBeginPosition(readInfix, beginPosition(readInfix) + lcp);
+
+    // NOTE Uncomment this to disable lcp trick.
+//    TContigPos lcp = 0;
+
+    TErrors remainingErrors = verifier.readErrors - errors;
+    TErrors minErrors = remainingErrors + 1;
+    TContigPos endPos = 0;
+
+    // NOTE Comment this to disable lcp trick.
+    // Stop seed extension.
+    if (!remainingErrors)
+        return false;
+
+    // Remove last base.
+    TContigInfix contigPrefix(contigInfix);
+    TReadInfix readPrefix(readInfix);
+    setEndPosition(contigPrefix, endPosition(contigPrefix) - 1);
+    setEndPosition(readPrefix, endPosition(readPrefix) - 1);
+
+    // Align.
+    TFinder finder(contigPrefix);
+    patternState.leftClip = remainingErrors;
+
+    while (find(finder, readPrefix, patternState, -static_cast<int>(remainingErrors)))
+    {
+        TContigPos currentEnd = position(finder) + 1;
+        TErrors currentErrors = -getScore(patternState);
+
+        // Compare last base.
+        if (contigInfix[currentEnd] != back(readInfix))
+            if (++currentErrors > remainingErrors)
+                continue;
+
+        if (currentErrors <= minErrors)
+        {
+            minErrors = currentErrors;
+            endPos = currentEnd;
+        }
+    }
+
+    errors += minErrors;
+    matchEnd += endPos + lcp + 1;
+
+    return errors <= verifier.readErrors;
+}
+
+// ----------------------------------------------------------------------------
+// Function verifyHit()
+// ----------------------------------------------------------------------------
+
+template <typename TExecSpace, typename TConfig, typename TReadSeqs,
+          typename TReadId, typename TReadPos, typename TContigId, typename TContigPos, typename TErrors>
+inline bool verifyHit(Verifier<TExecSpace, TConfig> & verifier,
+                      TReadSeqs & readSeqs,
+                      TReadId readId,
+                      TReadPos readBegin,
+                      TReadPos readEnd,
+                      TContigId contigId,
+                      TContigPos contigBegin,
+                      TContigPos contigEnd,
+                      TErrors hitErrors)
+{
+    typedef Verifier<TExecSpace, TConfig>                               TVerifier;
+    typedef typename TVerifier::TContig                                 TContig;
+    typedef typename Size<TContig>::Type                                TContigSize;
+    typedef typename Infix<TContig>::Type                               TContigInfix;
+    typedef typename TVerifier::TReadSeq                                TReadSeq;
+    typedef typename Infix<TReadSeq>::Type                              TReadInfix;
+
+    TContig contig = verifier.contigs[contigId];
+    TReadSeq readSeq = readSeqs[readId];
+    TContigSize contigLength = length(contig);
+    TErrors readLength = length(readSeq);
+    TErrors readErrors = hitErrors;
+
+    // Extend left.
+    TContigPos matchBegin = contigBegin;
+
+    if (readBegin > 0)
+    {
+        TContigPos contigLeftBegin = 0;
+        if (contigBegin > readBegin + verifier.readErrors - readErrors)
+            contigLeftBegin = contigBegin - (readBegin + verifier.readErrors - readErrors);
+
+        TContigInfix contigLeft = infix(contig, contigLeftBegin, contigBegin);
+        TReadInfix readLeft = infix(readSeq, 0, readBegin);
+
+        if (!_extendLeft(verifier, verifier.patternStateRev, contigLeft, readLeft, matchBegin, readErrors))
+            return false;
+    }
+
+    // Extend right.
+    TContigPos matchEnd = contigEnd;
+
+    if (readEnd < readLength)
+    {
+        TContigPos contigRightEnd = contigLength;
+        if (contigRightEnd > contigBegin + readLength - readBegin + verifier.readErrors - readErrors)
+            contigRightEnd = contigBegin + readLength - readBegin + verifier.readErrors - readErrors;
+
+        if (contigBegin + verifier.seedLength >= contigRightEnd)
+            return false;
+
+        TContigInfix contigRight = infix(contig, contigEnd, contigRightEnd);
+        TReadInfix readRight = infix(readSeq, readEnd, readLength);
+
+        if (!_extendRight(verifier, verifier.patternState, contigRight, readRight, matchEnd, readErrors))
+            return false;
+    }
+
+    return true;
+}
+
+// ----------------------------------------------------------------------------
+// Function verifyHits()
+// ----------------------------------------------------------------------------
 
 template <typename TExecSpace, typename TConfig, typename TReadSeqs, typename THits, typename TSA>
 inline void verifyHits(Verifier<TExecSpace, TConfig> & verifier, TReadSeqs & readSeqs, THits const & hits, TSA const & sa)
 {
     typedef Verifier<TExecSpace, TConfig>                               TVerifier;
     typedef typename TVerifier::TContig                                 TContig;
-    typedef typename TVerifier::TReadSeq                                TReadSeq;
     typedef typename Size<TReadSeqs>::Type                              TReadId;
     typedef typename Size<THits>::Type                                  THitId;
     typedef typename Size<TContig>::Type                                THitPos;
     typedef typename Value<TSA>::Type                                   THit;
+
+    setValue(verifier.index.text, verifier.contigs);
 
     TReadId pairsCount = length(readSeqs) / 4;
 
@@ -120,22 +337,28 @@ inline void verifyHits(Verifier<TExecSpace, TConfig> & verifier, TReadSeqs & rea
         unsigned long revHits = countHits(hits, revId);
         unsigned long anchorHits = std::min(fwdHits, revHits);
         TReadId anchorId = (anchorHits == fwdHits) ? fwdId : revId;
-        TReadSeq anchor = readSeqs[anchorId];
 
         // Skip the pair if the anchor is hard.
-        if (anchorHits > 300) continue;
+        if (anchorHits > verifier.hitsThreshold) continue;
 
         // Consider the hits of all seeds of the anchor.
-        THitId hitsBegin = anchorId * (5u + 1);
-        THitId hitsEnd = (anchorId + 1) * (5u + 1);
+        THitId hitsBegin = anchorId * (verifier.readErrors + 1);
+        THitId hitsEnd = (anchorId + 1) * (verifier.readErrors + 1);
         for (THitId hitId = hitsBegin; hitId < hitsEnd; ++hitId)
         {
             // Verify all hits of a seed of the anchor.
             for (THitPos hitPos = getValueI1(hits.ranges[hitId]); hitPos < getValueI2(hits.ranges[hitId]); ++hitPos)
             {
-                THit hit = sa[hitPos];
+                THit hit = toSuffixPosition(verifier.index, sa[hitPos], verifier.seedLength);
 
-                verifyHit(verifier, anchor, hit, posAdd(hit, 16u), 0u);
+                if (verifyHit(verifier,
+                              readSeqs,
+                              anchorId, (hitId - hitsBegin) * verifier.seedLength, (hitId - hitsBegin + 1) * verifier.seedLength,
+                              getValueI1(hit), getValueI2(hit), getValueI2(hit) + verifier.seedLength,
+                              verifier.seedErrors))
+                {
+                    verifier.matchesCount++;
+                }
             }
         }
     }
