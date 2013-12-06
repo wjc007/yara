@@ -45,11 +45,12 @@ using namespace seqan;
 // Class VerifierConfig
 // ----------------------------------------------------------------------------
 
-template <typename TOptions_, typename TReadSeqs_>
+template <typename TOptions_, typename TContigs_, typename TReadSeqs_>
 struct VerifierConfig
 {
-    typedef TOptions_    TOptions;
-    typedef TReadSeqs_   TReadSeqs;
+    typedef TOptions_       TOptions;
+    typedef TContigs_       TContigs;
+    typedef TReadSeqs_      TReadSeqs;
 };
 
 // ----------------------------------------------------------------------------
@@ -59,13 +60,85 @@ struct VerifierConfig
 template <typename TExecSpace, typename TConfig>
 struct Verifier
 {
-    typedef typename TConfig::TOptions                      TOptions;
+    typedef typename TConfig::TOptions                                  TOptions;
+    typedef typename TConfig::TContigs                                  TContigs;
+    typedef typename TConfig::TReadSeqs                                 TReadSeqs;
+
+    typedef typename Value<TContigs>::Type                              TContig;
+    typedef typename Value<TReadSeqs>::Type                             TReadSeq;
+    typedef typename Infix<TReadSeq>::Type                              TReadInfix;
+    typedef ModifiedString<TReadInfix, ModReverse>                      TReadInfixRev;
+
+    typedef AlignTextBanded<FindPrefix, NMatchesNone_, NMatchesNone_>   TMyersSpec;
+    typedef Myers<TMyersSpec, True, void>                               TAlgorithm;
+    typedef PatternState_<TReadInfix, TAlgorithm>                       TPatternState;
+    typedef PatternState_<TReadInfixRev, TAlgorithm>                    TPatternStateRev;
 
     TOptions const &    options;
+    TContigs const &    contigs;
 
-    Verifier(TOptions const & options) :
-        options(options)
+    TPatternState       patternState;
+    TPatternStateRev    patternStateRev;
+
+    Verifier(TOptions const & options, TContigs const & contigs) :
+        options(options),
+        contigs(contigs)
     {}
 };
+
+template <typename TExecSpace, typename TConfig, typename TReadSeq, typename TPos, typename TErrors>
+inline void verifyHit(Verifier<TExecSpace, TConfig> & verifier, TReadSeq & readSeq,
+                      TPos hitBegin, TPos hitEnd, TErrors hitErrors)
+{
+//    TContig const & contig = verifier.contigs[getValueI1(hitBegin)];
+
+//    TReadSeqSize readLength = length(readSeq);
+
+}
+
+template <typename TExecSpace, typename TConfig, typename TReadSeqs, typename THits, typename TSA>
+inline void verifyHits(Verifier<TExecSpace, TConfig> & verifier, TReadSeqs & readSeqs, THits const & hits, TSA const & sa)
+{
+    typedef Verifier<TExecSpace, TConfig>                               TVerifier;
+    typedef typename TVerifier::TContig                                 TContig;
+    typedef typename TVerifier::TReadSeq                                TReadSeq;
+    typedef typename Size<TReadSeqs>::Type                              TReadId;
+    typedef typename Size<THits>::Type                                  THitId;
+    typedef typename Size<TContig>::Type                                THitPos;
+    typedef typename Value<TSA>::Type                                   THit;
+
+    TReadId pairsCount = length(readSeqs) / 4;
+
+    for (TReadId pairId = 0; pairId < pairsCount; ++pairId)
+    {
+        // Get mates ids.
+        TReadId fwdId = pairId;
+        TReadId revId = pairId + 3 * pairsCount;
+
+        // Choose the anchor.
+        unsigned long fwdHits = countHits(hits, fwdId);
+        unsigned long revHits = countHits(hits, revId);
+        unsigned long anchorHits = std::min(fwdHits, revHits);
+        TReadId anchorId = (anchorHits == fwdHits) ? fwdId : revId;
+        TReadSeq anchor = readSeqs[anchorId];
+
+        // Skip the pair if the anchor is hard.
+        if (anchorHits > 300) continue;
+
+        // Consider the hits of all seeds of the anchor.
+        THitId hitsBegin = anchorId * (5u + 1);
+        THitId hitsEnd = (anchorId + 1) * (5u + 1);
+        for (THitId hitId = hitsBegin; hitId < hitsEnd; ++hitId)
+        {
+            // Verify all hits of a seed of the anchor.
+            for (THitPos hitPos = getValueI1(hits.ranges[hitId]); hitPos < getValueI2(hits.ranges[hitId]); ++hitPos)
+            {
+                THit hit = sa[hitPos];
+
+                verifyHit(verifier, anchor, hit, posAdd(hit, 16u), 0u);
+            }
+        }
+    }
+}
 
 #endif  // #ifndef APP_CUDAMAPPER_VERIFIER_H_
