@@ -87,6 +87,7 @@ struct Verifier
     unsigned seedErrors;
     unsigned seedLength;
     unsigned hitsThreshold;
+    unsigned long verificationsCount;
     unsigned long matchesCount;
 
     Verifier(TOptions const & options, TIndex & index, TContigs & contigs) :
@@ -97,6 +98,7 @@ struct Verifier
         seedErrors(0),
         seedLength(16),
         hitsThreshold(300),
+        verificationsCount(0),
         matchesCount(0)
     {}
 };
@@ -322,7 +324,9 @@ inline void verifyHits(Verifier<TExecSpace, TConfig> & verifier, TReadSeqs & rea
     typedef typename Size<TContig>::Type                                THitPos;
     typedef typename Value<TSA>::Type                                   THit;
 
+#ifdef ENABLE_GENOME_LOADING
     setValue(verifier.index.text, verifier.contigs);
+#endif
 
     TReadId pairsCount = length(readSeqs) / 4;
 

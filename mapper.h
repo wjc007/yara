@@ -35,6 +35,8 @@
 #ifndef APP_CUDAMAPPER_MAPPER_H_
 #define APP_CUDAMAPPER_MAPPER_H_
 
+//#define ENABLE_GENOME_LOADING
+
 using namespace seqan;
 
 // ============================================================================
