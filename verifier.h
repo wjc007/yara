@@ -386,8 +386,10 @@ inline void anchorPairs(Verifier<TExecSpace, TConfig> & verifier, TReadSeqs & re
 
         verifier.verificationsCount += pairOneTwoHits + pairTwoOneHits;
 
+#ifdef ENABLE_GENOME_LOADING
         anchorRead(verifier, readSeqs, hits, sa, anchorOneTwoId);
         anchorRead(verifier, readSeqs, hits, sa, anchorTwoOneId);
+#endif
     }
 }
 
