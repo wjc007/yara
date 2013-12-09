@@ -167,7 +167,27 @@ void loadGenome(Indexer<TIndexSpec, TSpec> & indexer, Options const & options)
     start(indexer.timer);
 
     open(indexer.genomeLoader, options.genomeFile);
-    load(indexer.genomeLoader, Dna());
+    load(indexer.genomeLoader);
+
+    stop(indexer.timer);
+    std::cout << indexer.timer << std::endl;
+}
+
+// ----------------------------------------------------------------------------
+// Function saveGenome()
+// ----------------------------------------------------------------------------
+
+template <typename TIndexSpec, typename TSpec>
+void saveGenome(Indexer<TIndexSpec, TSpec> & indexer, Options const & options)
+{
+    std::cout << "Dumping genome:\t\t\t" << std::flush;
+    start(indexer.timer);
+
+    CharString genomeFile = options.genomeIndexFile;
+    append(genomeFile, ".txt");
+
+    if (!save(contigs(indexer.genome), toCString(genomeFile)))
+        throw RuntimeError("Error while dumping genome file.");
 
     stop(indexer.timer);
     std::cout << indexer.timer << std::endl;
@@ -184,6 +204,9 @@ void buildIndex(Indexer<TIndexSpec, TSpec> & indexer)
 
     std::cout << "Building genome index:\t\t" << std::flush;
     start(indexer.timer);
+
+    // Remove Ns from genome.
+    removeNs(indexer.genome);
 
     // IndexFM is built on the reversed genome.
     reverse(contigs(indexer.genome));
@@ -226,6 +249,7 @@ template <typename TIndexSpec, typename TSpec>
 void runIndexer(Indexer<TIndexSpec, TSpec> & indexer, Options const & options)
 {
     loadGenome(indexer, options);
+    saveGenome(indexer, options);
     buildIndex(indexer);
     saveIndex(indexer, options);
 }
