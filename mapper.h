@@ -103,9 +103,7 @@ struct Mapper
     Options const &     options;
 
     TGenome             genome;
-#ifdef ENABLE_GENOME_LOADING
     TGenomeLoader       genomeLoader;
-#endif
     TIndex              index;
     TStore              store;
     TReads              reads;
@@ -119,9 +117,7 @@ struct Mapper
     Mapper(Options const & options) :
         options(options),
         genome(),
-#ifdef ENABLE_GENOME_LOADING
         genomeLoader(genome),
-#endif
         index(),
         store(),
         reads(store),
@@ -160,7 +156,6 @@ void configureThreads(Mapper<TExecSpace> & mapper)
 template <typename TExecSpace>
 void loadGenome(Mapper<TExecSpace> & mapper)
 {
-#ifdef ENABLE_GENOME_LOADING
     std::cout << "Loading genome:\t\t\t" << std::flush;
     start(mapper.timer);
 
@@ -172,9 +167,6 @@ void loadGenome(Mapper<TExecSpace> & mapper)
 
     stop(mapper.timer);
     std::cout << mapper.timer << std::endl;
-#else
-    ignoreUnusedVariableWarning(mapper);
-#endif
 }
 
 // ----------------------------------------------------------------------------
