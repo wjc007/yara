@@ -55,6 +55,42 @@ struct VerifierConfig
 };
 
 // ----------------------------------------------------------------------------
+// Class Mater
+// ----------------------------------------------------------------------------
+
+template <typename TExecSpace, typename TConfig>
+struct Mater
+{
+    typedef typename TConfig::TOptions                                  TOptions;
+    typedef typename TConfig::TContigs                                  TContigs;
+    typedef typename TConfig::TReadSeqs                                 TReadSeqs;
+
+    typedef typename Value<TContigs>::Type                              TContig;
+    typedef typename Value<TReadSeqs>::Type                             TReadSeq;
+
+    typedef Myers<>                                                     TAlgorithm;
+    typedef Pattern<TReadSeq, TAlgorithm>                               TPattern;
+
+    TOptions const &    options;
+    TContigs &          contigs;
+
+    TPattern            pattern;
+
+    unsigned readErrors;
+    unsigned long matchesCount;
+
+    Mater(TOptions const & options, TContigs & contigs) :
+        options(options),
+        contigs(contigs),
+        readErrors(5),
+        matchesCount(0)
+    {
+        _patternMatchNOfPattern(pattern, false);
+        _patternMatchNOfFinder(pattern, false);
+    }
+};
+
+// ----------------------------------------------------------------------------
 // Class Verifier
 // ----------------------------------------------------------------------------
 
@@ -76,12 +112,16 @@ struct Verifier
     typedef PatternState_<TReadInfix, TAlgorithm>                       TPatternState;
     typedef PatternState_<TReadInfixRev, TAlgorithm>                    TPatternStateRev;
 
+    typedef Mater<TExecSpace, TConfig>                                  TMater;
+
     TOptions const &    options;
     TIndex &            index;
     TContigs &          contigs;
 
     TPatternState       patternState;
     TPatternStateRev    patternStateRev;
+
+    TMater mater;
 
     unsigned readErrors;
     unsigned seedErrors;
@@ -94,6 +134,7 @@ struct Verifier
         options(options),
         index(index),
         contigs(contigs),
+        mater(options, contigs),
         readErrors(5),
         seedErrors(0),
         seedLength(16),
@@ -315,13 +356,17 @@ inline bool verifyHit(Verifier<TExecSpace, TConfig> & verifier,
 // ----------------------------------------------------------------------------
 
 template <typename TExecSpace, typename TConfig, typename TReadSeqs, typename THits, typename TSA, typename TReadId>
-inline void anchorRead(Verifier<TExecSpace, TConfig> & verifier, TReadSeqs & readSeqs, THits const & hits, TSA const & sa, TReadId anchorId)
+inline void anchorRead(Verifier<TExecSpace, TConfig> & verifier, TReadSeqs & readSeqs, THits const & hits, TSA const & sa, TReadId anchorId, TReadId mateId)
 {
     typedef Verifier<TExecSpace, TConfig>                               TVerifier;
     typedef typename TVerifier::TContig                                 TContig;
-    typedef typename Size<TContig>::Type                                THitPos;
-    typedef typename Size<THits>::Type                                  THitId;
+    typedef typename TVerifier::TReadSeq                                TReadSeq;
     typedef typename Value<TSA>::Type                                   THit;
+    typedef typename Size<THits>::Type                                  THitId;
+    typedef typename Size<TSA>::Type                                    THitPos;
+    typedef typename Value<THit, 1>::Type                               TContigId;
+    typedef typename Size<TContig>::Type                                TContigPos;
+    typedef typename Size<TReadSeq>::Type                               TReadPos;
 
     // Consider the hits of all seeds of the anchor.
     THitId hitsBegin = anchorId * (verifier.readErrors + 1);
@@ -333,13 +378,23 @@ inline void anchorRead(Verifier<TExecSpace, TConfig> & verifier, TReadSeqs & rea
         {
             THit hit = toSuffixPosition(verifier.index, sa[hitPos], verifier.seedLength);
 
-            if (verifyHit(verifier,
-                          readSeqs,
-                          anchorId, (hitId - hitsBegin) * verifier.seedLength, (hitId - hitsBegin + 1) * verifier.seedLength,
-                          getValueI1(hit), getValueI2(hit), getValueI2(hit) + verifier.seedLength,
+            TReadPos readBegin = (hitId - hitsBegin) * verifier.seedLength;
+            TReadPos readEnd = (hitId - hitsBegin + 1) * verifier.seedLength;
+            TContigId contigId = getValueI1(hit);
+            TContigPos contigBegin = getValueI2(hit);
+            TContigPos contigEnd = getValueI2(hit) + verifier.seedLength;
+
+            if (verifyHit(verifier, readSeqs,
+                          anchorId, readBegin, readEnd,
+                          contigId, contigBegin, contigEnd,
                           verifier.seedErrors))
             {
                 verifier.matchesCount++;
+                TContigPos matchBegin = contigBegin;
+                TContigPos matchEnd = contigEnd;
+
+                if (findMate(verifier.mater, readSeqs, contigId, matchBegin, matchEnd, mateId))
+                    verifier.mater.matchesCount++;
             }
         }
     }
@@ -375,17 +430,125 @@ inline void anchorPairs(Verifier<TExecSpace, TConfig> & verifier, TReadSeqs & re
         unsigned long pairOneTwoHits = std::min(fwdOneHits, revTwoHits);
         unsigned long pairTwoOneHits = std::min(fwdTwoHits, revOneHits);
 
-        TReadId anchorOneTwoId = (pairOneTwoHits == fwdOneHits) ? fwdOneId : revTwoId;
-        TReadId anchorTwoOneId = (pairTwoOneHits == fwdTwoHits) ? fwdTwoId : revOneId;
-
         // Skip the pair if the anchor is hard.
         if (pairOneTwoHits + pairTwoOneHits > verifier.hitsThreshold) continue;
 
+        TReadId anchorOneTwoId = (pairOneTwoHits == fwdOneHits) ? fwdOneId : revTwoId;
+        TReadId anchorTwoOneId = (pairTwoOneHits == fwdTwoHits) ? fwdTwoId : revOneId;
+        TReadId mateOneTwoId = (pairOneTwoHits == fwdOneHits) ? revTwoId : fwdOneId;
+        TReadId mateTwoOneId = (pairTwoOneHits == fwdTwoHits) ? revOneId : fwdTwoId;
+
         verifier.verificationsCount += pairOneTwoHits + pairTwoOneHits;
 
-        anchorRead(verifier, readSeqs, hits, sa, anchorOneTwoId);
-        anchorRead(verifier, readSeqs, hits, sa, anchorTwoOneId);
+        anchorRead(verifier, readSeqs, hits, sa, anchorOneTwoId, mateOneTwoId);
+        anchorRead(verifier, readSeqs, hits, sa, anchorTwoOneId, mateTwoOneId);
     }
+}
+
+// ----------------------------------------------------------------------------
+// Function _getContigInfix()
+// ----------------------------------------------------------------------------
+
+template <typename TExecSpace, typename TConfig, typename TReadSeqs, typename TReadId, typename TContigId, typename TContigPos>
+inline void _getContigInfix(Mater<TExecSpace, TConfig> & verifier,
+                            TReadSeqs & readSeqs,
+                            TReadId mateId,
+                            TContigId contigId,
+                            TContigPos beginPos,
+                            TContigPos /* endPos */,
+                            TContigPos & infixBegin,
+                            TContigPos & infixEnd,
+                            RightMate)
+{
+    typedef Mater<TExecSpace, TConfig>              TMater;
+    typedef typename TMater::TContig                TContig;
+    typedef typename TMater::TReadSeq               TReadSeq;
+    typedef typename Size<TContig>::Type            TContigSize;
+    typedef typename Size<TReadSeq>::Type           TReadSeqSize;
+
+    TReadSeqSize mateLength = length(readSeqs[mateId]);
+    TContigSize contigLength = length(verifier.contigs[contigId]);
+
+    infixBegin = contigLength;
+    if (infixBegin > beginPos + verifier.options.libraryLength - verifier.options.libraryError - mateLength)
+        infixBegin = beginPos + verifier.options.libraryLength - verifier.options.libraryError - mateLength;
+
+    infixEnd = contigLength;
+    if (infixEnd > beginPos + verifier.options.libraryLength + verifier.options.libraryError)
+        infixEnd = beginPos + verifier.options.libraryLength + verifier.options.libraryError;
+}
+
+template <typename TExecSpace, typename TConfig, typename TReadSeqs, typename TReadId, typename TContigId, typename TContigPos>
+inline void _getContigInfix(Mater<TExecSpace, TConfig> & verifier,
+                            TReadSeqs & readSeqs,
+                            TReadId mateId,
+                            TContigId /* contigId */,
+                            TContigPos /* beginPos */,
+                            TContigPos endPos,
+                            TContigPos & infixBegin,
+                            TContigPos & infixEnd,
+                            LeftMate)
+{
+    typedef Mater<TExecSpace, TConfig>              TMater;
+    typedef typename TMater::TContig                TContig;
+    typedef typename TMater::TReadSeq               TReadSeq;
+    typedef typename Size<TContig>::Type            TContigSize;
+    typedef typename Size<TReadSeq>::Type           TReadSeqSize;
+
+    TReadSeqSize mateLength = length(readSeqs[mateId]);
+
+    infixBegin = 0;
+    if (endPos > verifier.options.libraryLength + verifier.options.libraryError)
+        infixBegin = endPos - verifier.options.libraryLength - verifier.options.libraryError;
+
+    infixEnd = 0;
+    if (endPos > verifier.options.libraryLength - verifier.options.libraryError - mateLength)
+        infixEnd = endPos - verifier.options.libraryLength + verifier.options.libraryError + mateLength;
+}
+
+// ----------------------------------------------------------------------------
+// Function findMate()
+// ----------------------------------------------------------------------------
+
+template <typename TExecSpace, typename TConfig, typename TReadSeqs, typename TContigId, typename TContigPos, typename TReadId>
+inline bool findMate(Mater<TExecSpace, TConfig> & verifier,
+                     TReadSeqs & readSeqs,
+                     TContigId contigId,
+                     TContigPos matchBegin,
+                     TContigPos matchEnd,
+                     TReadId mateId)
+{
+    typedef Mater<TExecSpace, TConfig>              TMater;
+    typedef typename TMater::TReadSeq               TReadSeq;
+    typedef typename TMater::TContig                TContig;
+    typedef typename Infix<TContig>::Type           TContigInfix;
+    typedef Finder<TContigInfix>                    TFinder;
+
+    TReadId readsCount = length(readSeqs) / 2;
+
+    TContig contig = verifier.contigs[contigId];
+    TReadSeq mateSeq = readSeqs[mateId];
+
+    bool reverseComplemented = (mateId >= readsCount);
+
+    TContigPos contigBegin;
+    TContigPos contigEnd;
+
+    if (reverseComplemented)
+        _getContigInfix(verifier, readSeqs, mateId, contigId, matchBegin, matchEnd, contigBegin, contigEnd, LeftMate());
+    else
+        _getContigInfix(verifier, readSeqs, mateId, contigId, matchBegin, matchEnd, contigBegin, contigEnd, RightMate());
+
+    TContigInfix contigInfix = infix(contig, contigBegin, contigEnd);
+
+    TFinder finder(contigInfix);
+    setHost(verifier.pattern, mateSeq);
+
+    bool paired = false;
+    while (find(finder, verifier.pattern, -static_cast<int>(verifier.readErrors)))
+        paired = true;
+
+    return paired;
 }
 
 #endif  // #ifndef APP_CUDAMAPPER_VERIFIER_H_
