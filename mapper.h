@@ -79,8 +79,7 @@ struct Mapper
     typedef Genome<void, CUDAStoreConfig>                           TGenome;
     typedef GenomeLoader<void, CUDAStoreConfig>                     TGenomeLoader;
 
-    typedef typename Contigs<TGenome>::Type                         TContigs;
-    typedef Index<TContigs, TGenomeIndexSpec>                       THostIndex;
+    typedef Index<TFMContigs, TGenomeIndexSpec>                     THostIndex;
     typedef typename Space<THostIndex, TExecSpace>::Type            TIndex;
 
     typedef FragmentStore<void, CUDAStoreConfig>                    TStore;
@@ -93,6 +92,7 @@ struct Mapper
     typedef SeederConfig<Options, TIndex, TReadSeqs, Exact>         TSeederConfig;
     typedef Seeder<TExecSpace, TSeederConfig>                       TSeeder;
 
+    typedef typename Contigs<TGenome>::Type                         TContigs;
     typedef VerifierConfig<Options, TIndex, TContigs, TReadSeqs>    TVerifierConfig;
     typedef Verifier<TExecSpace, TVerifierConfig>                   TVerifier;
 //
