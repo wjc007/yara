@@ -161,11 +161,15 @@ template <typename TExecSpace>
 void loadGenome(Mapper<TExecSpace> & mapper)
 {
 #ifdef ENABLE_GENOME_LOADING
-    open(mapper.genomeLoader, mapper.options.genomeFile);
-
     std::cout << "Loading genome:\t\t\t" << std::flush;
     start(mapper.timer);
-    load(mapper.genomeLoader);
+
+    CharString genomeFile = mapper.options.genomeIndexFile;
+    append(genomeFile, ".txt");
+
+    if (!open(contigs(mapper.genome), toCString(genomeFile)))
+        throw RuntimeError("Error while opening genome file.");
+
     stop(mapper.timer);
     std::cout << mapper.timer << std::endl;
 #else
