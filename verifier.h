@@ -354,9 +354,7 @@ inline void anchorPairs(Verifier<TExecSpace, TConfig> & verifier, TReadSeqs & re
 {
     typedef typename Size<TReadSeqs>::Type                              TReadId;
 
-#ifdef ENABLE_GENOME_LOADING
-    setValue(verifier.index.text, verifier.contigs);
-#endif
+//    setValue(verifier.index.text, verifier.contigs);
 
     TReadId pairsCount = length(readSeqs) / 4;
 
@@ -385,10 +383,8 @@ inline void anchorPairs(Verifier<TExecSpace, TConfig> & verifier, TReadSeqs & re
 
         verifier.verificationsCount += pairOneTwoHits + pairTwoOneHits;
 
-#ifdef ENABLE_GENOME_LOADING
         anchorRead(verifier, readSeqs, hits, sa, anchorOneTwoId);
         anchorRead(verifier, readSeqs, hits, sa, anchorTwoOneId);
-#endif
     }
 }
 

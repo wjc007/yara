@@ -79,8 +79,7 @@ struct Mapper
     typedef Genome<void, CUDAStoreConfig>                           TGenome;
     typedef GenomeLoader<void, CUDAStoreConfig>                     TGenomeLoader;
 
-    typedef typename Contigs<TGenome>::Type                         TContigs;
-    typedef Index<TContigs, TGenomeIndexSpec>                       THostIndex;
+    typedef Index<TFMContigs, TGenomeIndexSpec>                     THostIndex;
     typedef typename Space<THostIndex, TExecSpace>::Type            TIndex;
 
     typedef FragmentStore<void, CUDAStoreConfig>                    TStore;
@@ -93,6 +92,7 @@ struct Mapper
     typedef SeederConfig<Options, TIndex, TReadSeqs, Exact>         TSeederConfig;
     typedef Seeder<TExecSpace, TSeederConfig>                       TSeeder;
 
+    typedef typename Contigs<TGenome>::Type                         TContigs;
     typedef VerifierConfig<Options, TIndex, TContigs, TReadSeqs>    TVerifierConfig;
     typedef Verifier<TExecSpace, TVerifierConfig>                   TVerifier;
 //
@@ -103,9 +103,7 @@ struct Mapper
     Options const &     options;
 
     TGenome             genome;
-#ifdef ENABLE_GENOME_LOADING
     TGenomeLoader       genomeLoader;
-#endif
     TIndex              index;
     TStore              store;
     TReads              reads;
@@ -119,9 +117,7 @@ struct Mapper
     Mapper(Options const & options) :
         options(options),
         genome(),
-#ifdef ENABLE_GENOME_LOADING
         genomeLoader(genome),
-#endif
         index(),
         store(),
         reads(store),
@@ -160,17 +156,17 @@ void configureThreads(Mapper<TExecSpace> & mapper)
 template <typename TExecSpace>
 void loadGenome(Mapper<TExecSpace> & mapper)
 {
-#ifdef ENABLE_GENOME_LOADING
-    open(mapper.genomeLoader, mapper.options.genomeFile);
-
     std::cout << "Loading genome:\t\t\t" << std::flush;
     start(mapper.timer);
-    load(mapper.genomeLoader);
+
+    CharString genomeFile = mapper.options.genomeIndexFile;
+    append(genomeFile, ".txt");
+
+    if (!open(contigs(mapper.genome), toCString(genomeFile)))
+        throw RuntimeError("Error while opening genome file.");
+
     stop(mapper.timer);
     std::cout << mapper.timer << std::endl;
-#else
-    ignoreUnusedVariableWarning(mapper);
-#endif
 }
 
 // ----------------------------------------------------------------------------

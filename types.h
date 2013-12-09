@@ -50,7 +50,7 @@ using namespace seqan;
 struct CUDAStoreConfig
 {
     typedef String<Dna5>            TReadSeq;
-    typedef String<Dna>             TContigSeq;
+    typedef String<Dna5>            TContigSeq;
     typedef Owner<ConcatDirect<> >  TContigSpec;
 
     typedef double                  TMean;
@@ -70,11 +70,21 @@ struct CUDAStoreConfig
     typedef void                    TAnnotationStoreElementSpec;
 };
 
-// ============================================================================
-// Other Store Types
-// ============================================================================
+// ----------------------------------------------------------------------------
+// Fragment Store Configuration for FMIndex Text
+// ----------------------------------------------------------------------------
 
-typedef StringSet<CUDAStoreConfig::TContigSeq, CUDAStoreConfig::TContigSpec>        TContigs;
+struct FMIndexStoreConfig
+{
+    typedef String<Dna>             TContigSeq;
+    typedef Owner<ConcatDirect<> >  TContigSpec;
+};
+
+// ----------------------------------------------------------------------------
+// Typedefs
+// ----------------------------------------------------------------------------
+
+typedef StringSet<FMIndexStoreConfig::TContigSeq, FMIndexStoreConfig::TContigSpec>  TFMContigs;
 typedef StringSet<CUDAStoreConfig::TReadSeq, CUDAStoreConfig::TReadSeqStoreSpec>    TReadSeqs;
 
 // ----------------------------------------------------------------------------
@@ -147,20 +157,20 @@ typedef StringSet<CUDAStoreConfig::TReadSeq, CUDAStoreConfig::TReadSeqStoreSpec>
 
 namespace seqan {
 template <>
-struct SAValue<TContigs>
+struct SAValue<TFMContigs>
 {
     typedef Pair<__uint8, __uint32, Pack> Type;
 };
 
 template <>
-struct SAValue<View<TContigs>::Type>
+struct SAValue<View<TFMContigs>::Type>
 {
     typedef Pair<__uint8, __uint32, Pack> Type;
 };
 
 #ifdef PLATFORM_CUDA
 template <>
-struct SAValue<Device<TContigs>::Type>
+struct SAValue<Device<TFMContigs>::Type>
 {
     typedef Pair<__uint8, __uint32, Pack> Type;
 };
@@ -180,7 +190,7 @@ struct CUDAFMIndexConfig
 };
 
 typedef FMIndex<void, CUDAFMIndexConfig>        TGenomeIndexSpec;
-typedef Index<TContigs, TGenomeIndexSpec>       TGenomeIndex;
+typedef Index<TFMContigs, TGenomeIndexSpec>     TGenomeIndex;
 
 // ----------------------------------------------------------------------------
 // FM Index Size
@@ -220,7 +230,7 @@ struct Size<View<Device<TGenomeIndex>::Type>::Type>
 
 namespace seqan {
 template <typename TSpec, typename TConfig>
-struct Size<LF<TContigs, TSpec, TConfig> >
+struct Size<LF<TFMContigs, TSpec, TConfig> >
 {
     typedef __uint32 Type;
 };
