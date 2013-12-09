@@ -52,19 +52,56 @@ struct Ranges_;
 // ============================================================================
 
 // ----------------------------------------------------------------------------
-// Class Locator
+// Class Hits
 // ----------------------------------------------------------------------------
 
-template <typename TIndex, typename TSpec = void>
-struct Locator
+template <typename TSize, typename TSpec = void>
+struct Hits
 {
-    typename Member<Locator, Ranges_>::Type    ranges;
+    typename Member<Hits, Ranges_>::Type    ranges;
 
     template <typename TFinder>
     inline SEQAN_HOST_DEVICE void
     operator() (TFinder const & finder)
     {
-        appendRange(*this, finder);
+        ranges[finder._patternIt] = range(textIterator(finder));
+    }
+};
+
+template <typename TSize, typename TSpec = void>
+struct HitsCounter
+{
+    TSize count;
+
+    HitsCounter() :
+        count(0)
+    {}
+
+    void operator() (Pair<TSize> const & range)
+    {
+        count += getValueI2(range) - getValueI1(range);
+    }
+};
+
+template <typename TSize, typename TSpec = void>
+struct IsHardToMap
+{
+    typedef Hits<TSize, TSpec>         THits;
+
+    THits const &   hits;
+    TSize           threshold;
+
+    template <typename TTreshold>
+    IsHardToMap(THits const & hits, TTreshold threshold) :
+        hits(hits),
+        threshold(threshold)
+    {}
+
+    template <typename TReadId>
+    inline SEQAN_HOST_DEVICE bool
+    operator() (TReadId readId)
+    {
+        return getCount(hits, readId) > threshold;
     }
 };
 
@@ -79,27 +116,27 @@ struct Locator
 struct Ranges_;
 
 namespace seqan {
-template <typename TIndex, typename TSpec>
-struct Member<Locator<TIndex, TSpec>, Ranges_>
+template <typename TSize, typename TSpec>
+struct Member<Hits<TSize, TSpec>, Ranges_>
 {
-    typedef Pair<typename Size<TIndex>::Type>   TRange_;
+    typedef Pair<TSize>                         TRange_;
     typedef String<TRange_>                     Type;
 };
 
 #ifdef PLATFORM_CUDA
-template <typename TIndex, typename TSpec>
-struct Member<Locator<TIndex, Device<TSpec> >, Ranges_>
+template <typename TSize, typename TSpec>
+struct Member<Hits<TSize, Device<TSpec> >, Ranges_>
 {
-    typedef Pair<typename Size<TIndex>::Type>   TRange_;
+    typedef Pair<TSize>                         TRange_;
     typedef thrust::device_vector<TRange_>      Type;
 };
 #endif
 
-template <typename TIndex, typename TSpec>
-struct Member<Locator<TIndex, View<TSpec> >, Ranges_>
+template <typename TSize, typename TSpec>
+struct Member<Hits<TSize, View<TSpec> >, Ranges_>
 {
-    typedef typename Member<Locator<TIndex, TSpec>, Ranges_>::Type  TRanges_;
-    typedef ContainerView<TRanges_, Resizable<TSpec> >              Type;
+    typedef typename Member<Hits<TSize, TSpec>, Ranges_>::Type  TRanges_;
+    typedef typename View<TRanges_>::Type   Type;
 };
 }
 
@@ -108,10 +145,10 @@ struct Member<Locator<TIndex, View<TSpec> >, Ranges_>
 // ----------------------------------------------------------------------------
 
 namespace seqan {
-template <typename TIndex, typename TSpec>
-struct View<Locator<TIndex, TSpec> >
+template <typename TSize, typename TSpec>
+struct View<Hits<TSize, TSpec> >
 {
-    typedef Locator<TIndex, View<TSpec> >  Type;
+    typedef Hits<TSize, View<TSpec> >  Type;
 };
 }
 
@@ -120,10 +157,10 @@ struct View<Locator<TIndex, TSpec> >
 // ----------------------------------------------------------------------------
 
 namespace seqan {
-template <typename TIndex, typename TSpec>
-struct Device<Locator<TIndex, TSpec> >
+template <typename TSize, typename TSpec>
+struct Device<Hits<TSize, TSpec> >
 {
-    typedef Locator<TIndex, Device<TSpec> >  Type;
+    typedef Hits<TSize, Device<TSpec> >  Type;
 };
 }
 
@@ -135,49 +172,71 @@ struct Device<Locator<TIndex, TSpec> >
 // Function init()
 // ----------------------------------------------------------------------------
 
-template <typename TIndex, typename TSpec, typename TPattern>
-inline void
-init(Locator<TIndex, TSpec> & locator, TPattern const & pattern)
+template <typename TSize, typename TSpec, typename TPattern>
+inline void init(Hits<TSize, TSpec> & hits, TPattern const & pattern)
 {
-    reserve(locator.ranges, length(needle(pattern)), Exact());
+    resize(hits.ranges, length(needle(pattern)), Exact());
 }
 
 // ----------------------------------------------------------------------------
 // Function view()
 // ----------------------------------------------------------------------------
 
-template <typename TIndex, typename TSpec>
-typename View<Locator<TIndex, TSpec> >::Type
-view(Locator<TIndex, TSpec> & locator)
+template <typename TSize, typename TSpec>
+inline typename View<Hits<TSize, TSpec> >::Type
+view(Hits<TSize, TSpec> & hits)
 {
-    typename View<Locator<TIndex, TSpec> >::Type locatorView;
+    typename View<Hits<TSize, TSpec> >::Type hitsView;
 
-    locatorView.ranges = view(locator.ranges);
+    hitsView.ranges = view(hits.ranges);
 
-    return locatorView;
+    return hitsView;
 }
 
 // ----------------------------------------------------------------------------
-// Function appendRange()
+// Function clear()
 // ----------------------------------------------------------------------------
 
-template <typename TIndex, typename TSpec, typename TFinder>
-inline void
-appendRange(Locator<TIndex, TSpec> & locator, TFinder const & finder)
+template <typename TSize, typename TSpec>
+inline void clear(Hits<TSize, TSpec> & hits)
 {
-    SEQAN_OMP_PRAGMA(critical(Locator_appendRange))
-    appendValue(locator.ranges, range(textIterator(finder)));
+    clear(hits.ranges);
 }
 
-#ifdef PLATFORM_CUDA
-template <typename TIndex, typename TSpec, typename TFinder>
-inline SEQAN_HOST_DEVICE void
-appendRange(Locator<TIndex, View<Device<TSpec> > > & /* locator */, TFinder const & /* finder */)
+// ----------------------------------------------------------------------------
+// Function countRanges()
+// ----------------------------------------------------------------------------
+
+template <typename TSize>
+inline bool isValid(Pair<TSize> const & range)
 {
-    // TODO(esiragusa): Global lock.
-//    appendValue(locator.ranges, range(textIterator(finder)));
+    return range.i1 < range.i2;
 }
-#endif
+
+template <typename TSize, typename TSpec>
+inline TSize countRanges(Hits<TSize, TSpec> const & hits)
+{
+    return std::count_if(begin(hits.ranges, Standard()), end(hits.ranges, Standard()), isValid<TSize>);
+}
+
+template <typename TSize, typename TSpec>
+inline unsigned long countHits(Hits<TSize, TSpec> const & hits)
+{
+    return std::for_each(begin(hits.ranges, Standard()), end(hits.ranges, Standard()), HitsCounter<unsigned long, TSpec>()).count;
+}
+
+template <typename TSize, typename TSpec, typename TReadId>
+inline TSize countHits(Hits<TSize, TSpec> const & hits, TReadId readId)
+{
+    typedef Hits<TSize, TSpec> const                            THits;
+    typedef typename Member<THits, Ranges_>::Type               TRanges;
+    typedef typename Iterator<TRanges const, Standard>::Type    TRangesIt;
+
+    TRangesIt rangesBegin = begin(hits.ranges, Standard()) + (readId * (5u + 1));
+    TRangesIt rangesEnd = begin(hits.ranges, Standard()) + ((readId + 1) * (5u + 1));
+
+    return std::for_each(rangesBegin, rangesEnd, HitsCounter<TSize, TSpec>()).count;
+}
 
 
 #endif  // #ifndef APP_CUDAMAPPER_LOCATOR_H_

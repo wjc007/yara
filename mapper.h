@@ -47,22 +47,25 @@ using namespace seqan;
 
 struct Options
 {
-    CharString  genomeFile;
-    CharString  genomeIndexFile;
-    CharString  readsFile;
+    CharString          genomeFile;
+    CharString          genomeIndexFile;
+    Pair<CharString>    readsFile;
 
-    bool        noCuda;
-    unsigned    threadsCount;
-    int         mappingBlock;
-    unsigned    seedLength;
-    unsigned    errorsPerSeed;
+    unsigned            errorRate;
+    unsigned            libraryLength;
+    unsigned            libraryError;
+
+    unsigned            mappingBlock;
+    bool                noCuda;
+    unsigned            threadsCount;
 
     Options() :
-        noCuda(false),
-        threadsCount(1),
+        errorRate(5),
+        libraryLength(220),
+        libraryError(50),
         mappingBlock(200000),
-        seedLength(33),
-        errorsPerSeed(0)
+        noCuda(false),
+        threadsCount(1)
     {}
 };
 
@@ -82,21 +85,19 @@ struct Mapper
 
     typedef FragmentStore<void, CUDAStoreConfig>                    TStore;
     typedef ReadsConfig<False, False, True, True, CUDAStoreConfig>  TReadsConfig;
-    typedef Reads<void, TReadsConfig>                               TReads;
-    typedef ReadsLoader<void, TReadsConfig>                         TReadsLoader;
+    typedef Reads<PairedEnd, TReadsConfig>                          TReads;
+    typedef ReadsLoader<PairedEnd, TReadsConfig>                    TReadsLoader;
     typedef typename TStore::TReadSeqStore                          THostReadSeqs;
     typedef typename Space<THostReadSeqs, TExecSpace>::Type         TReadSeqs;
 
-    typedef SeederConfig<Options, TIndex, TReadSeqs>                TSeederConfig;
+    typedef SeederConfig<Options, TIndex, TReadSeqs, Exact>         TSeederConfig;
     typedef Seeder<TExecSpace, TSeederConfig>                       TSeeder;
 
-    typedef OccurrencesCounter<TIndex>                              TLocator;
-
-    typedef VerifierConfig<Options, TReadSeqs>                      TVerifierConfig;
+    typedef VerifierConfig<Options, TIndex, TContigs, TReadSeqs>    TVerifierConfig;
     typedef Verifier<TExecSpace, TVerifierConfig>                   TVerifier;
-
-    typedef WriterConfig<Options, TReadSeqs>                        TWriterConfig;
-    typedef Writer<TExecSpace, TWriterConfig>                       TWriter;
+//
+//    typedef WriterConfig<Options, TReadSeqs>                        TWriterConfig;
+//    typedef Writer<TExecSpace, TWriterConfig>                       TWriter;
 
     Timer<double>       timer;
     Options const &     options;
@@ -111,8 +112,8 @@ struct Mapper
     TReadsLoader        readsLoader;
 
     TSeeder             seeder;
-    TLocator            locator;
-//    TVerifier           verifier;
+//    TLocator            locator;
+    TVerifier           verifier;
 //    TWriter             writer;
 
     Mapper(Options const & options) :
@@ -125,11 +126,10 @@ struct Mapper
         store(),
         reads(store),
         readsLoader(reads),
-        seeder(index, options),
-        locator()
-//        locator(index, options),
-//        verifier(contigs(genome), options),
-//        writer(genome, options)
+        seeder(options, index, 0u),
+//        locator(options, index),
+        verifier(options, index, contigs(genome))
+//        writer(options, genome)
     {};
 };
 
@@ -235,20 +235,25 @@ template <typename TExecSpace, typename TReadSeqs>
 void _mapReads(Mapper<TExecSpace> & mapper, TReadSeqs & readSeqs)
 {
     start(mapper.timer);
-    runSeeder(mapper.seeder, readSeqs, mapper.locator);
+    fillSeeds(mapper.seeder, readSeqs);
+    findSeeds(mapper.seeder);
     stop(mapper.timer);
     std::cout << "Seeding time:\t\t\t" << mapper.timer << std::endl;
-    std::cout << "Hits count:\t\t\t" << getCount(mapper.locator) << std::endl;
+    std::cout << "Seeds count:\t\t\t" << length(mapper.seeder.seeds) << std::endl;
+    std::cout << "Ranges count:\t\t\t" << countRanges(mapper.seeder.hits) << std::endl;
+    std::cout << "Hits count:\t\t\t" << countHits(mapper.seeder.hits) << std::endl;
 
 //    start(mapper.timer);
 //    runLocator(mapper.locator, mapper.verifier);
 //    stop(mapper.timer);
 //    std::cout << "Location time:\t\t\t" << mapper.timer << std::endl;
 
-//    start(mapper.timer);
-//    runVerifier(mapper.verifier, readSeqs, mapper.writer);
-//    stop(mapper.timer);
-//    std::cout << "Verification time:\t\t" << mapper.timer << std::endl;
+    start(mapper.timer);
+    anchorPairs(mapper.verifier, readSeqs, mapper.seeder.hits, indexSA(mapper.index));
+    stop(mapper.timer);
+    std::cout << "Verification time:\t\t" << mapper.timer << std::endl;
+    std::cout << "Verifications count:\t\t" << mapper.verifier.verificationsCount << std::endl;
+    std::cout << "Matches count:\t\t\t" << mapper.verifier.matchesCount << std::endl;
 
 //    start(mapper.timer);
 //    runWriter(mapper.writer, readSeqs);
