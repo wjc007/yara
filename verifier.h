@@ -376,7 +376,9 @@ inline void anchorRead(Verifier<TExecSpace, TConfig> & verifier, TReadSeqs & rea
         // Verify all hits of a seed of the anchor.
         for (THitPos hitPos = getValueI1(hits.ranges[hitId]); hitPos < getValueI2(hits.ranges[hitId]); ++hitPos)
         {
-            THit hit = toSuffixPosition(verifier.index, sa[hitPos], verifier.seedLength);
+            THit hit = sa[hitPos];
+            setSeqOffset(hit, suffixLength(hit, verifier.contigs) - verifier.seedLength);
+//            THit hit = toSuffixPosition(verifier.index, sa[hitPos], verifier.seedLength);
 
             TReadPos readBegin = (hitId - hitsBegin) * verifier.seedLength;
             TReadPos readEnd = (hitId - hitsBegin + 1) * verifier.seedLength;
@@ -408,8 +410,6 @@ template <typename TExecSpace, typename TConfig, typename TReadSeqs, typename TH
 inline void anchorPairs(Verifier<TExecSpace, TConfig> & verifier, TReadSeqs & readSeqs, THits const & hits, TSA const & sa)
 {
     typedef typename Size<TReadSeqs>::Type                              TReadId;
-
-//    setValue(verifier.index.text, verifier.contigs);
 
     TReadId pairsCount = length(readSeqs) / 4;
 
