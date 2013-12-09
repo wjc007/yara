@@ -358,22 +358,15 @@ void convertContig(GenomeLoader<TSpec, TConfig> & loader, Dna5String & contig, D
 template <typename TSpec, typename TConfig>
 void load(GenomeLoader<TSpec, TConfig> & loader)
 {
-    switch (loader._fileFormat.tagId)
-    {
-    case Find<AutoSeqStreamFormat, Fasta>::VALUE:
-        load(loader, Fasta());
-        break;
-    default:
-        throw std::runtime_error("Unsupported genome file format.");
-    }
-}
-
-template <typename TSpec, typename TConfig, typename TFormat>
-void load(GenomeLoader<TSpec, TConfig> & loader, TFormat const & /* tag */)
-{
     typedef typename TConfig::TContigSeq        TContigSeq;
     typedef typename Value<TContigSeq>::Type    TContigAlphabet;
 
+    load(loader, TContigAlphabet());
+}
+
+template <typename TSpec, typename TConfig, typename TAlphabet>
+void load(GenomeLoader<TSpec, TConfig> & loader, TAlphabet const & /* tag */)
+{
     // Reserve space for contigs.
     reserve(getGenome(loader), loader._fileSize);
 
@@ -383,10 +376,10 @@ void load(GenomeLoader<TSpec, TConfig> & loader, TFormat const & /* tag */)
     // Read records.
     while (!atEnd(*(loader._reader)))
     {
-        if (readRecord(contigName, contigSeq, *(loader._reader), TFormat()) != 0)
+        if (readRecord(contigName, contigSeq, *(loader._reader), loader._fileFormat) != 0)
             throw std::runtime_error("Error while reading genome contig.");
 
-        convertContig(loader, contigSeq, TContigAlphabet());
+        convertContig(loader, contigSeq, TAlphabet());
         appendValue(contigs(getGenome(loader)), contigSeq);
     }
 }

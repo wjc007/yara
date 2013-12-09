@@ -167,7 +167,7 @@ void loadGenome(Indexer<TIndexSpec, TSpec> & indexer, Options const & options)
     start(indexer.timer);
 
     open(indexer.genomeLoader, options.genomeFile);
-    load(indexer.genomeLoader);
+    load(indexer.genomeLoader, Dna());
 
     stop(indexer.timer);
     std::cout << indexer.timer << std::endl;

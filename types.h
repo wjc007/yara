@@ -50,7 +50,7 @@ using namespace seqan;
 struct CUDAStoreConfig
 {
     typedef String<Dna5>            TReadSeq;
-    typedef String<Dna>             TContigSeq;
+    typedef String<Dna5, Packed<> > TContigSeq;
     typedef Owner<ConcatDirect<> >  TContigSpec;
 
     typedef double                  TMean;
