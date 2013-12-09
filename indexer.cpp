@@ -87,7 +87,7 @@ struct Indexer
 {
     typedef Genome<void, CUDAStoreConfig>                           TGenome;
     typedef GenomeLoader<void, CUDAStoreConfig>                     TGenomeLoader;
-    typedef Index<typename Contigs<TGenome>::Type, TIndexSpec>      TIndex;
+    typedef Index<TFMContigs, TIndexSpec>                           TIndex;
 
     TGenome             genome;
     TGenomeLoader       genomeLoader;
@@ -97,7 +97,7 @@ struct Indexer
     Indexer() :
         genome(),
         genomeLoader(genome),
-        index(contigs(genome))
+        index()
     {};
 };
 
@@ -211,14 +211,19 @@ void buildIndex(Indexer<TIndexSpec, TSpec> & indexer)
     // IndexFM is built on the reversed genome.
     reverse(contigs(indexer.genome));
 
-    // Set the Index text.
-//    setValue(indexer.index.text, contigs(indexer.genome));
+    // Set the index text.
+    // NOTE(esiragusa): this assignment implicitly assigns and converts the contigs to the index contigs.
+    setValue(indexer.index.text, contigs(indexer.genome));
+
+    // Clears the genome.
+    // NOTE(esiragusa): the index now owns its own contigs.
+//    shrinkToFit(contigs(indexer.genome));
 
     // Iterator instantiation calls automatic index construction.
     typename Iterator<TIndex, TopDown<> >::Type it(indexer.index);
     ignoreUnusedVariableWarning(it);
 
-    reverse(contigs(indexer.genome));
+//    reverse(contigs(indexer.genome));
 
     stop(indexer.timer);
     std::cout << indexer.timer << std::endl;
