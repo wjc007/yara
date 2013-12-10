@@ -84,18 +84,14 @@ struct Extender
     TPatternStateRev    patternStateRev;
 
     unsigned readErrors;
-    unsigned seedErrors;
-    unsigned seedLength;
-    unsigned hitsThreshold;
+    unsigned matchesCount;
 
     Extender(TOptions const & options, TContigs & contigs, TSeeder & seeder) :
         options(options),
         contigs(contigs),
         seeder(seeder),
         readErrors(5),
-        seedErrors(0),
-        seedLength(16),
-        hitsThreshold(300)
+        matchesCount(0)
     {}
 };
 
@@ -293,9 +289,6 @@ inline bool extendHit(Extender<TExecSpace, TConfig> & extender,
         if (contigRightEnd > contigBegin + readLength - readBegin + extender.readErrors - readErrors)
             contigRightEnd = contigBegin + readLength - readBegin + extender.readErrors - readErrors;
 
-        if (contigBegin + extender.seedLength >= contigRightEnd)
-            return false;
-
         TContigInfix contigRight = infix(contig, contigEnd, contigRightEnd);
         TReadInfix readRight = infix(readSeq, readEnd, readLength);
 
@@ -365,6 +358,7 @@ inline void extendHits(Extender<TExecSpace, TConfig> & extender, TReadSeqs & rea
                                   contigId, contigBegin, contigEnd,
                                   hitErrors))
                     {
+                        extender.matchesCount++;
 //                        appendValue(matches, match);
                     }
                 }
