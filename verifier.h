@@ -42,6 +42,18 @@ using namespace seqan;
 // ============================================================================
 
 // ----------------------------------------------------------------------------
+// Class VerifierConfig
+// ----------------------------------------------------------------------------
+
+template <typename TOptions_, typename TContigs_, typename TReadSeqs_>
+struct VerifierConfig
+{
+    typedef TOptions_       TOptions;
+    typedef TContigs_       TContigs;
+    typedef TReadSeqs_      TReadSeqs;
+};
+
+// ----------------------------------------------------------------------------
 // Class Verifier
 // ----------------------------------------------------------------------------
 
