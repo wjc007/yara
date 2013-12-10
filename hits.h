@@ -60,6 +60,9 @@ struct Hits
 {
     typedef typename Member<Hits, Ranges_>::Type    TRanges;
     typedef typename Size<TRanges>::Type            THitId;
+    typedef Pair<THitId>                            THitIds;
+    typedef Pair<TSize>                             THitRange;
+    typedef unsigned char                           THitErrors;
 
     TRanges ranges;
 
@@ -191,7 +194,8 @@ view(Hits<TSize, TSpec> & hits)
 // ----------------------------------------------------------------------------
 
 template <typename TSize, typename TSpec, typename THitId>
-inline TSize getHitErrors(Hits<TSize, TSpec> const & /* hits */, THitId /* hitId */)
+inline typename Hits<TSize, TSpec>::THitErrors
+getHitErrors(Hits<TSize, TSpec> const & /* hits */, THitId /* hitId */)
 {
     return 0;
 }
@@ -201,7 +205,8 @@ inline TSize getHitErrors(Hits<TSize, TSpec> const & /* hits */, THitId /* hitId
 // ----------------------------------------------------------------------------
 
 template <typename TSize, typename TSpec, typename THitId>
-inline Pair<TSize> getHitRange(Hits<TSize, TSpec> const & hits, THitId hitId)
+inline typename Hits<TSize, TSpec>::THitRange
+getHitRange(Hits<TSize, TSpec> const & hits, THitId hitId)
 {
     return hits.ranges[hitId];
 }
@@ -211,13 +216,13 @@ inline Pair<TSize> getHitRange(Hits<TSize, TSpec> const & hits, THitId hitId)
 // ----------------------------------------------------------------------------
 
 template <typename TSize, typename TSpec, typename TSeedId>
-inline Pair<typename Hits<TSize, TSpec>::THitId>
+inline typename Hits<TSize, TSpec>::THitIds
 getHitIds(Hits<TSize, TSpec> const & /* hits */, TSeedId seedId)
 {
     typedef Hits<TSize, TSpec> const    THits;
-    typedef typename THits::THitId      THitId;
+    typedef typename THits::THitIds     THitIds;
 
-    return Pair<THitId>(seedId, seedId + 1);
+    return THitIds(seedId, seedId + 1);
 }
 
 // ----------------------------------------------------------------------------
