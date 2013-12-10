@@ -250,6 +250,7 @@ void _mapReads(Mapper<TExecSpace> & mapper, TReadSeqs & readSeqs)
     std::cout << "Verification time:\t\t" << mapper.timer << std::endl;
     std::cout << "Verifications count:\t\t" << mapper.verifier.verificationsCount << std::endl;
     std::cout << "Matches count:\t\t\t" << mapper.verifier.matchesCount << std::endl;
+    std::cout << "Pairs count:\t\t\t" << mapper.verifier.mater.matchesCount << std::endl;
 
 //    start(mapper.timer);
 //    runWriter(mapper.writer, readSeqs);
