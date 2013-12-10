@@ -74,33 +74,24 @@ struct Extender
     typedef PatternState_<TReadInfix, TAlgorithm>                       TPatternState;
     typedef PatternState_<TReadInfixRev, TAlgorithm>                    TPatternStateRev;
 
-    typedef Verifier<TExecSpace, TConfig>                               TVerifier;
-
     TOptions const &    options;
     TContigs &          contigs;
 
     TPatternState       patternState;
     TPatternStateRev    patternStateRev;
 
-    TVerifier verifier;
-
     unsigned readErrors;
     unsigned seedErrors;
     unsigned seedLength;
     unsigned hitsThreshold;
-    unsigned long verificationsCount;
-    unsigned long matchesCount;
 
     Extender(TOptions const & options, TContigs & contigs) :
         options(options),
         contigs(contigs),
-        verifier(options, contigs),
         readErrors(5),
         seedErrors(0),
         seedLength(16),
-        hitsThreshold(300),
-        verificationsCount(0),
-        matchesCount(0)
+        hitsThreshold(300)
     {}
 };
 
@@ -245,12 +236,12 @@ inline bool _extendRight(Extender<TExecSpace, TConfig> & extender,
 }
 
 // ----------------------------------------------------------------------------
-// Function verifyHit()
+// Function extendHit()
 // ----------------------------------------------------------------------------
 
 template <typename TExecSpace, typename TConfig, typename TReadSeqs,
           typename TReadId, typename TReadPos, typename TContigId, typename TContigPos, typename TErrors>
-inline bool verifyHit(Extender<TExecSpace, TConfig> & extender,
+inline bool extendHit(Extender<TExecSpace, TConfig> & extender,
                       TReadSeqs & readSeqs,
                       TReadId readId,
                       TReadPos readBegin,
@@ -312,11 +303,11 @@ inline bool verifyHit(Extender<TExecSpace, TConfig> & extender,
 }
 
 // ----------------------------------------------------------------------------
-// Function anchorRead()
+// Function extendHit()
 // ----------------------------------------------------------------------------
 
-template <typename TExecSpace, typename TConfig, typename TReadSeqs, typename THits, typename TSA, typename TReadId>
-inline void anchorRead(Extender<TExecSpace, TConfig> & extender, TReadSeqs & readSeqs, THits const & hits, TSA const & sa, TReadId anchorId, TReadId mateId)
+template <typename TExecSpace, typename TConfig, typename TReadSeqs, typename THits, typename TSA, typename TReadId, typename TMatches>
+inline void extendHit(Extender<TExecSpace, TConfig> & extender, TReadSeqs & readSeqs, THits const & hits, TSA const & sa, TReadId readId, TMatches & matches)
 {
     typedef Extender<TExecSpace, TConfig>                               TExtender;
     typedef typename TExtender::TContig                                 TContig;
@@ -329,8 +320,8 @@ inline void anchorRead(Extender<TExecSpace, TConfig> & extender, TReadSeqs & rea
     typedef typename Size<TReadSeq>::Type                               TReadPos;
 
     // Consider the hits of all seeds of the anchor.
-    THitId hitsBegin = anchorId * (extender.readErrors + 1);
-    THitId hitsEnd = (anchorId + 1) * (extender.readErrors + 1);
+    THitId hitsBegin = readId * (extender.readErrors + 1);
+    THitId hitsEnd = (readId + 1) * (extender.readErrors + 1);
     for (THitId hitId = hitsBegin; hitId < hitsEnd; ++hitId)
     {
         // Verify all hits of a seed of the anchor.
@@ -346,28 +337,23 @@ inline void anchorRead(Extender<TExecSpace, TConfig> & extender, TReadSeqs & rea
             TContigPos contigBegin = getValueI2(hit);
             TContigPos contigEnd = getValueI2(hit) + extender.seedLength;
 
-            if (verifyHit(extender, readSeqs,
-                          anchorId, readBegin, readEnd,
+            if (extendHit(extender, readSeqs,
+                          readId, readBegin, readEnd,
                           contigId, contigBegin, contigEnd,
                           extender.seedErrors))
             {
-                extender.matchesCount++;
-                TContigPos matchBegin = contigBegin;
-                TContigPos matchEnd = contigEnd;
-
-                if (findMate(extender.verifier, readSeqs, contigId, matchBegin, matchEnd, mateId))
-                    extender.verifier.matchesCount++;
+                appendValue(matches, match);
             }
         }
     }
 }
 
 // ----------------------------------------------------------------------------
-// Function anchorPairs()
+// Function extendHits()
 // ----------------------------------------------------------------------------
 
-template <typename TExecSpace, typename TConfig, typename TReadSeqs, typename THits, typename TSA>
-inline void anchorPairs(Extender<TExecSpace, TConfig> & extender, TReadSeqs & readSeqs, THits const & hits, TSA const & sa)
+template <typename TExecSpace, typename TConfig, typename TReadSeqs, typename THits, typename TSA, typename TMatches>
+inline void extendHits(Extender<TExecSpace, TConfig> & extender, TReadSeqs & readSeqs, THits const & hits, TSA const & sa, TMatches & matches)
 {
     typedef typename Size<TReadSeqs>::Type                              TReadId;
 
@@ -400,8 +386,8 @@ inline void anchorPairs(Extender<TExecSpace, TConfig> & extender, TReadSeqs & re
 
         extender.verificationsCount += pairOneTwoHits + pairTwoOneHits;
 
-        anchorRead(extender, readSeqs, hits, sa, anchorOneTwoId, mateOneTwoId);
-        anchorRead(extender, readSeqs, hits, sa, anchorTwoOneId, mateTwoOneId);
+        extendHit(extender, readSeqs, hits, sa, anchorOneTwoId, mateOneTwoId);
+        extendHit(extender, readSeqs, hits, sa, anchorTwoOneId, mateTwoOneId);
     }
 }
 

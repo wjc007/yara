@@ -120,7 +120,7 @@ inline void fill(Match<TSpec> & match,
 {
     match.readId = readId;
     match.beginPos = getValueI1(contigPos);
-    match.endPosDelta = getValueI2(contigPos) - beginPos;
+    match.endPosDelta = getValueI2(contigPos) - getValueI1(contigPos);
     if (isReverseComplemented)
         match.endPosDelta = -match.endPosDelta;
     match.contigId = contigId;

@@ -175,35 +175,27 @@ view(Hits<TSize, TSpec> & hits)
     return hitsView;
 }
 
-// ----------------------------------------------------------------------------
-// Function clear()
-// ----------------------------------------------------------------------------
-
-template <typename TSize, typename TSpec>
-inline void clear(Hits<TSize, TSpec> & hits)
-{
-    clear(hits.ranges);
-}
-
-// ----------------------------------------------------------------------------
-// Function isValid()
-// ----------------------------------------------------------------------------
-
-template <typename TSize>
-inline bool isValid(Pair<TSize> const & range)
-{
-    return range.i1 < range.i2;
-}
-
-// ----------------------------------------------------------------------------
-// Function countRanges()
-// ----------------------------------------------------------------------------
-
-template <typename TSize, typename TSpec>
-inline TSize countRanges(Hits<TSize, TSpec> const & hits)
-{
-    return std::count_if(begin(hits.ranges, Standard()), end(hits.ranges, Standard()), isValid<TSize>);
-}
+//// ----------------------------------------------------------------------------
+//// Function isValidRange()
+//// ----------------------------------------------------------------------------
+//
+//template <typename TSize>
+//inline bool isValidRange(Pair<TSize> const & range)
+//{
+//    return range.i1 < range.i2;
+//}
+//
+//// ----------------------------------------------------------------------------
+//// Function countRanges()
+//// ----------------------------------------------------------------------------
+//
+//template <typename TSize, typename TSpec>
+//inline TSize countRanges(Hits<TSize, TSpec> const & hits)
+//{
+//    return std::count_if(begin(hits.ranges, Standard()),
+//                         end(hits.ranges, Standard()),
+//                         isValidRange<TSize>);
+//}
 
 // ----------------------------------------------------------------------------
 // Function countHits()
@@ -220,25 +212,35 @@ inline unsigned long countHits(Hits<TSize, TSpec> const & hits)
 template <typename TSize, typename TSpec, typename TSeedId>
 inline TSize countHits(Hits<TSize, TSpec> const & hits, Pair<TSeedId> seedIds)
 {
-    typedef Hits<TSize, TSpec> const                            THits;
-    typedef typename Member<THits, Ranges_>::Type               TRanges;
-    typedef typename Iterator<TRanges const, Standard>::Type    TRangesIt;
-
-    TRangesIt rangesBegin = begin(hits.ranges, Standard()) + getValueI1(seedIds);
-    TRangesIt rangesEnd = begin(hits.ranges, Standard()) + getValueI2(seedIds);
-
-    return std::for_each(rangesBegin, rangesEnd, HitsCounter<TSize, TSpec>()).count;
+    return std::for_each(begin(hits.ranges, Standard()) + getValueI1(seedIds),
+                         begin(hits.ranges, Standard()) + getValueI2(seedIds),
+                         HitsCounter<TSize, TSpec>()).count;
 }
 
 // ----------------------------------------------------------------------------
-// Function getHits()
+// Function clearHits()
+// ----------------------------------------------------------------------------
+
+template <typename TSize, typename TSpec>
+inline void clearHits(Hits<TSize, TSpec> & hits)
+{
+    clear(hits.ranges);
+}
+
+// ----------------------------------------------------------------------------
+// Function clearHits()
 // ----------------------------------------------------------------------------
 
 template <typename TSize, typename TSpec, typename TSeedId>
-inline typename Infix<typename Member<Hits<TSize, TSpec> const, Ranges_>::Type>::Type
-getHits(Hits<TSize, TSpec> const & hits, Pair<TSeedId> seedIds)
+inline void clearHits(Hits<TSize, TSpec> & hits, Pair<TSeedId> seedIds)
 {
-    return infix(hits.ranges, ...);
+    Pair<TSize> emptyRange;
+    setValueI1(emptyRange, 0);
+    setValueI2(emptyRange, 0);
+
+    std::fill(begin(hits.ranges, Standard()) + getValueI1(seedIds),
+              begin(hits.ranges, Standard()) + getValueI2(seedIds),
+              emptyRange);
 }
 
 #endif  // #ifndef APP_CUDAMAPPER_HITS_H_

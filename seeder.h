@@ -81,8 +81,11 @@ struct Seeder
     typedef typename TConfig::TReadSeqs                     TReadSeqs;
     typedef typename TConfig::TDistance                     TDistance;
 
-    typedef String<typename Seed<TReadSeqs>::Type>          TSeedsString;
-    typedef typename Space<TSeedsString, TExecSpace>::Type  TSeeds;
+    typedef String<typename Seed<TReadSeqs>::Type>          THostSeeds;
+    typedef typename Space<THostSeeds, TExecSpace>::Type    TSeeds;
+    typedef typename Size<TSeeds>::Type                     TSeedId;
+    typedef Pair<TSeedId>                                   TSeedIds;
+    typedef typename Size<TReadSeqs>::Type                  TReadSeqSize;
 
     typedef typename If<IsSameType<TDistance, Exact>,
                         FinderSTree,
@@ -95,14 +98,24 @@ struct Seeder
     TOptions const &    options;
     TFinder             finder;
     TSeeds              seeds;
-    THits               hits;
-    TSize               errorsPerSeed;
+    TReadSeqSize        errorsPerSeed;
+
+    TSeedId             readsCount;
+    TReadSeqSize        readsLength;
+    TReadSeqSize        seedsLength;
+    TReadSeqSize        seedsPerRead;
+    TReadSeqSize        errorsPerRead;
 
     template <typename TErrors>
     Seeder(TOptions const & options, TIndex & index, TErrors errorsPerSeed) :
         options(options),
         finder(index),
-        errorsPerSeed(errorsPerSeed)
+        errorsPerSeed(errorsPerSeed),
+        readsCount(0),
+        readsLength(0),
+        seedsLength(0),
+        seedsPerRead(0),
+        errorsPerRead(0)
     {
         // Set the error threshold.
     //    setScoreThreshold(finder, errorsPerSeed);
@@ -184,20 +197,17 @@ inline void _fillSeeds(Seeder<ExecHost, TConfig> & seeder, TReadSeqs & readSeqs,
 template <typename TExecSpace, typename TConfig, typename TReadSeqs>
 inline void fillSeeds(Seeder<TExecSpace, TConfig> & seeder, TReadSeqs & readSeqs)
 {
-    typedef typename Size<TReadSeqs>::Type  TSize;
-
-    TSize readSeqsCount = length(readSeqs);
-    TSize readSeqLength = length(front(readSeqs));
-    TSize readSeqErrors = std::ceil(readSeqLength * (seeder.options.errorRate / 100.0));
-    TSize seedsPerReadSeq = readSeqErrors + 1;
-//    TSize seedsPerReadSeq = std::ceil(readSeqErrors / (seeder.errorsPerSeed + 1.0));
-    TSize seedLength = readSeqLength / seedsPerReadSeq;
+    seeder.readsCount = length(readSeqs);
+    seeder.readsLength = length(front(readSeqs));
+    seeder.errorsPerRead = std::ceil(seeder.readsLength * (seeder.options.errorRate / 100.0));
+    seeder.seedsPerRead = seeder.errorsPerRead + 1;
+    seeder.seedsLength = seeder.readsLength / seeder.seedsPerRead;
 
     // Resize space for seeds.
     clear(seeder.seeds);
-    resize(seeder.seeds, readSeqsCount * seedsPerReadSeq, Exact());
+    resize(seeder.seeds, seeder.readsCount * seeder.seedsPerRead, Exact());
 
-    _fillSeeds(seeder, readSeqs, readSeqsCount, seedsPerReadSeq, seedLength);
+    _fillSeeds(seeder, readSeqs, seeder.readsCount, seeder.seedsPerRead, seeder.seedsLength);
 }
 
 // ----------------------------------------------------------------------------
@@ -232,33 +242,36 @@ inline void findSeeds(Seeder<TExecSpace, TConfig> & seeder, TDelegate & delegate
 // Function getSeedIds()
 // ----------------------------------------------------------------------------
 
-template <typename TExecSpace, typename TConfig, typename TSeedId>
-inline Pair<typename Size<typename TConfig::TReadSeqs>::Type>
-getSeedIds(Seeder<TExecSpace, TConfig> & seeder, TSeedId seedId)
+template <typename TExecSpace, typename TConfig, typename TReadId>
+inline typename Seeder<TExecSpace, TConfig>::TSeedIds
+getSeedIds(Seeder<TExecSpace, TConfig> & seeder, TReadId readId)
 {
-    return Pair<typename Size<typename TConfig::TReadSeqs>::Type>(...);
+    typedef Seeder<TExecSpace, TConfig>     TSeeder;
+    typedef typename TSeeder::TSeedIds      TSeedIds;
+
+    return TSeedIds(readId * seeder.seedsPerRead, (readId + 1) * seeder.seedsPerRead);
 }
 
 // ----------------------------------------------------------------------------
 // Function getReadId()
 // ----------------------------------------------------------------------------
 
-template <typename TExecSpace, typename TConfig, typename TSeedId>
-inline typename Size<typename TConfig::TReadSeqs>::Type
-getReadId(Seeder<TExecSpace, TConfig> & seeder, TSeedId seedId)
-{
-    return ...;
-}
+//template <typename TExecSpace, typename TConfig, typename TSeedId>
+//inline typename Size<typename TConfig::TReadSeqs>::Type
+//getReadId(Seeder<TExecSpace, TConfig> & seeder, TSeedId seedId)
+//{
+//    return ...;
+//}
 
 // ----------------------------------------------------------------------------
 // Function getReadPos()
 // ----------------------------------------------------------------------------
 
-template <typename TExecSpace, typename TConfig, typename TSeedId>
-inline Pair<unsigned>
-getPosInRead(Seeder<TExecSpace, TConfig> & seeder, TSeedId seedId)
-{
-    return Pair<unsigned>(...);
-}
+//template <typename TExecSpace, typename TConfig, typename TSeedId>
+//inline Pair<unsigned>
+//getPosInRead(Seeder<TExecSpace, TConfig> & seeder, TSeedId seedId)
+//{
+//    return Pair<unsigned>(...);
+//}
 
 #endif  // #ifndef APP_CUDAMAPPER_SEEDER_H_
