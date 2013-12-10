@@ -58,7 +58,10 @@ struct Ranges_;
 template <typename TSize, typename TSpec = void>
 struct Hits
 {
-    typename Member<Hits, Ranges_>::Type    ranges;
+    typedef typename Member<Hits, Ranges_>::Type    TRanges;
+    typedef typename Size<TRanges>::Type            THitId;
+
+    TRanges ranges;
 
     template <typename TFinder>
     inline SEQAN_HOST_DEVICE void
@@ -67,6 +70,14 @@ struct Hits
         ranges[finder._patternIt] = range(textIterator(finder));
     }
 };
+
+//template <typename TSize>
+//struct Hits<TSize, HammingDistance>
+//{
+//    typename Member<Hits, Ids_>::Type       seedIds;
+//    typename Member<Hits, Ranges_>::Type    ranges;
+//    typename Member<Hits, Errors_>::Type    errors;
+//};
 
 // ----------------------------------------------------------------------------
 // Class HitsCounter
@@ -175,27 +186,39 @@ view(Hits<TSize, TSpec> & hits)
     return hitsView;
 }
 
-//// ----------------------------------------------------------------------------
-//// Function isValidRange()
-//// ----------------------------------------------------------------------------
-//
-//template <typename TSize>
-//inline bool isValidRange(Pair<TSize> const & range)
-//{
-//    return range.i1 < range.i2;
-//}
-//
-//// ----------------------------------------------------------------------------
-//// Function countRanges()
-//// ----------------------------------------------------------------------------
-//
-//template <typename TSize, typename TSpec>
-//inline TSize countRanges(Hits<TSize, TSpec> const & hits)
-//{
-//    return std::count_if(begin(hits.ranges, Standard()),
-//                         end(hits.ranges, Standard()),
-//                         isValidRange<TSize>);
-//}
+// ----------------------------------------------------------------------------
+// Function getHitErrors()
+// ----------------------------------------------------------------------------
+
+template <typename TSize, typename TSpec, typename THitId>
+inline TSize getHitErrors(Hits<TSize, TSpec> const & /* hits */, THitId /* hitId */)
+{
+    return 0;
+}
+
+// ----------------------------------------------------------------------------
+// Function getHitRange()
+// ----------------------------------------------------------------------------
+
+template <typename TSize, typename TSpec, typename THitId>
+inline Pair<TSize> getHitRange(Hits<TSize, TSpec> const & hits, THitId hitId)
+{
+    return hits.ranges[hitId];
+}
+
+// ----------------------------------------------------------------------------
+// Function getHitIds()
+// ----------------------------------------------------------------------------
+
+template <typename TSize, typename TSpec, typename TSeedId>
+inline Pair<typename Hits<TSize, TSpec>::THitId>
+getHitIds(Hits<TSize, TSpec> const & /* hits */, TSeedId seedId)
+{
+    typedef Hits<TSize, TSpec> const    THits;
+    typedef typename THits::THitId      THitId;
+
+    return Pair<THitId>(seedId, seedId + 1);
+}
 
 // ----------------------------------------------------------------------------
 // Function countHits()
@@ -208,6 +231,10 @@ inline unsigned long countHits(Hits<TSize, TSpec> const & hits)
                          end(hits.ranges, Standard()),
                          HitsCounter<unsigned long, TSpec>()).count;
 }
+
+// ----------------------------------------------------------------------------
+// Function countHits()
+// ----------------------------------------------------------------------------
 
 template <typename TSize, typename TSpec, typename TSeedId>
 inline TSize countHits(Hits<TSize, TSpec> const & hits, Pair<TSeedId> seedIds)
