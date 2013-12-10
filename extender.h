@@ -45,12 +45,13 @@ using namespace seqan;
 // Class ExtenderConfig
 // ----------------------------------------------------------------------------
 
-template <typename TOptions_, typename TContigs_, typename TReadSeqs_>
+template <typename TOptions_, typename TContigs_, typename TReadSeqs_, typename TSeeder_>
 struct ExtenderConfig
 {
     typedef TOptions_       TOptions;
     typedef TContigs_       TContigs;
     typedef TReadSeqs_      TReadSeqs;
+    typedef TSeeder_        TSeeder;
 };
 
 // ----------------------------------------------------------------------------
@@ -63,6 +64,7 @@ struct Extender
     typedef typename TConfig::TOptions                                  TOptions;
     typedef typename TConfig::TContigs                                  TContigs;
     typedef typename TConfig::TReadSeqs                                 TReadSeqs;
+    typedef typename TConfig::TSeeder                                   TSeeder;
 
     typedef typename Value<TContigs>::Type                              TContig;
     typedef typename Value<TReadSeqs>::Type                             TReadSeq;
@@ -76,6 +78,7 @@ struct Extender
 
     TOptions const &    options;
     TContigs &          contigs;
+    TSeeder &           seeder;
 
     TPatternState       patternState;
     TPatternStateRev    patternStateRev;
@@ -85,9 +88,10 @@ struct Extender
     unsigned seedLength;
     unsigned hitsThreshold;
 
-    Extender(TOptions const & options, TContigs & contigs) :
+    Extender(TOptions const & options, TContigs & contigs, TSeeder & seeder) :
         options(options),
         contigs(contigs),
+        seeder(seeder),
         readErrors(5),
         seedErrors(0),
         seedLength(16),
@@ -303,91 +307,69 @@ inline bool extendHit(Extender<TExecSpace, TConfig> & extender,
 }
 
 // ----------------------------------------------------------------------------
-// Function extendHit()
-// ----------------------------------------------------------------------------
-
-template <typename TExecSpace, typename TConfig, typename TReadSeqs, typename THits, typename TSA, typename TReadId, typename TMatches>
-inline void extendHit(Extender<TExecSpace, TConfig> & extender, TReadSeqs & readSeqs, THits const & hits, TSA const & sa, TReadId readId, TMatches & matches)
-{
-    typedef Extender<TExecSpace, TConfig>                               TExtender;
-    typedef typename TExtender::TContig                                 TContig;
-    typedef typename TExtender::TReadSeq                                TReadSeq;
-    typedef typename Value<TSA>::Type                                   THit;
-    typedef typename Size<THits>::Type                                  THitId;
-    typedef typename Size<TSA>::Type                                    THitPos;
-    typedef typename Value<THit, 1>::Type                               TContigId;
-    typedef typename Size<TContig>::Type                                TContigPos;
-    typedef typename Size<TReadSeq>::Type                               TReadPos;
-
-    // Consider the hits of all seeds of the anchor.
-    THitId hitsBegin = readId * (extender.readErrors + 1);
-    THitId hitsEnd = (readId + 1) * (extender.readErrors + 1);
-    for (THitId hitId = hitsBegin; hitId < hitsEnd; ++hitId)
-    {
-        // Verify all hits of a seed of the anchor.
-        for (THitPos hitPos = getValueI1(hits.ranges[hitId]); hitPos < getValueI2(hits.ranges[hitId]); ++hitPos)
-        {
-            THit hit = sa[hitPos];
-            setSeqOffset(hit, suffixLength(hit, extender.contigs) - extender.seedLength);
-//            THit hit = toSuffixPosition(extender.index, sa[hitPos], extender.seedLength);
-
-            TReadPos readBegin = (hitId - hitsBegin) * extender.seedLength;
-            TReadPos readEnd = (hitId - hitsBegin + 1) * extender.seedLength;
-            TContigId contigId = getValueI1(hit);
-            TContigPos contigBegin = getValueI2(hit);
-            TContigPos contigEnd = getValueI2(hit) + extender.seedLength;
-
-            if (extendHit(extender, readSeqs,
-                          readId, readBegin, readEnd,
-                          contigId, contigBegin, contigEnd,
-                          extender.seedErrors))
-            {
-                appendValue(matches, match);
-            }
-        }
-    }
-}
-
-// ----------------------------------------------------------------------------
 // Function extendHits()
 // ----------------------------------------------------------------------------
 
 template <typename TExecSpace, typename TConfig, typename TReadSeqs, typename THits, typename TSA, typename TMatches>
 inline void extendHits(Extender<TExecSpace, TConfig> & extender, TReadSeqs & readSeqs, THits const & hits, TSA const & sa, TMatches & matches)
 {
-    typedef typename Size<TReadSeqs>::Type                              TReadId;
+    typedef Extender<TExecSpace, TConfig>               TExtender;
+    typedef typename TExtender::TSeeder                 TSeeder;
+    typedef typename TExtender::TContigs                TContigs;
+    typedef typename TExtender::TContig                 TContig;
+    typedef typename Size<TContigs>::Type               TContigId;
+    typedef typename Size<TContig>::Type                TContigPos;
+    typedef typename Size<TReadSeqs>::Type              TReadId;
+    typedef typename TSeeder::TReadPos                  TReadPos;
+    typedef typename TSeeder::TReadSeqSize              TReadSeqSize;
+    typedef typename TSeeder::TSeedIds                  TSeedIds;
+    typedef typename TSeeder::TSeedId                   TSeedId;
+    typedef typename THits::THitId                      THitId;
+    typedef typename THits::THitRange                   THitRange;
+    typedef typename THits::THitErrors                  THitErrors;
+    typedef typename Size<TSA>::Type                    TSAPos;
+    typedef typename Value<TSA>::Type                   TSAValue;
 
-    TReadId pairsCount = length(readSeqs) / 4;
-
-    for (TReadId pairId = 0; pairId < pairsCount; ++pairId)
+    TReadId readsCount = length(readSeqs);
+    for (TReadId readId = 0; readId != readsCount; ++readId)
     {
-        // Get mates ids.
-        TReadId fwdOneId = pairId;
-        TReadId fwdTwoId = pairId + pairsCount;
-        TReadId revOneId = pairId + 2 * pairsCount;
-        TReadId revTwoId = pairId + 3 * pairsCount;
+        TSeedIds seedIds = getSeedIds(extender.seeder, readId);
 
-        // Choose the anchor.
-        unsigned long fwdOneHits = countHits(hits, fwdOneId);
-        unsigned long fwdTwoHits = countHits(hits, fwdTwoId);
-        unsigned long revOneHits = countHits(hits, revOneId);
-        unsigned long revTwoHits = countHits(hits, revTwoId);
+        for (TSeedId seedId = getValueI1(seedIds); seedId < getValueI2(seedIds); ++seedId)
+        {
+            // Get position in read.
+            TReadPos readPos = getPosInRead(extender.seeder, seedId);
+            TReadSeqSize seedLength = getValueI2(readPos) - getValueI1(readPos);
 
-        unsigned long pairOneTwoHits = std::min(fwdOneHits, revTwoHits);
-        unsigned long pairTwoOneHits = std::min(fwdTwoHits, revOneHits);
+            // TODO(esiragusa): iterate over all hits of the seed.
+            // THitIds hitIds = getHitIds(extender.seeder, seedId);
+            {
+                THitId hitId = seedId;
 
-        // Skip the pair if the anchor is hard.
-        if (pairOneTwoHits + pairTwoOneHits > extender.hitsThreshold) continue;
+                THitRange hitRange = getHitRange(hits, hitId);
+                THitErrors hitErrors = getHitErrors(hits, hitId);
 
-        TReadId anchorOneTwoId = (pairOneTwoHits == fwdOneHits) ? fwdOneId : revTwoId;
-        TReadId anchorTwoOneId = (pairTwoOneHits == fwdTwoHits) ? fwdTwoId : revOneId;
-        TReadId mateOneTwoId = (pairOneTwoHits == fwdOneHits) ? revTwoId : fwdOneId;
-        TReadId mateTwoOneId = (pairTwoOneHits == fwdTwoHits) ? revOneId : fwdTwoId;
+                for (TSAPos saPos = getValueI1(hitRange); saPos < getValueI2(hitRange); ++saPos)
+                {
+                    // Invert SA value.
+                    TSAValue saValue = sa[saPos];
+                    setSeqOffset(saValue, suffixLength(saValue, extender.contigs) - seedLength);
 
-        extender.verificationsCount += pairOneTwoHits + pairTwoOneHits;
+                    // Compute position in contig.
+                    TContigId contigId = getValueI1(saValue);
+                    TContigPos contigBegin = getValueI2(saValue);
+                    TContigPos contigEnd = getValueI2(saValue) + seedLength;
 
-        extendHit(extender, readSeqs, hits, sa, anchorOneTwoId, mateOneTwoId);
-        extendHit(extender, readSeqs, hits, sa, anchorTwoOneId, mateTwoOneId);
+                    if (extendHit(extender, readSeqs,
+                                  readId, getValueI1(readPos), getValueI2(readPos),
+                                  contigId, contigBegin, contigEnd,
+                                  hitErrors))
+                    {
+//                        appendValue(matches, match);
+                    }
+                }
+            }
+        }
     }
 }
 
