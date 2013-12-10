@@ -86,6 +86,7 @@ struct Seeder
     typedef typename Size<TSeeds>::Type                     TSeedId;
     typedef Pair<TSeedId>                                   TSeedIds;
     typedef typename Size<TReadSeqs>::Type                  TReadSeqSize;
+    typedef Pair<TReadSeqSize>                              TReadPos;
 
     typedef typename If<IsSameType<TDistance, Exact>,
                         FinderSTree,
@@ -253,25 +254,41 @@ getSeedIds(Seeder<TExecSpace, TConfig> & seeder, TReadId readId)
 }
 
 // ----------------------------------------------------------------------------
+// Function getLocalSeedId()
+// ----------------------------------------------------------------------------
+
+template <typename TExecSpace, typename TConfig, typename TSeedId>
+inline typename Seeder<TExecSpace, TConfig>::TSeedId
+getLocalSeedId(Seeder<TExecSpace, TConfig> & seeder, TSeedId seedId)
+{
+    return seedId % seeder.seedsPerRead;
+}
+
+// ----------------------------------------------------------------------------
 // Function getReadId()
 // ----------------------------------------------------------------------------
 
 //template <typename TExecSpace, typename TConfig, typename TSeedId>
-//inline typename Size<typename TConfig::TReadSeqs>::Type
+//inline typename Seeder<TExecSpace, TConfig>::TReadId
 //getReadId(Seeder<TExecSpace, TConfig> & seeder, TSeedId seedId)
 //{
 //    return ...;
 //}
 
 // ----------------------------------------------------------------------------
-// Function getReadPos()
+// Function getPosInRead()
 // ----------------------------------------------------------------------------
 
-//template <typename TExecSpace, typename TConfig, typename TSeedId>
-//inline Pair<unsigned>
-//getPosInRead(Seeder<TExecSpace, TConfig> & seeder, TSeedId seedId)
-//{
-//    return Pair<unsigned>(...);
-//}
+template <typename TExecSpace, typename TConfig, typename TSeedId>
+inline typename Seeder<TExecSpace, TConfig>::TReadPos
+getPosInRead(Seeder<TExecSpace, TConfig> & seeder, TSeedId seedId)
+{
+    typedef Seeder<TExecSpace, TConfig>     TSeeder;
+    typedef typename TSeeder::TReadPos      TReadPos;
+
+    TSeedId localSeedId = getLocalSeedId(seeder, seedId);
+
+    return TReadPos(localSeedId * seeder.seedsLength, (localSeedId + 1) * seeder.seedsLength);
+}
 
 #endif  // #ifndef APP_CUDAMAPPER_SEEDER_H_
