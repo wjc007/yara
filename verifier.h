@@ -449,61 +449,52 @@ inline void anchorPairs(Verifier<TExecSpace, TConfig> & verifier, TReadSeqs & re
 // Function _getContigInfix()
 // ----------------------------------------------------------------------------
 
-template <typename TExecSpace, typename TConfig, typename TReadSeqs, typename TReadId, typename TContigId, typename TContigPos>
+template <typename TExecSpace, typename TConfig, typename TContigId, typename TContigPos>
 inline void _getContigInfix(Mater<TExecSpace, TConfig> & verifier,
-                            TReadSeqs & readSeqs,
-                            TReadId mateId,
                             TContigId contigId,
-                            TContigPos beginPos,
-                            TContigPos /* endPos */,
+                            TContigPos matchBegin,
+                            TContigPos /* matchEnd */,
                             TContigPos & infixBegin,
                             TContigPos & infixEnd,
                             RightMate)
 {
     typedef Mater<TExecSpace, TConfig>              TMater;
     typedef typename TMater::TContig                TContig;
-    typedef typename TMater::TReadSeq               TReadSeq;
     typedef typename Size<TContig>::Type            TContigSize;
-    typedef typename Size<TReadSeq>::Type           TReadSeqSize;
 
-    TReadSeqSize mateLength = length(readSeqs[mateId]);
     TContigSize contigLength = length(verifier.contigs[contigId]);
 
     infixBegin = contigLength;
-    if (infixBegin > beginPos + verifier.options.libraryLength - verifier.options.libraryError - mateLength)
-        infixBegin = beginPos + verifier.options.libraryLength - verifier.options.libraryError - mateLength;
+    if (infixBegin < matchBegin + verifier.options.libraryLength - verifier.options.libraryError)
+        infixBegin = matchBegin + verifier.options.libraryLength - verifier.options.libraryError;
 
     infixEnd = contigLength;
-    if (infixEnd > beginPos + verifier.options.libraryLength + verifier.options.libraryError)
-        infixEnd = beginPos + verifier.options.libraryLength + verifier.options.libraryError;
+    if (infixEnd < matchBegin + verifier.options.libraryLength + verifier.options.libraryError)
+        infixEnd = matchBegin + verifier.options.libraryLength + verifier.options.libraryError;
+
+    SEQAN_ASSERT_LEQ(infixBegin, infixEnd);
+    SEQAN_ASSERT_LEQ(infixEnd - infixBegin, 2 * verifier.options.libraryError);
 }
 
-template <typename TExecSpace, typename TConfig, typename TReadSeqs, typename TReadId, typename TContigId, typename TContigPos>
+template <typename TExecSpace, typename TConfig, typename TContigId, typename TContigPos>
 inline void _getContigInfix(Mater<TExecSpace, TConfig> & verifier,
-                            TReadSeqs & readSeqs,
-                            TReadId mateId,
                             TContigId /* contigId */,
-                            TContigPos /* beginPos */,
-                            TContigPos endPos,
+                            TContigPos /* matchBegin */,
+                            TContigPos matchEnd,
                             TContigPos & infixBegin,
                             TContigPos & infixEnd,
                             LeftMate)
 {
-    typedef Mater<TExecSpace, TConfig>              TMater;
-    typedef typename TMater::TContig                TContig;
-    typedef typename TMater::TReadSeq               TReadSeq;
-    typedef typename Size<TContig>::Type            TContigSize;
-    typedef typename Size<TReadSeq>::Type           TReadSeqSize;
-
-    TReadSeqSize mateLength = length(readSeqs[mateId]);
-
     infixBegin = 0;
-    if (endPos > verifier.options.libraryLength + verifier.options.libraryError)
-        infixBegin = endPos - verifier.options.libraryLength - verifier.options.libraryError;
+    if (matchEnd > verifier.options.libraryLength + verifier.options.libraryError)
+        infixBegin = matchEnd - verifier.options.libraryLength - verifier.options.libraryError;
 
     infixEnd = 0;
-    if (endPos > verifier.options.libraryLength - verifier.options.libraryError - mateLength)
-        infixEnd = endPos - verifier.options.libraryLength + verifier.options.libraryError + mateLength;
+    if (matchEnd + verifier.options.libraryError > verifier.options.libraryLength)
+        infixEnd = matchEnd - verifier.options.libraryLength + verifier.options.libraryError;
+
+    SEQAN_ASSERT_LEQ(infixBegin, infixEnd);
+    SEQAN_ASSERT_LEQ(infixEnd - infixBegin, 2 * verifier.options.libraryError);
 }
 
 // ----------------------------------------------------------------------------
@@ -535,9 +526,9 @@ inline bool findMate(Mater<TExecSpace, TConfig> & verifier,
     TContigPos contigEnd;
 
     if (reverseComplemented)
-        _getContigInfix(verifier, readSeqs, mateId, contigId, matchBegin, matchEnd, contigBegin, contigEnd, LeftMate());
+        _getContigInfix(verifier, contigId, matchBegin, matchEnd, contigBegin, contigEnd, LeftMate());
     else
-        _getContigInfix(verifier, readSeqs, mateId, contigId, matchBegin, matchEnd, contigBegin, contigEnd, RightMate());
+        _getContigInfix(verifier, contigId, matchBegin, matchEnd, contigBegin, contigEnd, RightMate());
 
     TContigInfix contigInfix = infix(contig, contigBegin, contigEnd);
 
