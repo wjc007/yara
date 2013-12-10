@@ -324,7 +324,7 @@ inline void extendHits(Extender<TExecSpace, TConfig> & extender, TReadSeqs & rea
     typedef typename Value<TSA>::Type                   TSAValue;
 
     TReadId readsCount = length(readSeqs);
-    for (TReadId readId = 0; readId != readsCount; ++readId)
+    for (TReadId readId = 0; readId < readsCount; ++readId)
     {
         TSeedIds seedIds = getSeedIds(extender.seeder, readId);
 
