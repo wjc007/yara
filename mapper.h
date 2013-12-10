@@ -101,11 +101,11 @@ struct Mapper
     typedef SeederConfig<Options, TIndex, TReadSeqs, Exact>         TSeederConfig;
     typedef Seeder<TExecSpace, TSeederConfig>                       TSeeder;
 
-    typedef ExtenderConfig<Options, TContigs, TReadSeqs>            TExtenderConfig;
+    typedef ExtenderConfig<Options, TContigs, TReadSeqs, TSeeder>   TExtenderConfig;
     typedef Extender<TExecSpace, TExtenderConfig>                   TExtender;
 
-    typedef ExtenderConfig<Options, TContigs, TReadSeqs>            TVerifierConfig;
-    typedef Verifier<TExecSpace, TExtenderConfig>                   TVerifier;
+    typedef VerifierConfig<Options, TContigs, TReadSeqs>            TVerifierConfig;
+    typedef Verifier<TExecSpace, TVerifierConfig>                   TVerifier;
 
 //    typedef WriterConfig<Options, TReadSeqs>                        TWriterConfig;
 //    typedef Writer<TExecSpace, TWriterConfig>                       TWriter;
@@ -138,7 +138,7 @@ struct Mapper
         reads(store),
         readsLoader(reads),
         seeder(options, index, 0u),
-        extender(options, contigs(genome)),
+        extender(options, contigs(genome), seeder),
         verifier(options, contigs(genome))
 //        writer(options, genome)
     {};
@@ -312,12 +312,13 @@ void _mapReads(Mapper<TExecSpace> & mapper, TReadSeqs & readSeqs)
     filterHits(mapper, readSeqs);
     std::cout << "Hits count:\t\t\t" << countHits(mapper.hits) << std::endl;
 
-//    start(mapper.timer);
-//    clear(mapper.anchors);
-//    extendHits(mapper.extender, readSeqs, mapper.hits, indexSA(mapper.index), mapper.anchors);
-//    stop(mapper.timer);
-//    std::cout << "Extension time:\t\t" << mapper.timer << std::endl;
-//    std::cout << "Anchors count:\t\t" << length(mapper.anchors) << std::endl;
+    start(mapper.timer);
+    clear(mapper.anchors);
+//    resize(mapper.anchors, countHits(mapper.hits));
+    extendHits(mapper.extender, readSeqs, mapper.hits, indexSA(mapper.index), mapper.anchors);
+    stop(mapper.timer);
+    std::cout << "Extension time:\t\t" << mapper.timer << std::endl;
+    std::cout << "Anchors count:\t\t" << length(mapper.anchors) << std::endl;
 
 //    start(mapper.timer);
 //    verifyHits(mapper.verifier, readSeqs, mapper.anchors, indexSA(mapper.index), mapper.mates);
