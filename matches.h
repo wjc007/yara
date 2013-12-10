@@ -47,7 +47,7 @@ using namespace seqan;
 // Class Match
 // ----------------------------------------------------------------------------
 
-template <typename TSpec>
+template <typename TSpec = void>
 struct Match
 {
     unsigned        readId;

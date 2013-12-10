@@ -84,9 +84,6 @@ struct Seeder
     typedef String<typename Seed<TReadSeqs>::Type>          TSeedsString;
     typedef typename Space<TSeedsString, TExecSpace>::Type  TSeeds;
 
-    typedef typename Size<TIndex>::Type                     TSize;
-    typedef Hits<TSize, void>                               THits;
-
     typedef typename If<IsSameType<TDistance, Exact>,
                         FinderSTree,
                         Backtracking<HammingDistance>

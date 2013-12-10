@@ -45,11 +45,10 @@ using namespace seqan;
 // Class ExtenderConfig
 // ----------------------------------------------------------------------------
 
-template <typename TOptions_, typename TIndex_, typename TContigs_, typename TReadSeqs_>
+template <typename TOptions_, typename TContigs_, typename TReadSeqs_>
 struct ExtenderConfig
 {
     typedef TOptions_       TOptions;
-    typedef TIndex_         TIndex;
     typedef TContigs_       TContigs;
     typedef TReadSeqs_      TReadSeqs;
 };
@@ -62,7 +61,6 @@ template <typename TExecSpace, typename TConfig>
 struct Extender
 {
     typedef typename TConfig::TOptions                                  TOptions;
-    typedef typename TConfig::TIndex                                    TIndex;
     typedef typename TConfig::TContigs                                  TContigs;
     typedef typename TConfig::TReadSeqs                                 TReadSeqs;
 
@@ -79,7 +77,6 @@ struct Extender
     typedef Verifier<TExecSpace, TConfig>                               TVerifier;
 
     TOptions const &    options;
-    TIndex &            index;
     TContigs &          contigs;
 
     TPatternState       patternState;
@@ -94,9 +91,8 @@ struct Extender
     unsigned long verificationsCount;
     unsigned long matchesCount;
 
-    Extender(TOptions const & options, TIndex & index, TContigs & contigs) :
+    Extender(TOptions const & options, TContigs & contigs) :
         options(options),
-        index(index),
         contigs(contigs),
         verifier(options, contigs),
         readErrors(5),

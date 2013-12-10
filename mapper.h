@@ -78,6 +78,7 @@ struct Mapper
 {
     typedef Genome<void, CUDAStoreConfig>                           TGenome;
     typedef GenomeLoader<void, CUDAStoreConfig>                     TGenomeLoader;
+    typedef typename Contigs<TGenome>::Type                         TContigs;
 
     typedef Index<TFMContigs, TGenomeIndexSpec>                     THostIndex;
     typedef typename Space<THostIndex, TExecSpace>::Type            TIndex;
@@ -89,13 +90,21 @@ struct Mapper
     typedef typename TStore::TReadSeqStore                          THostReadSeqs;
     typedef typename Space<THostReadSeqs, TExecSpace>::Type         TReadSeqs;
 
+    typedef typename Size<TIndex>::Type                             TIndexSize;
+    typedef Hits<TIndexSize, Exact>                                 THits;
+
+    typedef Match<void>                                             TMatch;
+    typedef String<TMatch>                                          TMatches;
+
     typedef SeederConfig<Options, TIndex, TReadSeqs, Exact>         TSeederConfig;
     typedef Seeder<TExecSpace, TSeederConfig>                       TSeeder;
 
-    typedef typename Contigs<TGenome>::Type                         TContigs;
-    typedef VerifierConfig<Options, TIndex, TContigs, TReadSeqs>    TVerifierConfig;
-    typedef Verifier<TExecSpace, TVerifierConfig>                   TVerifier;
-//
+    typedef ExtenderConfig<Options, TContigs, TReadSeqs>            TExtenderConfig;
+    typedef Extender<TExecSpace, TExtenderConfig>                   TExtender;
+
+    typedef ExtenderConfig<Options, TContigs, TReadSeqs>            TVerifierConfig;
+    typedef Verifier<TExecSpace, TExtenderConfig>                   TVerifier;
+
 //    typedef WriterConfig<Options, TReadSeqs>                        TWriterConfig;
 //    typedef Writer<TExecSpace, TWriterConfig>                       TWriter;
 
@@ -109,8 +118,12 @@ struct Mapper
     TReads              reads;
     TReadsLoader        readsLoader;
 
+    THits               hits;
+    TMatches            anchors;
+    TMatches            mates;
+
     TSeeder             seeder;
-//    TLocator            locator;
+    TExtender           extender;
     TVerifier           verifier;
 //    TWriter             writer;
 
@@ -123,8 +136,8 @@ struct Mapper
         reads(store),
         readsLoader(reads),
         seeder(options, index, 0u),
-//        locator(options, index),
-        verifier(options, index, contigs(genome))
+        extender(options, contigs(genome)),
+        verifier(options, contigs(genome))
 //        writer(options, genome)
     {};
 };
