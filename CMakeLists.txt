@@ -105,9 +105,11 @@ if (SEQAN_HAS_CUDA)
                                   misc.h
                                   options.h
                                   types.h
+                                  hits.h
+				  matches.h
                                   index.h
-                                  filter.h
-                                  locator.h
+                                  seeder.h
+                                  extender.h
                                   verifier.h
                                   writer.h)
 else ()
@@ -119,9 +121,11 @@ else ()
                                   misc.h
                                   options.h
                                   types.h
+                                  hits.h
+				  matches.h
                                   index.h
-                                  filter.h
-                                  locator.h
+                                  seeder.h
+                                  extender.h
                                   verifier.h
                                   writer.h)
 endif ()

@@ -32,8 +32,8 @@
 // Author: Enrico Siragusa <enrico.siragusa@fu-berlin.de>
 // ==========================================================================
 
-#ifndef APP_CUDAMAPPER_FILTER_H_
-#define APP_CUDAMAPPER_FILTER_H_
+#ifndef APP_CUDAMAPPER_SEEDER_H_
+#define APP_CUDAMAPPER_SEEDER_H_
 
 using namespace seqan;
 
@@ -192,7 +192,8 @@ inline void fillSeeds(Seeder<TExecSpace, TConfig> & seeder, TReadSeqs & readSeqs
     TSize readSeqsCount = length(readSeqs);
     TSize readSeqLength = length(front(readSeqs));
     TSize readSeqErrors = std::ceil(readSeqLength * (seeder.options.errorRate / 100.0));
-    TSize seedsPerReadSeq = readSeqErrors + 1;// std::ceil(readSeqErrors / (seeder.errorsPerSeed + 1.0));
+    TSize seedsPerReadSeq = readSeqErrors + 1;
+//    TSize seedsPerReadSeq = std::ceil(readSeqErrors / (seeder.errorsPerSeed + 1.0));
     TSize seedLength = readSeqLength / seedsPerReadSeq;
 
     // Resize space for seeds.
@@ -206,8 +207,8 @@ inline void fillSeeds(Seeder<TExecSpace, TConfig> & seeder, TReadSeqs & readSeqs
 // Function findSeeds()
 // ----------------------------------------------------------------------------
 
-template <typename TExecSpace, typename TConfig>
-void findSeeds(Seeder<TExecSpace, TConfig> & seeder)
+template <typename TExecSpace, typename TConfig, typename TDelegate>
+inline void findSeeds(Seeder<TExecSpace, TConfig> & seeder, TDelegate & delegate)
 {
     typedef Seeder<TExecSpace, TConfig>     TSeeder;
     typedef typename TSeeder::TPattern      TPattern;
@@ -219,16 +220,48 @@ void findSeeds(Seeder<TExecSpace, TConfig> & seeder)
     // Instantiate a pattern object.
     TPattern pattern(seeder.seeds);
 
-    // Resize space for hits.
-    clear(seeder.hits);
-    init(seeder.hits, pattern);
+    // Initialize the delegate.
+    init(delegate, pattern);
 
     // Find hits.
-    find(seeder.finder, pattern, seeder.hits);
+    find(seeder.finder, pattern, delegate);
 
 #ifdef PLATFORM_CUDA
     cudaPrintFreeMemory();
 #endif
 }
 
-#endif  // #ifndef APP_CUDAMAPPER_FILTER_H_
+// ----------------------------------------------------------------------------
+// Function getSeedIds()
+// ----------------------------------------------------------------------------
+
+template <typename TExecSpace, typename TConfig, typename TSeedId>
+inline Pair<typename Size<typename TConfig::TReadSeqs>::Type>
+getSeedIds(Seeder<TExecSpace, TConfig> & seeder, TSeedId seedId)
+{
+    return Pair<typename Size<typename TConfig::TReadSeqs>::Type>(...);
+}
+
+// ----------------------------------------------------------------------------
+// Function getReadId()
+// ----------------------------------------------------------------------------
+
+template <typename TExecSpace, typename TConfig, typename TSeedId>
+inline typename Size<typename TConfig::TReadSeqs>::Type
+getReadId(Seeder<TExecSpace, TConfig> & seeder, TSeedId seedId)
+{
+    return ...;
+}
+
+// ----------------------------------------------------------------------------
+// Function getReadPos()
+// ----------------------------------------------------------------------------
+
+template <typename TExecSpace, typename TConfig, typename TSeedId>
+inline Pair<unsigned>
+getPosInRead(Seeder<TExecSpace, TConfig> & seeder, TSeedId seedId)
+{
+    return Pair<unsigned>(...);
+}
+
+#endif  // #ifndef APP_CUDAMAPPER_SEEDER_H_

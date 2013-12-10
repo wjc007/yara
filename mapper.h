@@ -230,9 +230,12 @@ void mapReads(Mapper<TExecSpace> & mapper)
 template <typename TExecSpace, typename TReadSeqs>
 void _mapReads(Mapper<TExecSpace> & mapper, TReadSeqs & readSeqs)
 {
+    // Resize space for hits.
+    clear(mapper.hits);
+
     start(mapper.timer);
     fillSeeds(mapper.seeder, readSeqs);
-    findSeeds(mapper.seeder);
+    findSeeds(mapper.seeder, mapper.hits);
     stop(mapper.timer);
     std::cout << "Seeding time:\t\t\t" << mapper.timer << std::endl;
     std::cout << "Seeds count:\t\t\t" << length(mapper.seeder.seeds) << std::endl;
