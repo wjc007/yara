@@ -314,7 +314,7 @@ void _mapReads(Mapper<TExecSpace> & mapper, TReadSeqs & readSeqs)
 
     start(mapper.timer);
     clear(mapper.anchors);
-    resize(mapper.anchors, countHits(mapper.hits) / 5);
+    reserve(mapper.anchors, countHits(mapper.hits) / 5);
     extendHits(mapper.extender, readSeqs, mapper.hits, indexSA(mapper.index), mapper.anchors);
     stop(mapper.timer);
     std::cout << "Extension time:\t\t\t" << mapper.timer << std::endl;
@@ -326,10 +326,11 @@ void _mapReads(Mapper<TExecSpace> & mapper, TReadSeqs & readSeqs)
     std::cout << "Compaction time:\t\t" << mapper.timer << std::endl;
     std::cout << "Anchors count:\t\t\t" << length(mapper.anchors) << std::endl;
 
-//    start(mapper.timer);
-//    verifyHits(mapper.verifier, readSeqs, mapper.anchors, mapper.mates);
-//    stop(mapper.timer);
-//    std::cout << "Verification time:\t\t" << mapper.timer << std::endl;
+    start(mapper.timer);
+    verifyMatches(mapper.verifier, readSeqs, mapper.anchors, mapper.mates);
+    stop(mapper.timer);
+    std::cout << "Verification time:\t\t" << mapper.timer << std::endl;
+    std::cout << "Mates count:\t\t\t" << mapper.verifier.matchesCount << std::endl;
 //    std::cout << "Mates count:\t\t" << length(mapper.mates) << std::endl;
 
 //    start(mapper.timer);
