@@ -32,8 +32,8 @@
 // Author: Enrico Siragusa <enrico.siragusa@fu-berlin.de>
 // ==========================================================================
 
-#ifndef APP_CUDAMAPPER_LOCATOR_H_
-#define APP_CUDAMAPPER_LOCATOR_H_
+#ifndef APP_CUDAMAPPER_HITS_H_
+#define APP_CUDAMAPPER_HITS_H_
 
 using namespace seqan;
 
@@ -58,7 +58,13 @@ struct Ranges_;
 template <typename TSize, typename TSpec = void>
 struct Hits
 {
-    typename Member<Hits, Ranges_>::Type    ranges;
+    typedef typename Member<Hits, Ranges_>::Type    TRanges;
+    typedef typename Size<TRanges>::Type            THitId;
+    typedef Pair<THitId>                            THitIds;
+    typedef Pair<TSize>                             THitRange;
+    typedef unsigned char                           THitErrors;
+
+    TRanges ranges;
 
     template <typename TFinder>
     inline SEQAN_HOST_DEVICE void
@@ -67,6 +73,18 @@ struct Hits
         ranges[finder._patternIt] = range(textIterator(finder));
     }
 };
+
+//template <typename TSize>
+//struct Hits<TSize, HammingDistance>
+//{
+//    typename Member<Hits, Ids_>::Type       seedIds;
+//    typename Member<Hits, Ranges_>::Type    ranges;
+//    typename Member<Hits, Errors_>::Type    errors;
+//};
+
+// ----------------------------------------------------------------------------
+// Class HitsCounter
+// ----------------------------------------------------------------------------
 
 template <typename TSize, typename TSpec = void>
 struct HitsCounter
@@ -80,28 +98,6 @@ struct HitsCounter
     void operator() (Pair<TSize> const & range)
     {
         count += getValueI2(range) - getValueI1(range);
-    }
-};
-
-template <typename TSize, typename TSpec = void>
-struct IsHardToMap
-{
-    typedef Hits<TSize, TSpec>         THits;
-
-    THits const &   hits;
-    TSize           threshold;
-
-    template <typename TTreshold>
-    IsHardToMap(THits const & hits, TTreshold threshold) :
-        hits(hits),
-        threshold(threshold)
-    {}
-
-    template <typename TReadId>
-    inline SEQAN_HOST_DEVICE bool
-    operator() (TReadId readId)
-    {
-        return getCount(hits, readId) > threshold;
     }
 };
 
@@ -194,49 +190,89 @@ view(Hits<TSize, TSpec> & hits)
 }
 
 // ----------------------------------------------------------------------------
-// Function clear()
+// Function getHitErrors()
+// ----------------------------------------------------------------------------
+
+template <typename TSize, typename TSpec, typename THitId>
+inline typename Hits<TSize, TSpec>::THitErrors
+getHitErrors(Hits<TSize, TSpec> const & /* hits */, THitId /* hitId */)
+{
+    return 0;
+}
+
+// ----------------------------------------------------------------------------
+// Function getHitRange()
+// ----------------------------------------------------------------------------
+
+template <typename TSize, typename TSpec, typename THitId>
+inline typename Hits<TSize, TSpec>::THitRange
+getHitRange(Hits<TSize, TSpec> const & hits, THitId hitId)
+{
+    return hits.ranges[hitId];
+}
+
+// ----------------------------------------------------------------------------
+// Function getHitIds()
+// ----------------------------------------------------------------------------
+
+template <typename TSize, typename TSpec, typename TSeedId>
+inline typename Hits<TSize, TSpec>::THitIds
+getHitIds(Hits<TSize, TSpec> const & /* hits */, TSeedId seedId)
+{
+    typedef Hits<TSize, TSpec> const    THits;
+    typedef typename THits::THitIds     THitIds;
+
+    return THitIds(seedId, seedId + 1);
+}
+
+// ----------------------------------------------------------------------------
+// Function countHits()
 // ----------------------------------------------------------------------------
 
 template <typename TSize, typename TSpec>
-inline void clear(Hits<TSize, TSpec> & hits)
+inline unsigned long countHits(Hits<TSize, TSpec> const & hits)
+{
+    return std::for_each(begin(hits.ranges, Standard()),
+                         end(hits.ranges, Standard()),
+                         HitsCounter<unsigned long, TSpec>()).count;
+}
+
+// ----------------------------------------------------------------------------
+// Function countHits()
+// ----------------------------------------------------------------------------
+
+template <typename TSize, typename TSpec, typename TSeedId>
+inline TSize countHits(Hits<TSize, TSpec> const & hits, Pair<TSeedId> seedIds)
+{
+    return std::for_each(begin(hits.ranges, Standard()) + getValueI1(seedIds),
+                         begin(hits.ranges, Standard()) + getValueI2(seedIds),
+                         HitsCounter<TSize, TSpec>()).count;
+}
+
+// ----------------------------------------------------------------------------
+// Function clearHits()
+// ----------------------------------------------------------------------------
+
+template <typename TSize, typename TSpec>
+inline void clearHits(Hits<TSize, TSpec> & hits)
 {
     clear(hits.ranges);
 }
 
 // ----------------------------------------------------------------------------
-// Function countRanges()
+// Function clearHits()
 // ----------------------------------------------------------------------------
 
-template <typename TSize>
-inline bool isValid(Pair<TSize> const & range)
+template <typename TSize, typename TSpec, typename TSeedId>
+inline void clearHits(Hits<TSize, TSpec> & hits, Pair<TSeedId> seedIds)
 {
-    return range.i1 < range.i2;
+    Pair<TSize> emptyRange;
+    setValueI1(emptyRange, 0);
+    setValueI2(emptyRange, 0);
+
+    std::fill(begin(hits.ranges, Standard()) + getValueI1(seedIds),
+              begin(hits.ranges, Standard()) + getValueI2(seedIds),
+              emptyRange);
 }
 
-template <typename TSize, typename TSpec>
-inline TSize countRanges(Hits<TSize, TSpec> const & hits)
-{
-    return std::count_if(begin(hits.ranges, Standard()), end(hits.ranges, Standard()), isValid<TSize>);
-}
-
-template <typename TSize, typename TSpec>
-inline unsigned long countHits(Hits<TSize, TSpec> const & hits)
-{
-    return std::for_each(begin(hits.ranges, Standard()), end(hits.ranges, Standard()), HitsCounter<unsigned long, TSpec>()).count;
-}
-
-template <typename TSize, typename TSpec, typename TReadId>
-inline TSize countHits(Hits<TSize, TSpec> const & hits, TReadId readId)
-{
-    typedef Hits<TSize, TSpec> const                            THits;
-    typedef typename Member<THits, Ranges_>::Type               TRanges;
-    typedef typename Iterator<TRanges const, Standard>::Type    TRangesIt;
-
-    TRangesIt rangesBegin = begin(hits.ranges, Standard()) + (readId * (5u + 1));
-    TRangesIt rangesEnd = begin(hits.ranges, Standard()) + ((readId + 1) * (5u + 1));
-
-    return std::for_each(rangesBegin, rangesEnd, HitsCounter<TSize, TSpec>()).count;
-}
-
-
-#endif  // #ifndef APP_CUDAMAPPER_LOCATOR_H_
+#endif  // #ifndef APP_CUDAMAPPER_HITS_H_
