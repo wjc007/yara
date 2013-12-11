@@ -251,45 +251,45 @@ inline void filterHits(Mapper<TExecSpace> & mapper, TReadSeqs & readSeqs)
     typedef typename TMapper::TIndexSize                TIndexSize;
     typedef typename Size<TReadSeqs>::Type              TReadId;
 
-    TReadId pairsCount = length(readSeqs) / 4;
+    TReadId pairsCount = getMatesCount(readSeqs);
 
     for (TReadId pairId = 0; pairId < pairsCount; ++pairId)
     {
         // Get mates ids.
-        TReadId fwdOneId = pairId;
-        TReadId fwdTwoId = pairId + pairsCount;
-        TReadId revOneId = pairId + 2 * pairsCount;
-        TReadId revTwoId = pairId + 3 * pairsCount;
+        TReadId firstMateFwdSeqId = getFirstMateFwdSeqId(readSeqs, pairId);
+        TReadId secondMateFwdSeqId = getSecondMateFwdSeqId(readSeqs, pairId);
+        TReadId firstMateRevSeqId = getFirstMateRevSeqId(readSeqs, pairId);
+        TReadId secondMateRevSeqId = getSecondMateRevSeqId(readSeqs, pairId);
 
         // Get seed ids.
-        TSeedIds fwdOneSeedIds = getSeedIds(mapper.seeder, fwdOneId);
-        TSeedIds fwdTwoSeedIds = getSeedIds(mapper.seeder, fwdTwoId);
-        TSeedIds revOneSeedIds = getSeedIds(mapper.seeder, revOneId);
-        TSeedIds revTwoSeedIds = getSeedIds(mapper.seeder, revTwoId);
+        TSeedIds firstMateFwdSeedIds = getSeedIds(mapper.seeder, firstMateFwdSeqId);
+        TSeedIds secondMateFwdSeedIds = getSeedIds(mapper.seeder, secondMateFwdSeqId);
+        TSeedIds firstMateRevSeedIds = getSeedIds(mapper.seeder, firstMateRevSeqId);
+        TSeedIds secondMateRevSeedIds = getSeedIds(mapper.seeder, secondMateRevSeqId);
 
         // Count the hits of each read.
-        TIndexSize fwdOneHits = countHits(mapper.hits, fwdOneSeedIds);
-        TIndexSize fwdTwoHits = countHits(mapper.hits, fwdTwoSeedIds);
-        TIndexSize revOneHits = countHits(mapper.hits, revOneSeedIds);
-        TIndexSize revTwoHits = countHits(mapper.hits, revTwoSeedIds);
+        TIndexSize firstMateFwdHits = countHits(mapper.hits, firstMateFwdSeedIds);
+        TIndexSize secondMateFwdHits = countHits(mapper.hits, secondMateFwdSeedIds);
+        TIndexSize firstMateRevHits = countHits(mapper.hits, firstMateRevSeedIds);
+        TIndexSize secondMateRevHits = countHits(mapper.hits, secondMateRevSeedIds);
 
         // Choose the easiest read as the anchor.
-        TIndexSize pairOneTwoHits = std::min(fwdOneHits, revTwoHits);
-        TIndexSize pairTwoOneHits = std::min(fwdTwoHits, revOneHits);
+        TIndexSize firstFwdSecondRevHits = std::min(firstMateFwdHits, secondMateRevHits);
+        TIndexSize secondFwdFirstRevHits = std::min(secondMateFwdHits, firstMateRevHits);
 
         // Clear the hits of the mates.
-        TSeedIds mateOneTwoSeedIds = (pairOneTwoHits == fwdOneHits) ? revTwoSeedIds : fwdOneSeedIds;
-        TSeedIds mateTwoOneSeedIds = (pairTwoOneHits == fwdTwoHits) ? revOneSeedIds : fwdTwoSeedIds;
-        clearHits(mapper.hits, mateOneTwoSeedIds);
-        clearHits(mapper.hits, mateTwoOneSeedIds);
+        TSeedIds mateFirstFwdSecondRevSeedIds = (firstFwdSecondRevHits == firstMateFwdHits) ? secondMateRevSeedIds : firstMateFwdSeedIds;
+        TSeedIds mateSecondFwdFirstRevSeedIds = (secondFwdFirstRevHits == secondMateFwdHits) ? firstMateRevSeedIds : secondMateFwdSeedIds;
+        clearHits(mapper.hits, mateFirstFwdSecondRevSeedIds);
+        clearHits(mapper.hits, mateSecondFwdFirstRevSeedIds);
 
         // Clear the hits of the anchor and skip the pair.
-        if (pairOneTwoHits + pairTwoOneHits > mapper.options.hitsThreshold)
+        if (firstFwdSecondRevHits + secondFwdFirstRevHits > mapper.options.hitsThreshold)
         {
-            TSeedIds anchorOneTwoSeedIds = (pairOneTwoHits == fwdOneHits) ? fwdOneSeedIds : revTwoSeedIds;
-            TSeedIds anchorTwoOneSeedIds = (pairTwoOneHits == fwdTwoHits) ? fwdTwoSeedIds : revOneSeedIds;
-            clearHits(mapper.hits, anchorOneTwoSeedIds);
-            clearHits(mapper.hits, anchorTwoOneSeedIds);
+            TSeedIds anchorFirstFwdSecondRevSeedIds = (firstFwdSecondRevHits == firstMateFwdHits) ? firstMateFwdSeedIds : secondMateRevSeedIds;
+            TSeedIds anchorSecondFwdFirstRevSeedIds = (secondFwdFirstRevHits == secondMateFwdHits) ? secondMateFwdSeedIds : firstMateRevSeedIds;
+            clearHits(mapper.hits, anchorFirstFwdSecondRevSeedIds);
+            clearHits(mapper.hits, anchorSecondFwdFirstRevSeedIds);
         }
     }
 }
