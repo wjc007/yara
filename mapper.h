@@ -251,7 +251,7 @@ inline void filterHits(Mapper<TExecSpace> & mapper, TReadSeqs & readSeqs)
     typedef typename TMapper::TIndexSize                TIndexSize;
     typedef typename Size<TReadSeqs>::Type              TReadId;
 
-    TReadId pairsCount = getMatesCount(readSeqs);
+    TReadId pairsCount = getPairsCount(readSeqs);
 
     for (TReadId pairId = 0; pairId < pairsCount; ++pairId)
     {
@@ -325,6 +325,7 @@ void _mapReads(Mapper<TExecSpace> & mapper, TReadSeqs & readSeqs)
     stop(mapper.timer);
     std::cout << "Compaction time:\t\t" << mapper.timer << std::endl;
     std::cout << "Anchors count:\t\t\t" << length(mapper.anchors) << std::endl;
+    std::cout << "Anchored pairs:\t\t\t" << countPairs(readSeqs, mapper.anchors) << std::endl;
 
     start(mapper.timer);
     mapper.verifier.matchesCount = 0;
