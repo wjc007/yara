@@ -62,12 +62,11 @@ struct Match
 // ----------------------------------------------------------------------------
 
 template <typename TMatch>
-struct MatchSorterByReadId :
-    std::binary_function<TMatch, TMatch, int>
+struct MatchSorterByReadId
 {
-    inline int operator()(TMatch const & a, TMatch const & b) const
+    inline bool operator()(TMatch const & a, TMatch const & b) const
     {
-        return a.readId - b.readId;
+        return a.readId <= b.readId;
     }
 };
 
@@ -94,7 +93,7 @@ struct MatchSorterByErrors
 {
     inline bool operator()(TMatch const & a, TMatch const & b) const
     {
-        return a.errors < b.errors;
+        return a.errors <= b.errors;
     }
 };
 
@@ -142,7 +141,7 @@ inline void removeDuplicateMatches(TMatches & matches)
     newIt = matchesBegin;
     oldIt = matchesBegin;
 
-//    std::sort(matchesBegin, matchesEnd, MatchSorterByReadId<TMatch>());
+    std::stable_sort(matchesBegin, matchesEnd, MatchSorterByReadId<TMatch>());
 
     std::stable_sort(matchesBegin, matchesEnd, MatchSorterByEndPos<TMatch>());
 
