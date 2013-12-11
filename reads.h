@@ -694,6 +694,13 @@ getSecondMateRevSeqId(TReadSeqs const & readSeqs, TPairId pairId)
 
 template <typename TReadSeqs, typename TReadSeqId>
 inline typename Size<TReadSeqs>::Type
+getReadId(TReadSeqs const & readSeqs, TReadSeqId readSeqId)
+{
+    return isFwdReadSeq(readSeqs, readSeqId) ? readSeqId : readSeqId - getReadsCount(readSeqs);
+}
+
+template <typename TReadSeqs, typename TReadSeqId>
+inline typename Size<TReadSeqs>::Type
 getPairId(TReadSeqs const & readSeqs, TReadSeqId readSeqId)
 {
     SEQAN_ASSERT_LT(readSeqId, getReadSeqsCount(readSeqs));
