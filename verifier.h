@@ -109,11 +109,11 @@ inline void _getContigInfix(Verifier<TExecSpace, TConfig> & verifier,
     TContigSize contigLength = length(verifier.contigs[contigId]);
 
     infixBegin = contigLength;
-    if (infixBegin < matchBegin + verifier.options.libraryLength - verifier.options.libraryError)
+    if (infixBegin > matchBegin + verifier.options.libraryLength - verifier.options.libraryError)
         infixBegin = matchBegin + verifier.options.libraryLength - verifier.options.libraryError;
 
     infixEnd = contigLength;
-    if (infixEnd < matchBegin + verifier.options.libraryLength + verifier.options.libraryError)
+    if (infixEnd > matchBegin + verifier.options.libraryLength + verifier.options.libraryError)
         infixEnd = matchBegin + verifier.options.libraryLength + verifier.options.libraryError;
 
     SEQAN_ASSERT_LEQ(infixBegin, infixEnd);
@@ -159,20 +159,16 @@ inline bool findMate(Verifier<TExecSpace, TConfig> & verifier,
     typedef typename Infix<TContig>::Type           TContigInfix;
     typedef Finder<TContigInfix>                    TFinder;
 
-    TReadId readsCount = length(readSeqs) / 2;
-
     TContig contig = verifier.contigs[contigId];
     TReadSeq mateSeq = readSeqs[mateId];
-
-    bool reverseComplemented = (mateId >= readsCount);
 
     TContigPos contigBegin;
     TContigPos contigEnd;
 
-    if (reverseComplemented)
-        _getContigInfix(verifier, contigId, matchBegin, matchEnd, contigBegin, contigEnd, LeftMate());
-    else
+    if (isRevReadSeq(readSeqs, mateId))
         _getContigInfix(verifier, contigId, matchBegin, matchEnd, contigBegin, contigEnd, RightMate());
+    else
+        _getContigInfix(verifier, contigId, matchBegin, matchEnd, contigBegin, contigEnd, LeftMate());
 
     TContigInfix contigInfix = infix(contig, contigBegin, contigEnd);
 
