@@ -200,6 +200,23 @@ void configureMapper(Options const & options)
 #endif
 }
 
+inline void printDescription(ArgumentParser const & me)
+{
+    ToolDoc toolDoc(me._toolDoc);
+    clearEntries(toolDoc);  // We will append me._toolDoc later.
+
+    // Build synopsis section.
+//    addSection(toolDoc, "Synopsis");
+//    _addUsage(toolDoc, me);
+
+    // Add description to tool documentation.
+    addSection(toolDoc, "Description");
+    for (unsigned i = 0; i < me._description.size(); ++i)
+        addText(toolDoc, me._description[i]);
+
+    print(std::cout, toolDoc, "txt");
+}
+
 // ----------------------------------------------------------------------------
 // Function main()
 // ----------------------------------------------------------------------------
@@ -214,6 +231,8 @@ int main(int argc, char const ** argv)
 
     if (res != seqan::ArgumentParser::PARSE_OK)
         return res == seqan::ArgumentParser::PARSE_ERROR;
+
+    printDescription(parser);
 
     try
     {
