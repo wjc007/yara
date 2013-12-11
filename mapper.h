@@ -347,6 +347,8 @@ void runMapper(Mapper<TExecSpace> & mapper)
 {
     configureThreads(mapper);
 
+    std::cout << std::endl << "===================================================" << std::endl << std::endl;
+
     loadGenome(mapper);
     loadGenomeIndex(mapper);
 
@@ -359,6 +361,8 @@ void runMapper(Mapper<TExecSpace> & mapper)
     // Process reads in blocks.
     while (!atEnd(mapper.readsLoader))
     {
+        std::cout << std::endl << "===================================================" << std::endl << std::endl;
+
         // Load one block of reads.
         loadReads(mapper);
 
