@@ -141,7 +141,7 @@ inline void removeDuplicateMatches(TMatches & matches)
     newIt = matchesBegin;
     oldIt = matchesBegin;
 
-    std::stable_sort(matchesBegin, matchesEnd, MatchSorterByReadId<TMatch>());
+//    std::stable_sort(matchesBegin, matchesEnd, MatchSorterByReadId<TMatch>());
 
     std::stable_sort(matchesBegin, matchesEnd, MatchSorterByEndPos<TMatch>());
 
