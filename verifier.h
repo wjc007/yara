@@ -108,13 +108,12 @@ inline void _getContigInfix(Verifier<TExecSpace, TConfig> & verifier,
 
     TContigSize contigLength = length(verifier.contigs[contigId]);
 
-    infixBegin = contigLength;
-    if (infixBegin > matchBegin + verifier.options.libraryLength - verifier.options.libraryError)
+    infixBegin = 0;
+    if (matchBegin + verifier.options.libraryLength > verifier.options.libraryError)
         infixBegin = matchBegin + verifier.options.libraryLength - verifier.options.libraryError;
+    infixBegin = _min(infixBegin, contigLength);
 
-    infixEnd = contigLength;
-    if (infixEnd > matchBegin + verifier.options.libraryLength + verifier.options.libraryError)
-        infixEnd = matchBegin + verifier.options.libraryLength + verifier.options.libraryError;
+    infixEnd = _min(matchBegin + verifier.options.libraryLength + verifier.options.libraryError, contigLength);
 
     SEQAN_ASSERT_LEQ(infixBegin, infixEnd);
     SEQAN_ASSERT_LEQ(infixEnd - infixBegin, 2 * verifier.options.libraryError);
