@@ -314,12 +314,17 @@ void _mapReads(Mapper<TExecSpace> & mapper, TReadSeqs & readSeqs)
 
     start(mapper.timer);
     clear(mapper.anchors);
-//    resize(mapper.anchors, countHits(mapper.hits));
+    resize(mapper.anchors, countHits(mapper.hits) / 5);
     extendHits(mapper.extender, readSeqs, mapper.hits, indexSA(mapper.index), mapper.anchors);
     stop(mapper.timer);
     std::cout << "Extension time:\t\t\t" << mapper.timer << std::endl;
-    std::cout << "Anchors count:\t\t\t" << mapper.extender.matchesCount << std::endl;
-//    std::cout << "Anchors count:\t\t\t" << length(mapper.anchors) << std::endl;
+    std::cout << "Anchors count:\t\t\t" << length(mapper.anchors) << std::endl;
+
+    start(mapper.timer);
+    removeDuplicateMatches(mapper.anchors);
+    stop(mapper.timer);
+    std::cout << "Compaction time:\t\t" << mapper.timer << std::endl;
+    std::cout << "Anchors count:\t\t\t" << length(mapper.anchors) << std::endl;
 
 //    start(mapper.timer);
 //    verifyHits(mapper.verifier, readSeqs, mapper.anchors, mapper.mates);
