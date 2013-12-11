@@ -329,11 +329,14 @@ void _mapReads(Mapper<TExecSpace> & mapper, TReadSeqs & readSeqs)
 
     start(mapper.timer);
     mapper.verifier.matchesCount = 0;
+    clear(mapper.mates);
+    reserve(mapper.mates, length(mapper.anchors), Exact());
     verifyMatches(mapper.verifier, readSeqs, mapper.anchors, mapper.mates);
     stop(mapper.timer);
     std::cout << "Verification time:\t\t" << mapper.timer << std::endl;
-    std::cout << "Mates count:\t\t\t" << mapper.verifier.matchesCount << std::endl;
-//    std::cout << "Mates count:\t\t" << length(mapper.mates) << std::endl;
+//    std::cout << "Mates count:\t\t\t" << mapper.verifier.matchesCount << std::endl;
+    std::cout << "Mates count:\t\t\t" << length(mapper.mates) << std::endl;
+    std::cout << "Mapped pairs:\t\t\t" << countPairs(readSeqs, mapper.mates) << std::endl;
 
 //    start(mapper.timer);
 //    runWriter(mapper.writer, readSeqs);

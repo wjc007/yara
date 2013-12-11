@@ -189,7 +189,7 @@ template <typename TExecSpace, typename TConfig, typename TReadSeqs, typename TM
 inline void verifyMatches(Verifier<TExecSpace, TConfig> & verifier,
                           TReadSeqs & readSeqs,
                           TMatches const & anchors,
-                          TMatches & /* mates */)
+                          TMatches & mates)
 {
     typedef Verifier<TExecSpace, TConfig>               TVerifier;
     typedef typename Size<TMatches>::Type               TMatchId;
@@ -203,8 +203,9 @@ inline void verifyMatches(Verifier<TExecSpace, TConfig> & verifier,
         TMatch const & match = anchors[matchId];
         TReadId mateId = getMateSeqId(readSeqs, match.readId);
 
+        // WARNING append match of mate!!!!!
         if (findMate(verifier, readSeqs, match.contigId, match.contigBegin, match.contigEnd, mateId))
-            verifier.matchesCount++;
+            appendValue(mates, match);
     }
 }
 
