@@ -102,8 +102,8 @@ inline void _getContigInfix(Verifier<TExecSpace, TConfig> & verifier,
                             TContigPos & infixEnd,
                             RightMate)
 {
-    typedef Verifier<TExecSpace, TConfig>              TVerifier;
-    typedef typename TVerifier::TContig                TContig;
+    typedef Verifier<TExecSpace, TConfig>           TVerifier;
+    typedef typename TVerifier::TContig             TContig;
     typedef typename Size<TContig>::Type            TContigSize;
 
     TContigSize contigLength = length(verifier.contigs[contigId]);
@@ -153,9 +153,9 @@ inline bool findMate(Verifier<TExecSpace, TConfig> & verifier,
                      TContigPos matchEnd,
                      TReadId mateId)
 {
-    typedef Verifier<TExecSpace, TConfig>              TVerifier;
-    typedef typename TVerifier::TReadSeq               TReadSeq;
-    typedef typename TVerifier::TContig                TContig;
+    typedef Verifier<TExecSpace, TConfig>           TVerifier;
+    typedef typename TVerifier::TReadSeq            TReadSeq;
+    typedef typename TVerifier::TContig             TContig;
     typedef typename Infix<TContig>::Type           TContigInfix;
     typedef Finder<TContigInfix>                    TFinder;
 
@@ -184,6 +184,33 @@ inline bool findMate(Verifier<TExecSpace, TConfig> & verifier,
         paired = true;
 
     return paired;
+}
+
+// ----------------------------------------------------------------------------
+// Function findMate()
+// ----------------------------------------------------------------------------
+
+template <typename TExecSpace, typename TConfig, typename TReadSeqs, typename TMatches>
+inline void verifyMatches(Verifier<TExecSpace, TConfig> & verifier,
+                          TReadSeqs & readSeqs,
+                          TMatches const & anchors,
+                          TMatches & /* mates */)
+{
+    typedef Verifier<TExecSpace, TConfig>               TVerifier;
+    typedef typename Size<TMatches>::Type               TMatchId;
+    typedef typename Value<TMatches>::Type              TMatch;
+    typedef typename Size<TReadSeqs>::Type              TReadId;
+
+    TMatchId matchesCount = length(anchors);
+
+    for (TMatchId matchId = 0; matchId < matchesCount; ++matchId)
+    {
+        TMatch const & match = anchors[matchId];
+        TReadId mateId = getMateSeqId(readSeqs, match.readId);
+
+        if (findMate(verifier, readSeqs, match.contigId, match.contigBegin, match.contigEnd, mateId))
+            verifier.matchesCount++;
+    }
 }
 
 #endif  // #ifndef APP_CUDAMAPPER_VERIFIER_H_
