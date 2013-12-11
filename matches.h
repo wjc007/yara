@@ -98,22 +98,42 @@ struct MatchSorterByErrors
 };
 
 // ----------------------------------------------------------------------------
-// Class PairsCounter
+// Class MatchesCounter
 // ----------------------------------------------------------------------------
 
 template <typename TReadSeqs, typename TSpec = void>
-struct PairsCounter
+struct MatchesCounter
 {
     TReadSeqs const &   readSeqs;
     String<bool>        matched;
 
-    PairsCounter(TReadSeqs const & readSeqs) :
+    MatchesCounter(TReadSeqs const & readSeqs) :
+        readSeqs(readSeqs)
+    {
+        resize(matched, getReadsCount(readSeqs), false, Exact());
+    }
+
+    template <typename TMatch>
+    void operator() (TMatch const & match)
+    {
+        matched[getReadId(readSeqs, match.readId)] = true;
+    }
+};
+
+template <typename TReadSeqs>
+struct MatchesCounter<TReadSeqs, PairedEnd>
+{
+    TReadSeqs const &   readSeqs;
+    String<bool>        matched;
+
+    MatchesCounter(TReadSeqs const & readSeqs) :
         readSeqs(readSeqs)
     {
         resize(matched, getPairsCount(readSeqs), false, Exact());
     }
 
-    void operator() (Match<TSpec> const & match)
+    template <typename TMatch>
+    void operator() (TMatch const & match)
     {
         matched[getPairId(readSeqs, match.readId)] = true;
     }
@@ -225,23 +245,22 @@ inline void sortByErrors(TMatches & matches)
 
 template <typename TReadSeqs, typename TSpec>
 inline typename Size<TReadSeqs>::Type
-getCount(PairsCounter<TReadSeqs, TSpec> const & counter)
+getCount(MatchesCounter<TReadSeqs, TSpec> const & counter)
 {
     return std::count(begin(counter.matched, Standard()), end(counter.matched, Standard()), true);
 }
 
 // ----------------------------------------------------------------------------
-// Function countPaired()
+// Function countReads()
 // ----------------------------------------------------------------------------
 
-template <typename TReadSeqs, typename TMatches>
+template <typename TReadSeqs, typename TMatches, typename TSpec>
 inline typename Size<TReadSeqs>::Type
-countPairs(TReadSeqs const & readSeqs, TMatches const & matches)
+countMatches(TReadSeqs const & readSeqs, TMatches const & matches, TSpec const & /* tag */)
 {
     return getCount(std::for_each(begin(matches, Standard()),
                                   end(matches, Standard()),
-                                  PairsCounter<TReadSeqs>(readSeqs)));
+                                  MatchesCounter<TReadSeqs, TSpec>(readSeqs)));
 }
-
 
 #endif  // #ifndef APP_CUDAMAPPER_MATCHES_H_
