@@ -327,6 +327,7 @@ void _mapReads(Mapper<TExecSpace> & mapper, TReadSeqs & readSeqs)
     std::cout << "Anchors count:\t\t\t" << length(mapper.anchors) << std::endl;
 
     start(mapper.timer);
+    mapper.verifier.matchesCount = 0;
     verifyMatches(mapper.verifier, readSeqs, mapper.anchors, mapper.mates);
     stop(mapper.timer);
     std::cout << "Verification time:\t\t" << mapper.timer << std::endl;
