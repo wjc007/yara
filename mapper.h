@@ -251,45 +251,45 @@ inline void filterHits(Mapper<TExecSpace> & mapper, TReadSeqs & readSeqs)
     typedef typename TMapper::TIndexSize                TIndexSize;
     typedef typename Size<TReadSeqs>::Type              TReadId;
 
-    TReadId pairsCount = length(readSeqs) / 4;
+    TReadId pairsCount = getPairsCount(readSeqs);
 
     for (TReadId pairId = 0; pairId < pairsCount; ++pairId)
     {
         // Get mates ids.
-        TReadId fwdOneId = pairId;
-        TReadId fwdTwoId = pairId + pairsCount;
-        TReadId revOneId = pairId + 2 * pairsCount;
-        TReadId revTwoId = pairId + 3 * pairsCount;
+        TReadId firstMateFwdSeqId = getFirstMateFwdSeqId(readSeqs, pairId);
+        TReadId secondMateFwdSeqId = getSecondMateFwdSeqId(readSeqs, pairId);
+        TReadId firstMateRevSeqId = getFirstMateRevSeqId(readSeqs, pairId);
+        TReadId secondMateRevSeqId = getSecondMateRevSeqId(readSeqs, pairId);
 
         // Get seed ids.
-        TSeedIds fwdOneSeedIds = getSeedIds(mapper.seeder, fwdOneId);
-        TSeedIds fwdTwoSeedIds = getSeedIds(mapper.seeder, fwdTwoId);
-        TSeedIds revOneSeedIds = getSeedIds(mapper.seeder, revOneId);
-        TSeedIds revTwoSeedIds = getSeedIds(mapper.seeder, revTwoId);
+        TSeedIds firstMateFwdSeedIds = getSeedIds(mapper.seeder, firstMateFwdSeqId);
+        TSeedIds secondMateFwdSeedIds = getSeedIds(mapper.seeder, secondMateFwdSeqId);
+        TSeedIds firstMateRevSeedIds = getSeedIds(mapper.seeder, firstMateRevSeqId);
+        TSeedIds secondMateRevSeedIds = getSeedIds(mapper.seeder, secondMateRevSeqId);
 
         // Count the hits of each read.
-        TIndexSize fwdOneHits = countHits(mapper.hits, fwdOneSeedIds);
-        TIndexSize fwdTwoHits = countHits(mapper.hits, fwdTwoSeedIds);
-        TIndexSize revOneHits = countHits(mapper.hits, revOneSeedIds);
-        TIndexSize revTwoHits = countHits(mapper.hits, revTwoSeedIds);
+        TIndexSize firstMateFwdHits = countHits(mapper.hits, firstMateFwdSeedIds);
+        TIndexSize secondMateFwdHits = countHits(mapper.hits, secondMateFwdSeedIds);
+        TIndexSize firstMateRevHits = countHits(mapper.hits, firstMateRevSeedIds);
+        TIndexSize secondMateRevHits = countHits(mapper.hits, secondMateRevSeedIds);
 
         // Choose the easiest read as the anchor.
-        TIndexSize pairOneTwoHits = std::min(fwdOneHits, revTwoHits);
-        TIndexSize pairTwoOneHits = std::min(fwdTwoHits, revOneHits);
+        TIndexSize firstFwdSecondRevHits = std::min(firstMateFwdHits, secondMateRevHits);
+        TIndexSize secondFwdFirstRevHits = std::min(secondMateFwdHits, firstMateRevHits);
 
         // Clear the hits of the mates.
-        TSeedIds mateOneTwoSeedIds = (pairOneTwoHits == fwdOneHits) ? revTwoSeedIds : fwdOneSeedIds;
-        TSeedIds mateTwoOneSeedIds = (pairTwoOneHits == fwdTwoHits) ? revOneSeedIds : fwdTwoSeedIds;
-        clearHits(mapper.hits, mateOneTwoSeedIds);
-        clearHits(mapper.hits, mateTwoOneSeedIds);
+        TSeedIds mateFirstFwdSecondRevSeedIds = (firstFwdSecondRevHits == firstMateFwdHits) ? secondMateRevSeedIds : firstMateFwdSeedIds;
+        TSeedIds mateSecondFwdFirstRevSeedIds = (secondFwdFirstRevHits == secondMateFwdHits) ? firstMateRevSeedIds : secondMateFwdSeedIds;
+        clearHits(mapper.hits, mateFirstFwdSecondRevSeedIds);
+        clearHits(mapper.hits, mateSecondFwdFirstRevSeedIds);
 
         // Clear the hits of the anchor and skip the pair.
-        if (pairOneTwoHits + pairTwoOneHits > mapper.options.hitsThreshold)
+        if (firstFwdSecondRevHits + secondFwdFirstRevHits > mapper.options.hitsThreshold)
         {
-            TSeedIds anchorOneTwoSeedIds = (pairOneTwoHits == fwdOneHits) ? fwdOneSeedIds : revTwoSeedIds;
-            TSeedIds anchorTwoOneSeedIds = (pairTwoOneHits == fwdTwoHits) ? fwdTwoSeedIds : revOneSeedIds;
-            clearHits(mapper.hits, anchorOneTwoSeedIds);
-            clearHits(mapper.hits, anchorTwoOneSeedIds);
+            TSeedIds anchorFirstFwdSecondRevSeedIds = (firstFwdSecondRevHits == firstMateFwdHits) ? firstMateFwdSeedIds : secondMateRevSeedIds;
+            TSeedIds anchorSecondFwdFirstRevSeedIds = (secondFwdFirstRevHits == secondMateFwdHits) ? secondMateFwdSeedIds : firstMateRevSeedIds;
+            clearHits(mapper.hits, anchorFirstFwdSecondRevSeedIds);
+            clearHits(mapper.hits, anchorSecondFwdFirstRevSeedIds);
         }
     }
 }
@@ -314,18 +314,29 @@ void _mapReads(Mapper<TExecSpace> & mapper, TReadSeqs & readSeqs)
 
     start(mapper.timer);
     clear(mapper.anchors);
-//    resize(mapper.anchors, countHits(mapper.hits));
+    reserve(mapper.anchors, countHits(mapper.hits) / 5);
     extendHits(mapper.extender, readSeqs, mapper.hits, indexSA(mapper.index), mapper.anchors);
     stop(mapper.timer);
     std::cout << "Extension time:\t\t\t" << mapper.timer << std::endl;
-    std::cout << "Anchors count:\t\t\t" << mapper.extender.matchesCount << std::endl;
-//    std::cout << "Anchors count:\t\t\t" << length(mapper.anchors) << std::endl;
+    std::cout << "Anchors count:\t\t\t" << length(mapper.anchors) << std::endl;
 
-//    start(mapper.timer);
-//    verifyHits(mapper.verifier, readSeqs, mapper.anchors, mapper.mates);
-//    stop(mapper.timer);
-//    std::cout << "Verification time:\t\t" << mapper.timer << std::endl;
-//    std::cout << "Mates count:\t\t" << length(mapper.mates) << std::endl;
+    start(mapper.timer);
+    removeDuplicateMatches(mapper.anchors);
+    stop(mapper.timer);
+    std::cout << "Compaction time:\t\t" << mapper.timer << std::endl;
+    std::cout << "Anchors count:\t\t\t" << length(mapper.anchors) << std::endl;
+    std::cout << "Anchored pairs:\t\t\t" << countPairs(readSeqs, mapper.anchors) << std::endl;
+
+    start(mapper.timer);
+    mapper.verifier.matchesCount = 0;
+    clear(mapper.mates);
+    reserve(mapper.mates, length(mapper.anchors), Exact());
+    verifyMatches(mapper.verifier, readSeqs, mapper.anchors, mapper.mates);
+    stop(mapper.timer);
+    std::cout << "Verification time:\t\t" << mapper.timer << std::endl;
+//    std::cout << "Mates count:\t\t\t" << mapper.verifier.matchesCount << std::endl;
+    std::cout << "Mates count:\t\t\t" << length(mapper.mates) << std::endl;
+    std::cout << "Mapped pairs:\t\t\t" << countPairs(readSeqs, mapper.mates) << std::endl;
 
 //    start(mapper.timer);
 //    runWriter(mapper.writer, readSeqs);
@@ -342,6 +353,8 @@ void runMapper(Mapper<TExecSpace> & mapper)
 {
     configureThreads(mapper);
 
+    printRuler();
+
     loadGenome(mapper);
     loadGenomeIndex(mapper);
 
@@ -354,6 +367,8 @@ void runMapper(Mapper<TExecSpace> & mapper)
     // Process reads in blocks.
     while (!atEnd(mapper.readsLoader))
     {
+        printRuler();
+
         // Load one block of reads.
         loadReads(mapper);
 

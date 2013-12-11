@@ -102,19 +102,18 @@ inline void _getContigInfix(Verifier<TExecSpace, TConfig> & verifier,
                             TContigPos & infixEnd,
                             RightMate)
 {
-    typedef Verifier<TExecSpace, TConfig>              TVerifier;
-    typedef typename TVerifier::TContig                TContig;
+    typedef Verifier<TExecSpace, TConfig>           TVerifier;
+    typedef typename TVerifier::TContig             TContig;
     typedef typename Size<TContig>::Type            TContigSize;
 
     TContigSize contigLength = length(verifier.contigs[contigId]);
 
-    infixBegin = contigLength;
-    if (infixBegin < matchBegin + verifier.options.libraryLength - verifier.options.libraryError)
+    infixBegin = 0;
+    if (matchBegin + verifier.options.libraryLength > verifier.options.libraryError)
         infixBegin = matchBegin + verifier.options.libraryLength - verifier.options.libraryError;
+    infixBegin = _min(infixBegin, contigLength);
 
-    infixEnd = contigLength;
-    if (infixEnd < matchBegin + verifier.options.libraryLength + verifier.options.libraryError)
-        infixEnd = matchBegin + verifier.options.libraryLength + verifier.options.libraryError;
+    infixEnd = _min(matchBegin + verifier.options.libraryLength + verifier.options.libraryError, contigLength);
 
     SEQAN_ASSERT_LEQ(infixBegin, infixEnd);
     SEQAN_ASSERT_LEQ(infixEnd - infixBegin, 2 * verifier.options.libraryError);
@@ -153,26 +152,22 @@ inline bool findMate(Verifier<TExecSpace, TConfig> & verifier,
                      TContigPos matchEnd,
                      TReadId mateId)
 {
-    typedef Verifier<TExecSpace, TConfig>              TVerifier;
-    typedef typename TVerifier::TReadSeq               TReadSeq;
-    typedef typename TVerifier::TContig                TContig;
+    typedef Verifier<TExecSpace, TConfig>           TVerifier;
+    typedef typename TVerifier::TReadSeq            TReadSeq;
+    typedef typename TVerifier::TContig             TContig;
     typedef typename Infix<TContig>::Type           TContigInfix;
     typedef Finder<TContigInfix>                    TFinder;
-
-    TReadId readsCount = length(readSeqs) / 2;
 
     TContig contig = verifier.contigs[contigId];
     TReadSeq mateSeq = readSeqs[mateId];
 
-    bool reverseComplemented = (mateId >= readsCount);
-
     TContigPos contigBegin;
     TContigPos contigEnd;
 
-    if (reverseComplemented)
-        _getContigInfix(verifier, contigId, matchBegin, matchEnd, contigBegin, contigEnd, LeftMate());
-    else
+    if (isRevReadSeq(readSeqs, mateId))
         _getContigInfix(verifier, contigId, matchBegin, matchEnd, contigBegin, contigEnd, RightMate());
+    else
+        _getContigInfix(verifier, contigId, matchBegin, matchEnd, contigBegin, contigEnd, LeftMate());
 
     TContigInfix contigInfix = infix(contig, contigBegin, contigEnd);
 
@@ -184,6 +179,34 @@ inline bool findMate(Verifier<TExecSpace, TConfig> & verifier,
         paired = true;
 
     return paired;
+}
+
+// ----------------------------------------------------------------------------
+// Function findMate()
+// ----------------------------------------------------------------------------
+
+template <typename TExecSpace, typename TConfig, typename TReadSeqs, typename TMatches>
+inline void verifyMatches(Verifier<TExecSpace, TConfig> & verifier,
+                          TReadSeqs & readSeqs,
+                          TMatches const & anchors,
+                          TMatches & mates)
+{
+    typedef Verifier<TExecSpace, TConfig>               TVerifier;
+    typedef typename Size<TMatches>::Type               TMatchId;
+    typedef typename Value<TMatches>::Type              TMatch;
+    typedef typename Size<TReadSeqs>::Type              TReadId;
+
+    TMatchId matchesCount = length(anchors);
+
+    for (TMatchId matchId = 0; matchId < matchesCount; ++matchId)
+    {
+        TMatch const & match = anchors[matchId];
+        TReadId mateId = getMateSeqId(readSeqs, match.readId);
+
+        // WARNING append match of mate!!!!!
+        if (findMate(verifier, readSeqs, match.contigId, match.contigBegin, match.contigEnd, mateId))
+            appendValue(mates, match);
+    }
 }
 
 #endif  // #ifndef APP_CUDAMAPPER_VERIFIER_H_

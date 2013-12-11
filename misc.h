@@ -145,4 +145,11 @@ TStream & operator<<(Logger<TStream, TSpec> & logger, TStream2 & stream)
     return logger.stream;
 }
 
+void printRuler()
+{
+    std::cout << std::endl
+              << "================================================================================"
+              << std::endl << std::endl;
+}
+
 #endif // APP_CUDAMAPPER_MISC_H_

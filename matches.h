@@ -51,8 +51,8 @@ template <typename TSpec = void>
 struct Match
 {
     unsigned        readId;
-    unsigned        beginPos;
-    short           endPosDelta;
+    unsigned        contigBegin;
+    unsigned        contigEnd;
     unsigned char   contigId;
     unsigned char   errors;
 };
@@ -62,12 +62,11 @@ struct Match
 // ----------------------------------------------------------------------------
 
 template <typename TMatch>
-struct MatchSorterByReadId :
-    std::binary_function<TMatch, TMatch, int>
+struct MatchSorterByReadId
 {
-    inline int operator()(TMatch const & a, TMatch const & b) const
+    inline bool operator()(TMatch const & a, TMatch const & b) const
     {
-        return a.readId - b.readId;
+        return a.readId <= b.readId;
     }
 };
 
@@ -76,9 +75,7 @@ struct MatchSorterByBeginPos
 {
     inline bool operator()(TMatch const & a, TMatch const & b) const
     {
-        return (a.contigId < b.contigId) ||
-               (a.contigId == b.contigId && (isForward(a) && isReverseComplemented(b))) ||
-               (a.contigId == b.contigId && !(isReverseComplemented(a) && isForward(b)) && a.beginPos < b.beginPos);
+        return (a.contigId < b.contigId) || (a.contigId == b.contigId && a.contigBegin < b.contigBegin);
     }
 };
 
@@ -87,9 +84,7 @@ struct MatchSorterByEndPos
 {
     inline bool operator()(TMatch const & a, TMatch const & b) const
     {
-        return (a.contigId < b.contigId) ||
-               (a.contigId == b.contigId && (isForward(a) && isReverseComplemented(b))) ||
-               (a.contigId == b.contigId && !(isReverseComplemented(a) && isForward(b)) && endPos(a) < endPos(b));
+        return (a.contigId < b.contigId) || (a.contigId == b.contigId && a.contigEnd < b.contigEnd);
     }
 };
 
@@ -98,7 +93,49 @@ struct MatchSorterByErrors
 {
     inline bool operator()(TMatch const & a, TMatch const & b) const
     {
-        return a.errors < b.errors;
+        return a.errors <= b.errors;
+    }
+};
+
+// ----------------------------------------------------------------------------
+// Class MatchesCounter
+// ----------------------------------------------------------------------------
+
+template <typename TReadSeqs, typename TSpec = void>
+struct MatchesCounter
+{
+    TReadSeqs const &   readSeqs;
+    String<bool>        matched;
+
+    MatchesCounter(TReadSeqs const & readSeqs) :
+        readSeqs(readSeqs)
+    {
+        resize(matched, getReadsCount(readSeqs), false, Exact());
+    }
+
+    template <typename TMatch>
+    void operator() (TMatch const & match)
+    {
+        matched[getReadId(readSeqs, match.readId)] = true;
+    }
+};
+
+template <typename TReadSeqs>
+struct MatchesCounter<TReadSeqs, PairedEnd>
+{
+    TReadSeqs const &   readSeqs;
+    String<bool>        matched;
+
+    MatchesCounter(TReadSeqs const & readSeqs) :
+        readSeqs(readSeqs)
+    {
+        resize(matched, getPairsCount(readSeqs), false, Exact());
+    }
+
+    template <typename TMatch>
+    void operator() (TMatch const & match)
+    {
+        matched[getPairId(readSeqs, match.readId)] = true;
     }
 };
 
@@ -107,88 +144,23 @@ struct MatchSorterByErrors
 // ============================================================================
 
 // ----------------------------------------------------------------------------
-// Function fill()
-// ----------------------------------------------------------------------------
-
-template <typename TSpec, typename TContigId, typename TContigPos, typename TReadId, typename TErrors>
-inline void fill(Match<TSpec> & match,
-                 TContigId contigId,
-                 Pair<TContigPos> contigPos,
-                 TReadId readId,
-                 TErrors errors,
-                 bool isReverseComplemented)
-{
-    match.readId = readId;
-    match.beginPos = getValueI1(contigPos);
-    match.endPosDelta = getValueI2(contigPos) - getValueI1(contigPos);
-    if (isReverseComplemented)
-        match.endPosDelta = -match.endPosDelta;
-    match.contigId = contigId;
-    match.errors = errors;
-}
-
-// ----------------------------------------------------------------------------
-// Function assign()
+// Function isDuplicateBegin()
 // ----------------------------------------------------------------------------
 
 template <typename TSpec>
-inline void assign(Match<TSpec> & dest, Match<TSpec> const & source)
+inline bool isDuplicateBegin(Match<TSpec> const & a, Match<TSpec> const & b)
 {
-    dest.readId = source.readId;
-    dest.beginPos = source.beginPos;
-    dest.endPosDelta = source.endPosDelta;
-    dest.contigId = source.contigId;
-    dest.errors = source.errors;
+    return a.readId == b.readId && a.contigId == b.contigId && a.contigBegin == b.contigBegin;
 }
 
 // ----------------------------------------------------------------------------
-// Function isForward()
+// Function isDuplicateEnd()
 // ----------------------------------------------------------------------------
 
 template <typename TSpec>
-inline bool isForward(Match<TSpec> const & match)
+inline bool isDuplicateEnd(Match<TSpec> const & a, Match<TSpec> const & b)
 {
-    return match.endPosDelta > 0;
-}
-
-// ----------------------------------------------------------------------------
-// Function isReverseComplemented()
-// ----------------------------------------------------------------------------
-
-template <typename TSpec>
-inline bool isReverseComplemented(Match<TSpec> const & match)
-{
-    return match.endPosDelta < 0;
-}
-
-// ----------------------------------------------------------------------------
-// Function isConcordant()
-// ----------------------------------------------------------------------------
-
-template <typename TSpec>
-inline bool isConcordant(Match<TSpec> const & a, Match<TSpec> const & b)
-{
-    return (isForward(a) && isForward(b)) || (isReverseComplemented(a) && isReverseComplemented(b));
-}
-
-// ----------------------------------------------------------------------------
-// Function endPos()
-// ----------------------------------------------------------------------------
-
-template <typename TSpec>
-inline unsigned endPos(Match<TSpec> const & match)
-{
-    return match.beginPos + abs(match.endPosDelta);
-}
-
-// ----------------------------------------------------------------------------
-// Function getContigPos()
-// ----------------------------------------------------------------------------
-
-template <typename TSpec>
-inline Pair<unsigned> getContigPos(Match<TSpec> const & match)
-{
-    return Pair<unsigned>(match.beginPos, endPos(match));
+    return a.readId == b.readId && a.contigId == b.contigId && a.contigEnd == b.contigEnd;
 }
 
 // ----------------------------------------------------------------------------
@@ -206,33 +178,28 @@ inline void removeDuplicateMatches(TMatches & matches)
     TMatchesIterator newIt;
     TMatchesIterator oldIt;
 
-
     matchesBegin = begin(matches, Standard());
     matchesEnd   = end(matches, Standard());
     newIt = matchesBegin;
     oldIt = matchesBegin;
 
-    std::sort(matchesBegin, matchesEnd, MatchSorterByEndPos<TMatch>());
+//    std::stable_sort(matchesBegin, matchesEnd, MatchSorterByReadId<TMatch>());
 
+    std::stable_sort(matchesBegin, matchesEnd, MatchSorterByEndPos<TMatch>());
+
+    // Remove duplicates by end position.
     while (oldIt != matchesEnd)
     {
         *newIt = *oldIt;
 
         ++oldIt;
 
-        while (oldIt != matchesEnd &&
-               (*newIt).contigId == (*oldIt).contigId &&
-               isConcordant(*newIt, *oldIt) &&
-               endPos(*newIt) == endPos(*oldIt))
-        {
-            ++oldIt;
-        }
+        while (oldIt != matchesEnd && isDuplicateEnd(*newIt, *oldIt)) ++oldIt;
 
         ++newIt;
     }
 
     resize(matches, newIt - matchesBegin, Exact());
-
 
     matchesBegin = begin(matches, Standard());
     matchesEnd   = end(matches, Standard());
@@ -241,19 +208,14 @@ inline void removeDuplicateMatches(TMatches & matches)
 
     std::stable_sort(matchesBegin, matchesEnd, MatchSorterByBeginPos<TMatch>());
 
+    // Remove duplicates by begin position.
     while (oldIt != matchesEnd)
     {
         *newIt = *oldIt;
 
         ++oldIt;
 
-        while (oldIt != matchesEnd &&
-               (*newIt).contigId == (*oldIt).contigId &&
-               isConcordant(*newIt, *oldIt) &&
-               (*newIt).beginPos == (*oldIt).beginPos)
-        {
-            ++oldIt;
-        }
+        while (oldIt != matchesEnd && isDuplicateBegin(*newIt, *oldIt)) ++oldIt;
 
         ++newIt;
     }
@@ -275,6 +237,30 @@ inline void sortByErrors(TMatches & matches)
     TMatchesIterator matchesEnd = end(matches, Standard());
 
     std::sort(matchesBegin, matchesEnd, MatchSorterByErrors<TMatch>());
+}
+
+// ----------------------------------------------------------------------------
+// Function getCount()
+// ----------------------------------------------------------------------------
+
+template <typename TReadSeqs, typename TSpec>
+inline typename Size<TReadSeqs>::Type
+getCount(MatchesCounter<TReadSeqs, TSpec> const & counter)
+{
+    return std::count(begin(counter.matched, Standard()), end(counter.matched, Standard()), true);
+}
+
+// ----------------------------------------------------------------------------
+// Function countReads()
+// ----------------------------------------------------------------------------
+
+template <typename TReadSeqs, typename TMatches, typename TSpec>
+inline typename Size<TReadSeqs>::Type
+countMatches(TReadSeqs const & readSeqs, TMatches const & matches, TSpec const & /* tag */)
+{
+    return getCount(std::for_each(begin(matches, Standard()),
+                                  end(matches, Standard()),
+                                  MatchesCounter<TReadSeqs, TSpec>(readSeqs)));
 }
 
 #endif  // #ifndef APP_CUDAMAPPER_MATCHES_H_

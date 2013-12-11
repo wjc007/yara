@@ -608,4 +608,125 @@ inline bool atEnd(ReadsLoader<PairedEnd, TConfig> & reads)
     return atEnd(*(reads._reader.i1)) && atEnd(*(reads._reader.i2));
 }
 
+// ----------------------------------------------------------------------------
+// Functions on ReadSeqsStore
+// ----------------------------------------------------------------------------
+
+template <typename TReadSeqs>
+inline typename Size<TReadSeqs>::Type
+getReadSeqsCount(TReadSeqs const & readSeqs)
+{
+    return length(readSeqs);
+}
+
+template <typename TReadSeqs>
+inline typename Size<TReadSeqs>::Type
+getReadsCount(TReadSeqs const & readSeqs)
+{
+    return length(readSeqs) / 2;
+}
+
+template <typename TReadSeqs>
+inline typename Size<TReadSeqs>::Type
+getPairsCount(TReadSeqs const & readSeqs)
+{
+    return length(readSeqs) / 4;
+}
+
+template <typename TReadSeqs, typename TReadSeqId>
+inline bool isFwdReadSeq(TReadSeqs const & readSeqs, TReadSeqId readSeqId)
+{
+    SEQAN_ASSERT_LT(readSeqId, getReadSeqsCount(readSeqs));
+    return readSeqId < getReadsCount(readSeqs);
+}
+
+template <typename TReadSeqs, typename TReadSeqId>
+inline bool isRevReadSeq(TReadSeqs const & readSeqs, TReadSeqId readSeqId)
+{
+    SEQAN_ASSERT_LT(readSeqId, getReadSeqsCount(readSeqs));
+    return !isFwdReadSeq(readSeqs, readSeqId);
+}
+
+template <typename TReadSeqs, typename TReadSeqId>
+inline bool isFirstMate(TReadSeqs const & readSeqs, TReadSeqId readSeqId)
+{
+    SEQAN_ASSERT_LT(readSeqId, getReadSeqsCount(readSeqs));
+    return isFwdReadSeq(readSeqs, readSeqId) ? readSeqId < getPairsCount(readSeqs) : readSeqId < getPairsCount(readSeqs) + getReadsCount(readSeqs);
+}
+
+template <typename TReadSeqs, typename TReadSeqId>
+inline bool isSecondMate(TReadSeqs const & readSeqs, TReadSeqId readSeqId)
+{
+    SEQAN_ASSERT_LT(readSeqId, getReadSeqsCount(readSeqs));
+    return !isFirstMate(readSeqs, readSeqId);
+}
+
+template <typename TReadSeqs, typename TPairId>
+inline typename Size<TReadSeqs>::Type
+getFirstMateFwdSeqId(TReadSeqs const & /* readSeqs */, TPairId pairId)
+{
+    return pairId;
+}
+
+template <typename TReadSeqs, typename TPairId>
+inline typename Size<TReadSeqs>::Type
+getSecondMateFwdSeqId(TReadSeqs const & readSeqs, TPairId pairId)
+{
+    SEQAN_ASSERT_LT(pairId, getPairsCount(readSeqs));
+    return pairId + getPairsCount(readSeqs);
+}
+
+template <typename TReadSeqs, typename TPairId>
+inline typename Size<TReadSeqs>::Type
+getFirstMateRevSeqId(TReadSeqs const & readSeqs, TPairId pairId)
+{
+    SEQAN_ASSERT_LT(pairId, getPairsCount(readSeqs));
+    return getFirstMateFwdSeqId(readSeqs, pairId) + getReadsCount(readSeqs);
+}
+
+template <typename TReadSeqs, typename TPairId>
+inline typename Size<TReadSeqs>::Type
+getSecondMateRevSeqId(TReadSeqs const & readSeqs, TPairId pairId)
+{
+    SEQAN_ASSERT_LT(pairId, getPairsCount(readSeqs));
+    return getSecondMateFwdSeqId(readSeqs, pairId) + getReadsCount(readSeqs);
+}
+
+template <typename TReadSeqs, typename TReadSeqId>
+inline typename Size<TReadSeqs>::Type
+getReadId(TReadSeqs const & readSeqs, TReadSeqId readSeqId)
+{
+    return isFwdReadSeq(readSeqs, readSeqId) ? readSeqId : readSeqId - getReadsCount(readSeqs);
+}
+
+template <typename TReadSeqs, typename TReadSeqId>
+inline typename Size<TReadSeqs>::Type
+getPairId(TReadSeqs const & readSeqs, TReadSeqId readSeqId)
+{
+    SEQAN_ASSERT_LT(readSeqId, getReadSeqsCount(readSeqs));
+
+    typename Size<TReadSeqs>::Type pairId = readSeqId;
+
+    if (isRevReadSeq(readSeqs, readSeqId))
+        pairId -= getReadsCount(readSeqs);
+
+    if (isSecondMate(readSeqs, readSeqId))
+        pairId -= getPairsCount(readSeqs);
+
+    SEQAN_ASSERT_LT(pairId, getPairsCount(readSeqs));
+    
+    return pairId;
+}
+
+template <typename TReadSeqs, typename TReadSeqId>
+inline typename Size<TReadSeqs>::Type
+getMateSeqId(TReadSeqs const & readSeqs, TReadSeqId readSeqId)
+{
+    SEQAN_ASSERT_LT(readSeqId, getReadSeqsCount(readSeqs));
+    if (isFirstMate(readSeqs, readSeqId))
+        return isFwdReadSeq(readSeqs, readSeqId) ? readSeqId + getReadsCount(readSeqs) : readSeqId - getReadsCount(readSeqs);
+    else
+        return isFwdReadSeq(readSeqs, readSeqId) ? readSeqId + getPairsCount(readSeqs) : readSeqId - getPairsCount(readSeqs);
+}
+
 #endif  // #ifndef APP_CUDAMAPPER_READS_H_

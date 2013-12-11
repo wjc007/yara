@@ -239,30 +239,25 @@ inline bool _extendRight(Extender<TExecSpace, TConfig> & extender,
 // Function extendHit()
 // ----------------------------------------------------------------------------
 
-template <typename TExecSpace, typename TConfig, typename TReadSeqs,
-          typename TReadId, typename TReadPos, typename TContigId, typename TContigPos, typename TErrors>
-inline bool extendHit(Extender<TExecSpace, TConfig> & extender,
-                      TReadSeqs & readSeqs,
-                      TReadId readId,
-                      TReadPos readBegin,
-                      TReadPos readEnd,
-                      TContigId contigId,
-                      TContigPos contigBegin,
-                      TContigPos contigEnd,
-                      TErrors hitErrors)
+template <typename TExecSpace, typename TConfig, typename TReadSeqs, typename TMatch, typename TReadPos>
+inline bool extendHit(Extender<TExecSpace, TConfig> & extender, TReadSeqs & readSeqs, TMatch & match, Pair<TReadPos> readPos)
 {
     typedef Extender<TExecSpace, TConfig>                               TExtender;
     typedef typename TExtender::TContig                                 TContig;
-    typedef typename Size<TContig>::Type                                TContigSize;
+    typedef typename Size<TContig>::Type                                TContigPos;
     typedef typename Infix<TContig>::Type                               TContigInfix;
     typedef typename TExtender::TReadSeq                                TReadSeq;
     typedef typename Infix<TReadSeq>::Type                              TReadInfix;
 
-    TContig contig = extender.contigs[contigId];
-    TReadSeq readSeq = readSeqs[readId];
-    TContigSize contigLength = length(contig);
-    TErrors readLength = length(readSeq);
-    TErrors readErrors = hitErrors;
+    TContig contig = extender.contigs[match.contigId];
+    TReadSeq readSeq = readSeqs[match.readId];
+    TContigPos contigLength = length(contig);
+    TContigPos contigBegin = match.contigBegin;
+    TContigPos contigEnd = match.contigEnd;
+    TReadPos readLength = length(readSeq);
+    TReadPos readBegin = getValueI1(readPos);
+    TReadPos readEnd = getValueI2(readPos);
+    TReadPos readErrors = match.errors;
 
     // Extend left.
     TContigPos matchBegin = contigBegin;
@@ -296,6 +291,10 @@ inline bool extendHit(Extender<TExecSpace, TConfig> & extender,
             return false;
     }
 
+    match.contigBegin = matchBegin;
+    match.contigEnd = matchEnd;
+    match.errors = readErrors;
+
     return true;
 }
 
@@ -322,6 +321,9 @@ inline void extendHits(Extender<TExecSpace, TConfig> & extender, TReadSeqs & rea
     typedef typename THits::THitErrors                  THitErrors;
     typedef typename Size<TSA>::Type                    TSAPos;
     typedef typename Value<TSA>::Type                   TSAValue;
+    typedef typename Value<TMatches>::Type              TMatch;
+
+    TMatch match;
 
     TReadId readsCount = length(readSeqs);
     for (TReadId readId = 0; readId < readsCount; ++readId)
@@ -349,18 +351,14 @@ inline void extendHits(Extender<TExecSpace, TConfig> & extender, TReadSeqs & rea
                     setSeqOffset(saValue, suffixLength(saValue, extender.contigs) - seedLength);
 
                     // Compute position in contig.
-                    TContigId contigId = getValueI1(saValue);
-                    TContigPos contigBegin = getValueI2(saValue);
-                    TContigPos contigEnd = getValueI2(saValue) + seedLength;
+                    match.contigId = getValueI1(saValue);
+                    match.contigBegin = getValueI2(saValue);
+                    match.contigEnd = getValueI2(saValue) + seedLength;
+                    match.readId = readId;
+                    match.errors = hitErrors;
 
-                    if (extendHit(extender, readSeqs,
-                                  readId, getValueI1(readPos), getValueI2(readPos),
-                                  contigId, contigBegin, contigEnd,
-                                  hitErrors))
-                    {
-                        extender.matchesCount++;
-//                        appendValue(matches, match);
-                    }
+                    if (extendHit(extender, readSeqs, match, readPos))
+                        appendValue(matches, match);
                 }
             }
         }
