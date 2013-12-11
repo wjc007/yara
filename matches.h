@@ -51,8 +51,8 @@ template <typename TSpec = void>
 struct Match
 {
     unsigned        readId;
-    unsigned        beginPos;
-    short           endPosDelta;
+    unsigned        contigBegin;
+    unsigned        contigEnd;
     unsigned char   contigId;
     unsigned char   errors;
 };
@@ -76,9 +76,7 @@ struct MatchSorterByBeginPos
 {
     inline bool operator()(TMatch const & a, TMatch const & b) const
     {
-        return (a.contigId < b.contigId) ||
-               (a.contigId == b.contigId && (isForward(a) && isReverse(b))) ||
-               (a.contigId == b.contigId && !(isReverse(a) && isForward(b)) && a.beginPos < b.beginPos);
+        return (a.contigId < b.contigId) || (a.contigId == b.contigId && a.contigBegin < b.contigBegin);
     }
 };
 
@@ -87,9 +85,7 @@ struct MatchSorterByEndPos
 {
     inline bool operator()(TMatch const & a, TMatch const & b) const
     {
-        return (a.contigId < b.contigId) ||
-               (a.contigId == b.contigId && (isForward(a) && isReverse(b))) ||
-               (a.contigId == b.contigId && !(isReverse(a) && isForward(b)) && endPos(a) < endPos(b));
+        return (a.contigId < b.contigId) || (a.contigId == b.contigId && a.contigEnd < b.contigEnd);
     }
 };
 
@@ -107,78 +103,13 @@ struct MatchSorterByErrors
 // ============================================================================
 
 // ----------------------------------------------------------------------------
-// Function fill()
-// ----------------------------------------------------------------------------
-
-template <typename TSpec, typename TContigId, typename TContigPos, typename TReadId, typename TErrors>
-inline void fill(Match<TSpec> & match,
-                 TContigId contigId,
-                 Pair<TContigPos> contigPos,
-                 TReadId readId,
-                 TErrors errors,
-                 bool isReverse)
-{
-    match.readId = readId;
-    match.beginPos = getValueI1(contigPos);
-    match.endPosDelta = getValueI2(contigPos) - getValueI1(contigPos);
-    if (isReverse)
-        match.endPosDelta = -match.endPosDelta;
-    match.contigId = contigId;
-    match.errors = errors;
-}
-
-// ----------------------------------------------------------------------------
-// Function assign()
-// ----------------------------------------------------------------------------
-
-template <typename TSpec>
-inline void assign(Match<TSpec> & dest, Match<TSpec> const & source)
-{
-    dest.readId = source.readId;
-    dest.beginPos = source.beginPos;
-    dest.endPosDelta = source.endPosDelta;
-    dest.contigId = source.contigId;
-    dest.errors = source.errors;
-}
-
-// ----------------------------------------------------------------------------
-// Function isForward()
-// ----------------------------------------------------------------------------
-
-template <typename TSpec>
-inline bool isForward(Match<TSpec> const & match)
-{
-    return match.endPosDelta > 0;
-}
-
-// ----------------------------------------------------------------------------
-// Function isReverse()
-// ----------------------------------------------------------------------------
-
-template <typename TSpec>
-inline bool isReverse(Match<TSpec> const & match)
-{
-    return match.endPosDelta < 0;
-}
-
-// ----------------------------------------------------------------------------
-// Function isConcordant()
-// ----------------------------------------------------------------------------
-
-template <typename TSpec>
-inline bool isConcordant(Match<TSpec> const & a, Match<TSpec> const & b)
-{
-    return (isForward(a) && isForward(b)) || (isReverse(a) && isReverse(b));
-}
-
-// ----------------------------------------------------------------------------
 // Function isDuplicateBegin()
 // ----------------------------------------------------------------------------
 
 template <typename TSpec>
 inline bool isDuplicateBegin(Match<TSpec> const & a, Match<TSpec> const & b)
 {
-    return a.readId == b.readId && a.contigId == b.contigId && isConcordant(a, b) && a.beginPos == b.beginPos;
+    return a.readId == b.readId && a.contigId == b.contigId && a.contigBegin == b.contigBegin;
 }
 
 // ----------------------------------------------------------------------------
@@ -188,27 +119,7 @@ inline bool isDuplicateBegin(Match<TSpec> const & a, Match<TSpec> const & b)
 template <typename TSpec>
 inline bool isDuplicateEnd(Match<TSpec> const & a, Match<TSpec> const & b)
 {
-    return a.readId == b.readId && a.contigId == b.contigId && isConcordant(a, b) && endPos(a) == endPos(b);
-}
-
-// ----------------------------------------------------------------------------
-// Function endPos()
-// ----------------------------------------------------------------------------
-
-template <typename TSpec>
-inline unsigned endPos(Match<TSpec> const & match)
-{
-    return match.beginPos + abs(match.endPosDelta);
-}
-
-// ----------------------------------------------------------------------------
-// Function getContigPos()
-// ----------------------------------------------------------------------------
-
-template <typename TSpec>
-inline Pair<unsigned> getContigPos(Match<TSpec> const & match)
-{
-    return Pair<unsigned>(match.beginPos, endPos(match));
+    return a.readId == b.readId && a.contigId == b.contigId && a.contigEnd == b.contigEnd;
 }
 
 // ----------------------------------------------------------------------------

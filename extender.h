@@ -252,8 +252,8 @@ inline bool extendHit(Extender<TExecSpace, TConfig> & extender, TReadSeqs & read
     TContig contig = extender.contigs[match.contigId];
     TReadSeq readSeq = readSeqs[match.readId];
     TContigPos contigLength = length(contig);
-    TContigPos contigBegin = match.beginPos;
-    TContigPos contigEnd = match.beginPos + match.endPosDelta;
+    TContigPos contigBegin = match.contigBegin;
+    TContigPos contigEnd = match.contigEnd;
     TReadPos readLength = length(readSeq);
     TReadPos readBegin = getValueI1(readPos);
     TReadPos readEnd = getValueI2(readPos);
@@ -291,8 +291,8 @@ inline bool extendHit(Extender<TExecSpace, TConfig> & extender, TReadSeqs & read
             return false;
     }
 
-    match.beginPos = matchBegin;
-    match.endPosDelta = matchEnd - matchBegin;
+    match.contigBegin = matchBegin;
+    match.contigEnd = matchEnd;
     match.errors = readErrors;
 
     return true;
@@ -352,9 +352,8 @@ inline void extendHits(Extender<TExecSpace, TConfig> & extender, TReadSeqs & rea
 
                     // Compute position in contig.
                     match.contigId = getValueI1(saValue);
-                    match.beginPos = getValueI2(saValue);
-//                    match.endPos = getValueI2(saValue) + seedLength;
-                    match.endPosDelta = seedLength;
+                    match.contigBegin = getValueI2(saValue);
+                    match.contigEnd = getValueI2(saValue) + seedLength;
                     match.readId = readId;
                     match.errors = hitErrors;
 
