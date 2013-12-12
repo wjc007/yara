@@ -119,7 +119,6 @@ inline bool _extendLeft(Extender<THaystack, TNeedle, TSpec> & extender,
     TFinderLeft finder(haystackInfixRev);
     extender.patternLeft.leftClip = remainingErrors;
 
-    // TODO(esiragusa): Use a generic type for needleErrors.
     while (find(finder, needleInfixRev, extender.patternLeft, -static_cast<int>(remainingErrors)))
     {
         TErrors currentErrors = -getScore(extender.patternLeft);
@@ -174,14 +173,14 @@ inline bool _extendRight(Extender<THaystack, TNeedle, TSpec> & extender,
     setBeginPosition(haystackInfix, beginPosition(haystackInfix) + lcp);
     setBeginPosition(needleInfix, beginPosition(needleInfix) + lcp);
 
-    // NOTE Uncomment this to disable lcp trick.
+    // NOTE(esiragusa): Uncomment this to disable lcp trick.
 //    THaystackPos lcp = 0;
 
     TErrors remainingErrors = maxErrors - needleErrors;
     TErrors minErrors = remainingErrors + 1;
     THaystackSize endPos = 0;
 
-    // NOTE Comment this to disable lcp trick.
+    // NOTE(esiragusa): Comment this to disable lcp trick.
     // Stop seed extension.
     if (!remainingErrors)
         return false;
@@ -278,7 +277,8 @@ extend(Extender<THaystack, TNeedle, TSpec> & extender,
         if (!_extendRight(extender, haystackRight, needleRight, matchEnd, needleErrors, maxErrors)) return;
     }
 
-//    delegate(extender, matchBegin, matchEnd, needleErrors);
+//    delegate(extender);
+    delegate(matchBegin, matchEnd, needleErrors);
 }
 
 #endif  // #ifndef APP_CUDAMAPPER_EXTENDER_H_

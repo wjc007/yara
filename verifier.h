@@ -87,10 +87,11 @@ verify(Verifier<THaystack, TNeedle, TSpec> & verifier,
     setHost(verifier.finder, haystackInfix);
     setHost(verifier.pattern, needle);
 
-    while (find(verifier.finder, verifier.pattern, -static_cast<int>(maxErrors)))
-    {
-//        delegate(verifier);
-    }
+    // TODO(esiragusa): Enumerate all minima.
+    while (find(verifier.finder, verifier.pattern, -static_cast<int>(maxErrors))) ;
+
+//    delegate(verifier);
+    delegate(haystackBegin, haystackEnd, maxErrors);
 }
 
 #endif  // #ifndef APP_CUDAMAPPER_VERIFIER_H_
