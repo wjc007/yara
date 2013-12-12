@@ -44,7 +44,7 @@
 
 namespace seqan {
 template <typename TText, typename TSSetSpec, typename TSpec, typename TConfig>
-inline bool save(Index<StringSet<TText, TSSetSpec>, FMIndex<TSpec, TConfig> > & index,
+inline bool save(Index<StringSet<TText, TSSetSpec>, FMIndex<TSpec, TConfig> > const & index,
                  const char * fileName, int openMode)
 {
     String<char> name;
