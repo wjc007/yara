@@ -42,56 +42,30 @@ using namespace seqan;
 // ============================================================================
 
 // ----------------------------------------------------------------------------
-// Class ExtenderConfig
-// ----------------------------------------------------------------------------
-
-template <typename TOptions_, typename TContigs_, typename TReadSeqs_, typename TSeeder_>
-struct ExtenderConfig
-{
-    typedef TOptions_       TOptions;
-    typedef TContigs_       TContigs;
-    typedef TReadSeqs_      TReadSeqs;
-    typedef TSeeder_        TSeeder;
-};
-
-// ----------------------------------------------------------------------------
 // Class Extender
 // ----------------------------------------------------------------------------
 
-template <typename TExecSpace, typename TConfig>
+template <typename THaystack, typename TNeedle, typename TSpec>
 struct Extender
 {
-    typedef typename TConfig::TOptions                                  TOptions;
-    typedef typename TConfig::TContigs                                  TContigs;
-    typedef typename TConfig::TReadSeqs                                 TReadSeqs;
-    typedef typename TConfig::TSeeder                                   TSeeder;
+    typedef typename Infix<THaystack const>::Type       THaystackInfix;
+    typedef ModifiedString<THaystackInfix, ModReverse>  THaystackInfixRev;
+    typedef typename Infix<TNeedle const>::Type         TNeedleInfix;
+    typedef ModifiedString<TNeedleInfix, ModReverse>    TNeedleInfixRev;
 
-    typedef typename Value<TContigs>::Type                              TContig;
-    typedef typename Value<TReadSeqs>::Type                             TReadSeq;
-    typedef typename Infix<TReadSeq>::Type                              TReadInfix;
-    typedef ModifiedString<TReadInfix, ModReverse>                      TReadInfixRev;
+    typedef Finder<THaystackInfix>                      TFinderRight;
+    typedef Finder<THaystackInfixRev>                   TFinderLeft;
+    typedef PatternState_<TNeedleInfix, TSpec>          TPatternRight;
+    typedef PatternState_<TNeedleInfixRev, TSpec>       TPatternLeft;
 
-    typedef AlignTextBanded<FindPrefix, NMatchesNone_, NMatchesNone_>   TMyersSpec;
-    typedef Myers<TMyersSpec, True, void>                               TAlgorithm;
-    typedef PatternState_<TReadInfix, TAlgorithm>                       TPatternState;
-    typedef PatternState_<TReadInfixRev, TAlgorithm>                    TPatternStateRev;
+    THaystack const &   haystack;
+    TFinderRight        finderRight;
+    TFinderLeft         finderLeft;
+    TPatternRight       patternRight;
+    TPatternLeft        patternLeft;
 
-    TOptions const &    options;
-    TContigs &          contigs;
-    TSeeder &           seeder;
-
-    TPatternState       patternState;
-    TPatternStateRev    patternStateRev;
-
-    unsigned readErrors;
-    unsigned matchesCount;
-
-    Extender(TOptions const & options, TContigs & contigs, TSeeder & seeder) :
-        options(options),
-        contigs(contigs),
-        seeder(seeder),
-        readErrors(5),
-        matchesCount(0)
+    Extender(THaystack const & haystack) :
+        haystack(haystack)
     {}
 };
 
@@ -99,52 +73,56 @@ struct Extender
 // Function _extendLeft()
 // ----------------------------------------------------------------------------
 
-template <typename TExecSpace, typename TConfig, typename TPatternState,
-          typename TContigInfix, typename TReadInfix, typename TContigPos, typename TErrors>
-inline bool _extendLeft(Extender<TExecSpace, TConfig> & extender,
-                        TPatternState & patternState,
-                        TContigInfix & contigInfix,
-                        TReadInfix & readInfix,
-                        TContigPos & matchBegin,
-                        TErrors & errors)
+template <typename THaystack, typename TNeedle, typename TSpec,
+          typename THaystackInfix, typename TNeedleInfix, typename THaystackPos, typename TErrors, typename TMaxErrors>
+inline bool _extendLeft(Extender<THaystack, TNeedle, TSpec> & extender,
+                        THaystackInfix & haystackInfix,
+                        TNeedleInfix & needleInfix,
+                        THaystackPos & matchBegin,
+                        TErrors & needleErrors,
+                        TMaxErrors maxErrors)
 {
-    typedef ModifiedString<TReadInfix, ModReverse>          TReadInfixRev;
-    typedef ModifiedString<TContigInfix, ModReverse>        TContigInfixRev;
-    typedef Finder<TContigInfixRev>                         TFinder;
+    typedef Extender<THaystack, TNeedle, TSpec>         TExtender;
+    typedef typename TExtender::THaystackInfixRev       THaystackInfixRev;
+    typedef typename TExtender::TNeedleInfixRev         TNeedleInfixRev;
+    typedef typename TExtender::TFinderLeft             TFinderLeft;
+
+    typedef typename Value<THaystack>::Type             THaystackString;
+    typedef typename Size<THaystackString>::Type        THaystackSize;
 
     // Lcp trick.
-    TContigPos lcp = 0;
+    THaystackSize lcp = 0;
     {  // TODO(holtgrew): Workaround to storing and returning copies in host() for nested infixes/modified strings. This is ugly and should be fixed later.
-        TReadInfixRev readInfixRev(readInfix);
-        TContigInfixRev contigInfixRev(contigInfix);
-        lcp = lcpLength(contigInfixRev, readInfixRev);
+        TNeedleInfixRev needleInfixRev(needleInfix);
+        THaystackInfixRev haystackInfixRev(haystackInfix);
+        lcp = lcpLength(haystackInfixRev, needleInfixRev);
     }
-    if (lcp == length(readInfix))
+    if (lcp == length(needleInfix))
     {
-        matchBegin -= lcp;
+        matchBegin.i2 -= lcp;
         return true;
     }
-    setEndPosition(contigInfix, endPosition(contigInfix) - lcp);
-    setEndPosition(readInfix, endPosition(readInfix) - lcp);
+    setEndPosition(haystackInfix, endPosition(haystackInfix) - lcp);
+    setEndPosition(needleInfix, endPosition(needleInfix) - lcp);
 
-    TErrors remainingErrors = extender.readErrors - errors;
+    TErrors remainingErrors = maxErrors - needleErrors;
     TErrors minErrors = remainingErrors + 1;
-    TContigPos endPos = 0;
+    THaystackSize endPos = 0;
 
     // Stop seed extension.
     if (!remainingErrors)
         return false;
 
     // Align.
-    TReadInfixRev readInfixRev(readInfix);
-    TContigInfixRev contigInfixRev(contigInfix);
-    TFinder finder(contigInfixRev);
-    patternState.leftClip = remainingErrors;
+    TNeedleInfixRev needleInfixRev(needleInfix);
+    THaystackInfixRev haystackInfixRev(haystackInfix);
+    TFinderLeft finder(haystackInfixRev);
+    extender.patternLeft.leftClip = remainingErrors;
 
-    // TODO(esiragusa): Use a generic type for errors.
-    while (find(finder, readInfixRev, patternState, -static_cast<int>(remainingErrors)))
+    // TODO(esiragusa): Use a generic type for needleErrors.
+    while (find(finder, needleInfixRev, extender.patternLeft, -static_cast<int>(remainingErrors)))
     {
-        TErrors currentErrors = -getScore(patternState);
+        TErrors currentErrors = -getScore(extender.patternLeft);
 
         if (currentErrors <= minErrors)
         {
@@ -153,49 +131,55 @@ inline bool _extendLeft(Extender<TExecSpace, TConfig> & extender,
         }
     }
 
-    errors += minErrors;
-    matchBegin -= endPos + lcp;
+    needleErrors += minErrors;
+    matchBegin.i2 -= endPos + lcp;
 
-    return errors <= extender.readErrors;
+    return needleErrors <= maxErrors;
 }
 
 // ----------------------------------------------------------------------------
 // Function _extendRight()
 // ----------------------------------------------------------------------------
 
-template <typename TExecSpace, typename TConfig, typename TPatternState,
-          typename TContigInfix, typename TReadInfix, typename TContigPos, typename TErrors>
-inline bool _extendRight(Extender<TExecSpace, TConfig> & extender,
-                         TPatternState & patternState,
-                         TContigInfix & contigInfix,
-                         TReadInfix & readInfix,
-                         TContigPos & matchEnd,
-                         TErrors & errors)
+template <typename THaystack, typename TNeedle, typename TSpec,
+          typename THaystackInfix, typename TNeedleInfix, typename THaystackPos, typename TErrors, typename TMaxErrors>
+inline bool _extendRight(Extender<THaystack, TNeedle, TSpec> & extender,
+                         THaystackInfix & haystackInfix,
+                         TNeedleInfix & needleInfix,
+                         THaystackPos & matchEnd,
+                         TErrors & needleErrors,
+                         TMaxErrors maxErrors)
 {
-    typedef Finder<TContigInfix>    TFinder;
+    typedef Extender<THaystack, TNeedle, TSpec>         TExtender;
+    typedef typename TExtender::THaystackInfixRev       THaystackInfixRev;
+    typedef typename TExtender::TNeedleInfixRev         TNeedleInfixRev;
+    typedef typename TExtender::TFinderRight            TFinderRight;
+
+    typedef typename Value<THaystack>::Type             THaystackString;
+    typedef typename Size<THaystackString>::Type        THaystackSize;
 
     // Lcp trick.
-    TContigPos lcp = lcpLength(contigInfix, readInfix);
-    if (lcp == length(readInfix))
+    THaystackSize lcp = lcpLength(haystackInfix, needleInfix);
+    if (lcp == length(needleInfix))
     {
-        matchEnd += lcp;
+        matchEnd.i2 += lcp;
         return true;
     }
-    else if (lcp == length(contigInfix))
+    else if (lcp == length(haystackInfix))
     {
-        errors += length(readInfix) - length(contigInfix);
-        matchEnd += length(readInfix);
-        return errors <= extender.readErrors;
+        needleErrors += length(needleInfix) - length(haystackInfix);
+        matchEnd.i2 += length(needleInfix);
+        return needleErrors <= maxErrors;
     }
-    setBeginPosition(contigInfix, beginPosition(contigInfix) + lcp);
-    setBeginPosition(readInfix, beginPosition(readInfix) + lcp);
+    setBeginPosition(haystackInfix, beginPosition(haystackInfix) + lcp);
+    setBeginPosition(needleInfix, beginPosition(needleInfix) + lcp);
 
     // NOTE Uncomment this to disable lcp trick.
-//    TContigPos lcp = 0;
+//    THaystackPos lcp = 0;
 
-    TErrors remainingErrors = extender.readErrors - errors;
+    TErrors remainingErrors = maxErrors - needleErrors;
     TErrors minErrors = remainingErrors + 1;
-    TContigPos endPos = 0;
+    THaystackSize endPos = 0;
 
     // NOTE Comment this to disable lcp trick.
     // Stop seed extension.
@@ -203,22 +187,22 @@ inline bool _extendRight(Extender<TExecSpace, TConfig> & extender,
         return false;
 
     // Remove last base.
-    TContigInfix contigPrefix(contigInfix);
-    TReadInfix readPrefix(readInfix);
-    setEndPosition(contigPrefix, endPosition(contigPrefix) - 1);
-    setEndPosition(readPrefix, endPosition(readPrefix) - 1);
+    THaystackInfix haystackPrefix(haystackInfix);
+    TNeedleInfix needlePrefix(needleInfix);
+    setEndPosition(haystackPrefix, endPosition(haystackPrefix) - 1);
+    setEndPosition(needlePrefix, endPosition(needlePrefix) - 1);
 
     // Align.
-    TFinder finder(contigPrefix);
-    patternState.leftClip = remainingErrors;
+    TFinderRight finder(haystackPrefix);
+    extender.patternRight.leftClip = remainingErrors;
 
-    while (find(finder, readPrefix, patternState, -static_cast<int>(remainingErrors)))
+    while (find(finder, needlePrefix, extender.patternRight, -static_cast<int>(remainingErrors)))
     {
-        TContigPos currentEnd = position(finder) + 1;
-        TErrors currentErrors = -getScore(patternState);
+        THaystackSize currentEnd = position(finder) + 1;
+        TErrors currentErrors = -getScore(extender.patternRight);
 
         // Compare last base.
-        if (contigInfix[currentEnd] != back(readInfix))
+        if (haystackInfix[currentEnd] != back(needleInfix))
             if (++currentErrors > remainingErrors)
                 continue;
 
@@ -229,140 +213,72 @@ inline bool _extendRight(Extender<TExecSpace, TConfig> & extender,
         }
     }
 
-    errors += minErrors;
-    matchEnd += endPos + lcp + 1;
+    needleErrors += minErrors;
+    matchEnd.i2 += endPos + lcp + 1;
 
-    return errors <= extender.readErrors;
+    return needleErrors <= maxErrors;
 }
 
 // ----------------------------------------------------------------------------
-// Function extendHit()
+// Function extend()
 // ----------------------------------------------------------------------------
 
-template <typename TExecSpace, typename TConfig, typename TReadSeqs, typename TMatch, typename TReadPos>
-inline bool extendHit(Extender<TExecSpace, TConfig> & extender, TReadSeqs & readSeqs, TMatch & match, Pair<TReadPos> readPos)
+template <typename THaystack, typename TNeedle, typename TSpec,
+          typename THaystackPos, typename TNeedlePos, typename TErrors, typename TMaxErrors, typename TDelegate>
+inline void
+extend(Extender<THaystack, TNeedle, TSpec> & extender,
+       TNeedle const & needle,
+       THaystackPos haystackBegin,
+       THaystackPos haystackEnd,
+       TNeedlePos needleBegin,
+       TNeedlePos needleEnd,
+       TErrors needleErrors,
+       TMaxErrors maxErrors,
+       TDelegate & delegate)
 {
-    typedef Extender<TExecSpace, TConfig>                               TExtender;
-    typedef typename TExtender::TContig                                 TContig;
-    typedef typename Size<TContig>::Type                                TContigPos;
-    typedef typename Infix<TContig>::Type                               TContigInfix;
-    typedef typename TExtender::TReadSeq                                TReadSeq;
-    typedef typename Infix<TReadSeq>::Type                              TReadInfix;
+    typedef Extender<THaystack, TNeedle, TSpec>         TExtender;
+    typedef typename TExtender::THaystackInfix          THaystackInfix;
+    typedef typename TExtender::TNeedleInfix            TNeedleInfix;
+    typedef typename Id<THaystack>::Type                THaystackId;
 
-    TContig contig = extender.contigs[match.contigId];
-    TReadSeq readSeq = readSeqs[match.readId];
-    TContigPos contigLength = length(contig);
-    TContigPos contigBegin = match.contigBegin;
-    TContigPos contigEnd = match.contigEnd;
-    TReadPos readLength = length(readSeq);
-    TReadPos readBegin = getValueI1(readPos);
-    TReadPos readEnd = getValueI2(readPos);
-    TReadPos readErrors = match.errors;
+    typedef typename Value<THaystack>::Type             THaystackString;
+    typedef typename Size<THaystackString>::Type        THaystackSize;
+
+    THaystackId haystackId = getValueI1(haystackBegin);
+    THaystackSize haystackLength = length(extender.haystack[haystackId]);
+    TNeedlePos needleLength = length(needle);
 
     // Extend left.
-    TContigPos matchBegin = contigBegin;
+    THaystackPos matchBegin = haystackBegin;
 
-    if (readBegin > 0)
+    if (needleBegin > 0)
     {
-        TContigPos contigLeftBegin = 0;
-        if (contigBegin > readBegin + extender.readErrors - readErrors)
-            contigLeftBegin = contigBegin - (readBegin + extender.readErrors - readErrors);
+        THaystackPos haystackLeftBegin = THaystackPos(haystackId, 0);
+        if (haystackBegin.i2 > needleBegin + maxErrors - needleErrors)
+            haystackLeftBegin.i2 = haystackBegin.i2 - (needleBegin + maxErrors - needleErrors);
 
-        TContigInfix contigLeft = infix(contig, contigLeftBegin, contigBegin);
-        TReadInfix readLeft = infix(readSeq, 0, readBegin);
+        THaystackInfix haystackLeft = infix(extender.haystack, haystackLeftBegin, haystackBegin);
+        TNeedleInfix needleLeft = infix(needle, 0, needleBegin);
 
-        if (!_extendLeft(extender, extender.patternStateRev, contigLeft, readLeft, matchBegin, readErrors))
-            return false;
+        if (!_extendLeft(extender, haystackLeft, needleLeft, matchBegin, needleErrors, maxErrors)) return;
     }
 
     // Extend right.
-    TContigPos matchEnd = contigEnd;
+    THaystackPos matchEnd = haystackEnd;
 
-    if (readEnd < readLength)
+    if (needleEnd < needleLength)
     {
-        TContigPos contigRightEnd = contigLength;
-        if (contigRightEnd > contigBegin + readLength - readBegin + extender.readErrors - readErrors)
-            contigRightEnd = contigBegin + readLength - readBegin + extender.readErrors - readErrors;
+        THaystackPos haystackRightEnd = THaystackPos(haystackId, haystackLength);
+        if (haystackRightEnd.i2 > haystackBegin.i2 + needleLength - needleBegin + maxErrors - needleErrors)
+            haystackRightEnd.i2 = haystackBegin.i2 + needleLength - needleBegin + maxErrors - needleErrors;
 
-        TContigInfix contigRight = infix(contig, contigEnd, contigRightEnd);
-        TReadInfix readRight = infix(readSeq, readEnd, readLength);
+        THaystackInfix haystackRight = infix(extender.haystack, haystackEnd, haystackRightEnd);
+        TNeedleInfix needleRight = infix(needle, needleEnd, needleLength);
 
-        if (!_extendRight(extender, extender.patternState, contigRight, readRight, matchEnd, readErrors))
-            return false;
+        if (!_extendRight(extender, haystackRight, needleRight, matchEnd, needleErrors, maxErrors)) return;
     }
 
-    match.contigBegin = matchBegin;
-    match.contigEnd = matchEnd;
-    match.errors = readErrors;
-
-    return true;
-}
-
-// ----------------------------------------------------------------------------
-// Function extendHits()
-// ----------------------------------------------------------------------------
-
-template <typename TExecSpace, typename TConfig, typename TReadSeqs, typename THits, typename TSA, typename TMatches>
-inline void extendHits(Extender<TExecSpace, TConfig> & extender, TReadSeqs & readSeqs, THits const & hits, TSA const & sa, TMatches & matches)
-{
-    typedef Extender<TExecSpace, TConfig>               TExtender;
-    typedef typename TExtender::TSeeder                 TSeeder;
-    typedef typename TExtender::TContigs                TContigs;
-    typedef typename TExtender::TContig                 TContig;
-    typedef typename Size<TContigs>::Type               TContigId;
-    typedef typename Size<TContig>::Type                TContigPos;
-    typedef typename Size<TReadSeqs>::Type              TReadId;
-    typedef typename TSeeder::TReadPos                  TReadPos;
-    typedef typename TSeeder::TReadSeqSize              TReadSeqSize;
-    typedef typename TSeeder::TSeedIds                  TSeedIds;
-    typedef typename TSeeder::TSeedId                   TSeedId;
-    typedef typename THits::THitId                      THitId;
-    typedef typename THits::THitRange                   THitRange;
-    typedef typename THits::THitErrors                  THitErrors;
-    typedef typename Size<TSA>::Type                    TSAPos;
-    typedef typename Value<TSA>::Type                   TSAValue;
-    typedef typename Value<TMatches>::Type              TMatch;
-
-    TMatch match;
-
-    TReadId readsCount = length(readSeqs);
-    for (TReadId readId = 0; readId < readsCount; ++readId)
-    {
-        TSeedIds seedIds = getSeedIds(extender.seeder, readId);
-
-        for (TSeedId seedId = getValueI1(seedIds); seedId < getValueI2(seedIds); ++seedId)
-        {
-            // Get position in read.
-            TReadPos readPos = getPosInRead(extender.seeder, seedId);
-            TReadSeqSize seedLength = getValueI2(readPos) - getValueI1(readPos);
-
-            // TODO(esiragusa): iterate over all hits of the seed.
-            // THitIds hitIds = getHitIds(extender.seeder, seedId);
-            {
-                THitId hitId = seedId;
-
-                THitRange hitRange = getHitRange(hits, hitId);
-                THitErrors hitErrors = getHitErrors(hits, hitId);
-
-                for (TSAPos saPos = getValueI1(hitRange); saPos < getValueI2(hitRange); ++saPos)
-                {
-                    // Invert SA value.
-                    TSAValue saValue = sa[saPos];
-                    setSeqOffset(saValue, suffixLength(saValue, extender.contigs) - seedLength);
-
-                    // Compute position in contig.
-                    match.contigId = getValueI1(saValue);
-                    match.contigBegin = getValueI2(saValue);
-                    match.contigEnd = getValueI2(saValue) + seedLength;
-                    match.readId = readId;
-                    match.errors = hitErrors;
-
-                    if (extendHit(extender, readSeqs, match, readPos))
-                        appendValue(matches, match);
-                }
-            }
-        }
-    }
+//    delegate(extender, matchBegin, matchEnd, needleErrors);
 }
 
 #endif  // #ifndef APP_CUDAMAPPER_EXTENDER_H_
