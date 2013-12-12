@@ -81,6 +81,7 @@ struct Mapper
     typedef Genome<void, TConfig>                                   TGenome;
     typedef GenomeLoader<void, TConfig>                             TGenomeLoader;
     typedef typename Contigs<TGenome>::Type                         TContigs;
+    typedef typename Value<TContigs>::Type                          TContig;
 
     typedef Index<TFMContigs, TGenomeIndexSpec>                     THostIndex;
     typedef typename Space<THostIndex, TExecSpace>::Type            TIndex;
@@ -91,6 +92,7 @@ struct Mapper
     typedef ReadsLoader<PairedEnd, TReadsConfig>                    TReadsLoader;
     typedef typename TStore::TReadSeqStore                          THostReadSeqs;
     typedef typename Space<THostReadSeqs, TExecSpace>::Type         TReadSeqs;
+    typedef typename Value<TReadSeqs>::Type                         TReadSeq;
 
     typedef typename Size<TIndex>::Type                             TIndexSize;
     typedef Hits<TIndexSize, Exact>                                 THits;
@@ -104,8 +106,7 @@ struct Mapper
     typedef ExtenderConfig<Options, TContigs, TReadSeqs, TSeeder>   TExtenderConfig;
     typedef Extender<TExecSpace, TExtenderConfig>                   TExtender;
 
-    typedef VerifierConfig<Options, TContigs, TReadSeqs>            TVerifierConfig;
-    typedef Verifier<TExecSpace, TVerifierConfig>                   TVerifier;
+    typedef Verifier<TContigs, TReadSeq, Myers<> >                  TVerifier;
 
 //    typedef WriterConfig<Options, TReadSeqs>                        TWriterConfig;
 //    typedef Writer<TExecSpace, TWriterConfig>                       TWriter;
@@ -139,7 +140,7 @@ struct Mapper
         readsLoader(reads),
         seeder(options, index, 0u),
         extender(options, contigs(genome), seeder),
-        verifier(options, contigs(genome))
+        verifier(contigs(genome))
 //        writer(options, genome)
     {};
 };
@@ -226,19 +227,6 @@ void loadReads(Mapper<TExecSpace, TConfig> & mapper)
 }
 
 // ----------------------------------------------------------------------------
-// Function mapReads()
-// ----------------------------------------------------------------------------
-
-template <typename TExecSpace, typename TConfig>
-void mapReads(Mapper<TExecSpace, TConfig> & mapper)
-{
-//SEQAN_OMP_PRAGMA(critical(_mapper_mapReads_filter))
-//{
-    _mapReads(mapper, getSeqs(mapper.reads));
-//}
-}
-
-// ----------------------------------------------------------------------------
 // Function filterHits()
 // ----------------------------------------------------------------------------
 
@@ -295,6 +283,113 @@ inline void filterHits(Mapper<TExecSpace, TConfig> & mapper, TReadSeqs & readSeq
 }
 
 // ----------------------------------------------------------------------------
+// Function _getMateContigPos()
+// ----------------------------------------------------------------------------
+
+template <typename TExecSpace, typename TConfig, typename TContigPos, typename TMatch>
+inline void _getMateContigPos(Mapper<TExecSpace, TConfig> & mapper,
+                              TContigPos & contigBegin,
+                              TContigPos & contigEnd,
+                              TMatch const & anchor,
+                              RightMate)
+{
+    typedef Mapper<TExecSpace, TConfig>             TMapper;
+    typedef typename TMapper::TContig               TContig;
+    typedef typename Size<TContig>::Type            TContigSize;
+
+    TContigSize contigLength = length(contigs(mapper.genome)[anchor.contigId]);
+
+    setValueI1(contigBegin, anchor.contigId);
+    setValueI1(contigEnd, anchor.contigId);
+
+    contigBegin.i2 = 0;
+    if (anchor.contigBegin + mapper.options.libraryLength > mapper.options.libraryError)
+        contigBegin.i2 = anchor.contigBegin + mapper.options.libraryLength - mapper.options.libraryError;
+    contigBegin.i2 = _min(contigBegin.i2, contigLength);
+
+    contigEnd.i2 = _min(anchor.contigBegin + mapper.options.libraryLength + mapper.options.libraryError, contigLength);
+
+    SEQAN_ASSERT_LEQ(getValueI2(contigBegin), getValueI2(contigEnd));
+    SEQAN_ASSERT_LEQ(getValueI2(contigEnd) - getValueI2(contigBegin), 2 * mapper.options.libraryError);
+}
+
+template <typename TExecSpace, typename TConfig, typename TContigPos, typename TMatch>
+inline void _getMateContigPos(Mapper<TExecSpace, TConfig> & mapper,
+                              TContigPos & contigBegin,
+                              TContigPos & contigEnd,
+                              TMatch const & anchor,
+                              LeftMate)
+{
+    setValueI1(contigBegin, anchor.contigId);
+    setValueI1(contigEnd, anchor.contigId);
+
+    contigBegin.i2 = 0;
+    if (anchor.contigEnd > mapper.options.libraryLength + mapper.options.libraryError)
+        contigBegin.i2 = anchor.contigEnd - mapper.options.libraryLength - mapper.options.libraryError;
+
+    contigEnd.i2 = 0;
+    if (anchor.contigEnd + mapper.options.libraryError > mapper.options.libraryLength)
+        contigEnd.i2 = anchor.contigEnd - mapper.options.libraryLength + mapper.options.libraryError;
+
+    SEQAN_ASSERT_LEQ(getValueI2(contigBegin), getValueI2(contigEnd));
+    SEQAN_ASSERT_LEQ(getValueI2(contigEnd) - getValueI2(contigBegin), 2 * mapper.options.libraryError);
+}
+
+// ----------------------------------------------------------------------------
+// Function findMates()
+// ----------------------------------------------------------------------------
+
+template <typename TExecSpace, typename TConfig, typename TReadSeqs, typename TMatches>
+inline void findMates(Mapper<TExecSpace, TConfig> & mapper,
+                      TReadSeqs & readSeqs,
+                      TMatches const & anchors,
+                      TMatches & mates)
+{
+    typedef Mapper<TExecSpace, TConfig>                 TMapper;
+    typedef typename TMapper::TContigs                  TContigs;
+    typedef typename StringSetPosition<TContigs>::Type  TContigsPos;
+
+    typedef typename Size<TMatches>::Type               TMatchId;
+    typedef typename Value<TMatches>::Type              TMatch;
+
+    typedef typename Size<TReadSeqs>::Type              TReadId;
+    typedef typename Value<TReadSeqs>::Type             TReadSeq;
+
+    TMatchId matchesCount = length(anchors);
+
+    for (TMatchId matchId = 0; matchId < matchesCount; ++matchId)
+    {
+        TMatch const & match = anchors[matchId];
+        TReadId mateId = getMateSeqId(readSeqs, match.readId);
+        TReadSeq mateSeq = readSeqs[mateId];
+
+        TContigsPos contigBegin;
+        TContigsPos contigEnd;
+
+        if (isRevReadSeq(readSeqs, mateId))
+            _getMateContigPos(mapper, contigBegin, contigEnd, match, RightMate());
+        else
+            _getMateContigPos(mapper, contigBegin, contigEnd, match, LeftMate());
+
+        // TODO(esiragusa): convert this to errorsPerRead.
+        verify(mapper.verifier, mateSeq, contigBegin, contigEnd, mapper.options.errorsRate, mates);
+    }
+}
+
+// ----------------------------------------------------------------------------
+// Function mapReads()
+// ----------------------------------------------------------------------------
+
+template <typename TExecSpace, typename TConfig>
+void mapReads(Mapper<TExecSpace, TConfig> & mapper)
+{
+//SEQAN_OMP_PRAGMA(critical(_mapper_mapReads_filter))
+//{
+    _mapReads(mapper, getSeqs(mapper.reads));
+//}
+}
+
+// ----------------------------------------------------------------------------
 // Function _mapReads()
 // ----------------------------------------------------------------------------
 
@@ -330,7 +425,7 @@ void _mapReads(Mapper<TExecSpace, TConfig> & mapper, TReadSeqs & readSeqs)
     start(mapper.timer);
     clear(mapper.mates);
     reserve(mapper.mates, length(mapper.anchors), Exact());
-    findMates(mapper.verifier, readSeqs, mapper.anchors, mapper.mates);
+    findMates(mapper, readSeqs, mapper.anchors, mapper.mates);
     stop(mapper.timer);
     std::cout << "Verification time:\t\t" << mapper.timer << std::endl;
     std::cout << "Mates count:\t\t\t" << length(mapper.mates) << std::endl;
