@@ -59,8 +59,8 @@ struct Extender
     typedef PatternState_<TNeedleInfixRev, TSpec>       TPatternLeft;
 
     THaystack const &   haystack;
-    TFinderRight        finderRight;
-    TFinderLeft         finderLeft;
+//    TFinderRight        finderRight;
+//    TFinderLeft         finderLeft;
     TPatternRight       patternRight;
     TPatternLeft        patternLeft;
 
