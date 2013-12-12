@@ -181,6 +181,8 @@ struct MatchesManager
 //    template <typename THaystack, typename TNeedle, typename TSpec>
 //    void operator() (Extender<THaystack, TNeedle, TSpec> const & extender)
 //    {
+//        SEQAN_ASSERT_EQ(getValueI1(extender.matchBegin), getValueI1(extender.matchEnd));
+//
 //        prototype.contigBegin = getValueI2(extender.matchBegin);
 //        prototype.contigEnd = getValueI2(extender.matchEnd);
 //        prototype.errors = extender.errors;
