@@ -723,10 +723,23 @@ inline typename Size<TReadSeqs>::Type
 getMateSeqId(TReadSeqs const & readSeqs, TReadSeqId readSeqId)
 {
     SEQAN_ASSERT_LT(readSeqId, getReadSeqsCount(readSeqs));
+
+    typename Size<TReadSeqs>::Type pairId = getPairId(readSeqs, readSeqId);
+
     if (isFirstMate(readSeqs, readSeqId))
-        return isFwdReadSeq(readSeqs, readSeqId) ? readSeqId + getReadsCount(readSeqs) : readSeqId - getReadsCount(readSeqs);
+    {
+        if (isFwdReadSeq(readSeqs, readSeqId))
+            return getSecondMateRevSeqId(readSeqs, pairId);
+        else
+            return getSecondMateFwdSeqId(readSeqs, pairId);
+    }
     else
-        return isFwdReadSeq(readSeqs, readSeqId) ? readSeqId + getPairsCount(readSeqs) : readSeqId - getPairsCount(readSeqs);
+    {
+        if (isFwdReadSeq(readSeqs, readSeqId))
+            return getFirstMateRevSeqId(readSeqs, pairId);
+        else
+            return getFirstMateFwdSeqId(readSeqs, pairId);
+    }
 }
 
 #endif  // #ifndef APP_CUDAMAPPER_READS_H_
