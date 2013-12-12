@@ -68,23 +68,26 @@ struct Verifier
 // Function verify()
 // ----------------------------------------------------------------------------
 
-template <typename THaystack, typename TNeedle, typename TSpec, typename THaystackPos, typename TErrors, typename TDelegate>
-inline void verify(Verifier<THaystack, TNeedle, TSpec> & verifier,
-                   TNeedle const & needle,
-                   THaystackPos haystackBegin,
-                   THaystackPos haystackEnd,
-                   TErrors errors,
-                   TDelegate & delegate)
+template <typename THaystack, typename TNeedle, typename TSpec,
+          typename THaystackPos, typename TErrors, typename TDelegate>
+inline void
+verify(Verifier<THaystack, TNeedle, TSpec> & verifier,
+       TNeedle const & needle,
+       THaystackPos haystackBegin,
+       THaystackPos haystackEnd,
+       TErrors maxErrors,
+       TDelegate & delegate)
 {
     typedef Verifier<THaystack, TNeedle, TSpec>         TVerifier;
     typedef typename TVerifier::THaystackInfix          THaystackInfix;
 
     THaystackInfix haystackInfix = infix(verifier.haystack, haystackBegin, haystackEnd);
 
+    clear(verifier.finder);
     setHost(verifier.finder, haystackInfix);
     setHost(verifier.pattern, needle);
 
-    while (find(verifier.finder, verifier.pattern, -static_cast<int>(errors)))
+    while (find(verifier.finder, verifier.pattern, -static_cast<int>(maxErrors)))
     {
 //        delegate(verifier);
     }
