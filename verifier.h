@@ -42,47 +42,22 @@ using namespace seqan;
 // ============================================================================
 
 // ----------------------------------------------------------------------------
-// Class VerifierConfig
-// ----------------------------------------------------------------------------
-
-template <typename TOptions_, typename TContigs_, typename TReadSeqs_>
-struct VerifierConfig
-{
-    typedef TOptions_       TOptions;
-    typedef TContigs_       TContigs;
-    typedef TReadSeqs_      TReadSeqs;
-};
-
-// ----------------------------------------------------------------------------
 // Class Verifier
 // ----------------------------------------------------------------------------
 
-template <typename TExecSpace, typename TConfig>
+template <typename THaystack, typename TNeedle, typename TSpec>
 struct Verifier
 {
-    typedef typename TConfig::TOptions                                  TOptions;
-    typedef typename TConfig::TContigs                                  TContigs;
-    typedef typename TConfig::TReadSeqs                                 TReadSeqs;
+    typedef typename Infix<THaystack const>::Type   THaystackInfix;
+    typedef Finder<THaystackInfix>                  TFinder;
+    typedef Pattern<TNeedle const, TSpec>           TPattern;
 
-    typedef typename Value<TContigs>::Type                              TContig;
-    typedef typename Value<TReadSeqs>::Type                             TReadSeq;
-
-    typedef Myers<>                                                     TAlgorithm;
-    typedef Pattern<TReadSeq, TAlgorithm>                               TPattern;
-
-    TOptions const &    options;
-    TContigs &          contigs;
-
+    THaystack const &   haystack;
+    TFinder             finder;
     TPattern            pattern;
 
-    unsigned readErrors;
-    unsigned long matchesCount;
-
-    Verifier(TOptions const & options, TContigs & contigs) :
-        options(options),
-        contigs(contigs),
-        readErrors(5),
-        matchesCount(0)
+    Verifier(THaystack const & haystack) :
+        haystack(haystack)
     {
         _patternMatchNOfPattern(pattern, false);
         _patternMatchNOfFinder(pattern, false);
@@ -90,122 +65,28 @@ struct Verifier
 };
 
 // ----------------------------------------------------------------------------
-// Function _getContigInfix()
+// Function verify()
 // ----------------------------------------------------------------------------
 
-template <typename TExecSpace, typename TConfig, typename TContigId, typename TContigPos>
-inline void _getContigInfix(Verifier<TExecSpace, TConfig> & verifier,
-                            TContigId contigId,
-                            TContigPos matchBegin,
-                            TContigPos /* matchEnd */,
-                            TContigPos & infixBegin,
-                            TContigPos & infixEnd,
-                            RightMate)
+template <typename THaystack, typename TNeedle, typename TSpec, typename THaystackPos, typename TErrors, typename TDelegate>
+inline void verify(Verifier<THaystack, TNeedle, TSpec> & verifier,
+                   TNeedle const & needle,
+                   THaystackPos haystackBegin,
+                   THaystackPos haystackEnd,
+                   TErrors errors,
+                   TDelegate & delegate)
 {
-    typedef Verifier<TExecSpace, TConfig>           TVerifier;
-    typedef typename TVerifier::TContig             TContig;
-    typedef typename Size<TContig>::Type            TContigSize;
+    typedef Verifier<THaystack, TNeedle, TSpec>         TVerifier;
+    typedef typename TVerifier::THaystackInfix          THaystackInfix;
 
-    TContigSize contigLength = length(verifier.contigs[contigId]);
+    THaystackInfix haystackInfix = infix(verifier.haystack, haystackBegin, haystackEnd);
 
-    infixBegin = 0;
-    if (matchBegin + verifier.options.libraryLength > verifier.options.libraryError)
-        infixBegin = matchBegin + verifier.options.libraryLength - verifier.options.libraryError;
-    infixBegin = _min(infixBegin, contigLength);
+    setHost(verifier.finder, haystackInfix);
+    setHost(verifier.pattern, needle);
 
-    infixEnd = _min(matchBegin + verifier.options.libraryLength + verifier.options.libraryError, contigLength);
-
-    SEQAN_ASSERT_LEQ(infixBegin, infixEnd);
-    SEQAN_ASSERT_LEQ(infixEnd - infixBegin, 2 * verifier.options.libraryError);
-}
-
-template <typename TExecSpace, typename TConfig, typename TContigId, typename TContigPos>
-inline void _getContigInfix(Verifier<TExecSpace, TConfig> & verifier,
-                            TContigId /* contigId */,
-                            TContigPos /* matchBegin */,
-                            TContigPos matchEnd,
-                            TContigPos & infixBegin,
-                            TContigPos & infixEnd,
-                            LeftMate)
-{
-    infixBegin = 0;
-    if (matchEnd > verifier.options.libraryLength + verifier.options.libraryError)
-        infixBegin = matchEnd - verifier.options.libraryLength - verifier.options.libraryError;
-
-    infixEnd = 0;
-    if (matchEnd + verifier.options.libraryError > verifier.options.libraryLength)
-        infixEnd = matchEnd - verifier.options.libraryLength + verifier.options.libraryError;
-
-    SEQAN_ASSERT_LEQ(infixBegin, infixEnd);
-    SEQAN_ASSERT_LEQ(infixEnd - infixBegin, 2 * verifier.options.libraryError);
-}
-
-// ----------------------------------------------------------------------------
-// Function findMate()
-// ----------------------------------------------------------------------------
-
-template <typename TExecSpace, typename TConfig, typename TReadSeqs, typename TContigId, typename TContigPos, typename TReadId>
-inline bool findMate(Verifier<TExecSpace, TConfig> & verifier,
-                     TReadSeqs & readSeqs,
-                     TContigId contigId,
-                     TContigPos matchBegin,
-                     TContigPos matchEnd,
-                     TReadId mateId)
-{
-    typedef Verifier<TExecSpace, TConfig>           TVerifier;
-    typedef typename TVerifier::TReadSeq            TReadSeq;
-    typedef typename TVerifier::TContig             TContig;
-    typedef typename Infix<TContig>::Type           TContigInfix;
-    typedef Finder<TContigInfix>                    TFinder;
-
-    TContig contig = verifier.contigs[contigId];
-    TReadSeq mateSeq = readSeqs[mateId];
-
-    TContigPos contigBegin;
-    TContigPos contigEnd;
-
-    if (isRevReadSeq(readSeqs, mateId))
-        _getContigInfix(verifier, contigId, matchBegin, matchEnd, contigBegin, contigEnd, RightMate());
-    else
-        _getContigInfix(verifier, contigId, matchBegin, matchEnd, contigBegin, contigEnd, LeftMate());
-
-    TContigInfix contigInfix = infix(contig, contigBegin, contigEnd);
-
-    TFinder finder(contigInfix);
-    setHost(verifier.pattern, mateSeq);
-
-    bool paired = false;
-    while (find(finder, verifier.pattern, -static_cast<int>(verifier.readErrors)))
-        paired = true;
-
-    return paired;
-}
-
-// ----------------------------------------------------------------------------
-// Function findMate()
-// ----------------------------------------------------------------------------
-
-template <typename TExecSpace, typename TConfig, typename TReadSeqs, typename TMatches>
-inline void verifyMatches(Verifier<TExecSpace, TConfig> & verifier,
-                          TReadSeqs & readSeqs,
-                          TMatches const & anchors,
-                          TMatches & mates)
-{
-    typedef Verifier<TExecSpace, TConfig>               TVerifier;
-    typedef typename Size<TMatches>::Type               TMatchId;
-    typedef typename Value<TMatches>::Type              TMatch;
-    typedef typename Size<TReadSeqs>::Type              TReadId;
-
-    TMatchId matchesCount = length(anchors);
-
-    for (TMatchId matchId = 0; matchId < matchesCount; ++matchId)
+    while (find(verifier.finder, verifier.pattern, -static_cast<int>(errors)))
     {
-        TMatch const & match = anchors[matchId];
-        TReadId mateId = getMateSeqId(readSeqs, match.readId);
-
-        // WARNING append match of mate!!!!!
-        if (findMate(verifier, readSeqs, match.contigId, match.contigBegin, match.contigEnd, mateId))
-            appendValue(mates, match);
+//        delegate(verifier);
     }
 }
 
