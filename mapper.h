@@ -243,6 +243,7 @@ inline void filterHits(Mapper<TExecSpace, TConfig> & mapper, TReadSeqs & readSeq
 
     TReadId pairsCount = getPairsCount(readSeqs);
 
+    // TODO(esiragusa): Iterate by pairFwdId / pairRevId
     for (TReadId pairId = 0; pairId < pairsCount; ++pairId)
     {
         // Get mates ids.
@@ -321,12 +322,20 @@ inline void extendHits(Mapper<TExecSpace, TConfig> & mapper, TReadSeqs & readSeq
     typedef typename Size<TSA>::Type                    TSAPos;
     typedef typename Value<TSA>::Type                   TSAValue;
 
+    typedef MatchesManager<TMatches>                    TManager;
+
     TSA & sa = indexSA(mapper.index);
 
+    TManager anchorsManager(mapper.anchors);
+
+    // TODO(esiragusa): Iterate by seedId
     TReadId readSeqsCount = getReadSeqsCount(readSeqs);
     for (TReadId readSeqId = 0; readSeqId < readSeqsCount; ++readSeqId)
     {
         TReadSeq readSeq = readSeqs[readSeqId];
+
+        // Fill readSeqId.
+        anchorsManager.prototype.readId = readSeqId;
 
         TSeedIds seedIds = getSeedIds(mapper.seeder, readSeqId);
 
@@ -360,7 +369,7 @@ inline void extendHits(Mapper<TExecSpace, TConfig> & mapper, TReadSeqs & readSeq
                            contigBegin, contigEnd,
                            readPos.i1, readPos.i2,
                            hitErrors, mapper.options.errorRate,
-                           mapper.anchors);
+                           anchorsManager);
                 }
             }
         }
@@ -435,12 +444,14 @@ inline void findMates(Mapper<TExecSpace, TConfig> & mapper,
 
     typedef typename Size<TMatches>::Type               TMatchId;
     typedef typename Value<TMatches>::Type              TMatch;
+    typedef MatchesManager<TMatches>                    TManager;
 
     typedef typename Size<TReadSeqs>::Type              TReadId;
     typedef typename Value<TReadSeqs>::Type             TReadSeq;
 
-    TMatchId matchesCount = length(anchors);
+    TManager matesManager(mates);
 
+    TMatchId matchesCount = length(anchors);
     for (TMatchId matchId = 0; matchId < matchesCount; ++matchId)
     {
         TMatch const & match = anchors[matchId];
@@ -455,8 +466,11 @@ inline void findMates(Mapper<TExecSpace, TConfig> & mapper,
         else
             _getMateContigPos(mapper, contigBegin, contigEnd, match, LeftMate());
 
+        // Fill readId.
+        matesManager.prototype.readId = mateId;
+
         // TODO(esiragusa): convert this to errorsPerRead.
-        verify(mapper.verifier, mateSeq, contigBegin, contigEnd, mapper.options.errorRate, mates);
+        verify(mapper.verifier, mateSeq, contigBegin, contigEnd, mapper.options.errorRate, matesManager);
     }
 }
 
