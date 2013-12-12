@@ -75,18 +75,18 @@ struct Options
 // Class Mapper
 // ----------------------------------------------------------------------------
 
-template <typename TExecSpace>
+template <typename TExecSpace, typename TConfig = void>
 struct Mapper
 {
-    typedef Genome<void, CUDAStoreConfig>                           TGenome;
-    typedef GenomeLoader<void, CUDAStoreConfig>                     TGenomeLoader;
+    typedef Genome<void, TConfig>                                   TGenome;
+    typedef GenomeLoader<void, TConfig>                             TGenomeLoader;
     typedef typename Contigs<TGenome>::Type                         TContigs;
 
     typedef Index<TFMContigs, TGenomeIndexSpec>                     THostIndex;
     typedef typename Space<THostIndex, TExecSpace>::Type            TIndex;
 
-    typedef FragmentStore<void, CUDAStoreConfig>                    TStore;
-    typedef ReadsConfig<False, False, True, True, CUDAStoreConfig>  TReadsConfig;
+    typedef FragmentStore<void, TConfig>                            TStore;
+    typedef ReadsConfig<False, False, True, True, TConfig>          TReadsConfig;
     typedef Reads<PairedEnd, TReadsConfig>                          TReads;
     typedef ReadsLoader<PairedEnd, TReadsConfig>                    TReadsLoader;
     typedef typename TStore::TReadSeqStore                          THostReadSeqs;
@@ -153,8 +153,8 @@ struct Mapper
 // ----------------------------------------------------------------------------
 // Sets the number of threads that OpenMP can spawn.
 
-template <typename TExecSpace>
-void configureThreads(Mapper<TExecSpace> & mapper)
+template <typename TExecSpace, typename TConfig>
+void configureThreads(Mapper<TExecSpace, TConfig> & mapper)
 {
 #ifdef _OPENMP
     omp_set_num_threads(mapper.options.threadsCount);
@@ -168,8 +168,8 @@ void configureThreads(Mapper<TExecSpace> & mapper)
 // Function loadGenome()
 // ----------------------------------------------------------------------------
 
-template <typename TExecSpace>
-void loadGenome(Mapper<TExecSpace> & mapper)
+template <typename TExecSpace, typename TConfig>
+void loadGenome(Mapper<TExecSpace, TConfig> & mapper)
 {
     std::cout << "Loading genome:\t\t\t" << std::flush;
     start(mapper.timer);
@@ -188,8 +188,8 @@ void loadGenome(Mapper<TExecSpace> & mapper)
 // Function loadGenomeIndex()
 // ----------------------------------------------------------------------------
 
-template <typename TExecSpace>
-void loadGenomeIndex(Mapper<TExecSpace> & mapper)
+template <typename TExecSpace, typename TConfig>
+void loadGenomeIndex(Mapper<TExecSpace, TConfig> & mapper)
 {
 #ifdef PLATFORM_CUDA
     cudaPrintFreeMemory();
@@ -213,8 +213,8 @@ void loadGenomeIndex(Mapper<TExecSpace> & mapper)
 // Function loadReads()
 // ----------------------------------------------------------------------------
 
-template <typename TExecSpace>
-void loadReads(Mapper<TExecSpace> & mapper)
+template <typename TExecSpace, typename TConfig>
+void loadReads(Mapper<TExecSpace, TConfig> & mapper)
 {
     std::cout << "Loading reads:\t\t\t" << std::flush;
     start(mapper.timer);
@@ -229,8 +229,8 @@ void loadReads(Mapper<TExecSpace> & mapper)
 // Function mapReads()
 // ----------------------------------------------------------------------------
 
-template <typename TExecSpace>
-void mapReads(Mapper<TExecSpace> & mapper)
+template <typename TExecSpace, typename TConfig>
+void mapReads(Mapper<TExecSpace, TConfig> & mapper)
 {
 //SEQAN_OMP_PRAGMA(critical(_mapper_mapReads_filter))
 //{
@@ -242,10 +242,10 @@ void mapReads(Mapper<TExecSpace> & mapper)
 // Function filterHits()
 // ----------------------------------------------------------------------------
 
-template <typename TExecSpace, typename TReadSeqs>
-inline void filterHits(Mapper<TExecSpace> & mapper, TReadSeqs & readSeqs)
+template <typename TExecSpace, typename TConfig, typename TReadSeqs>
+inline void filterHits(Mapper<TExecSpace, TConfig> & mapper, TReadSeqs & readSeqs)
 {
-    typedef Mapper<TExecSpace>                          TMapper;
+    typedef Mapper<TExecSpace, TConfig>                          TMapper;
     typedef typename TMapper::TSeeder                   TSeeder;
     typedef typename TSeeder::TSeedIds                  TSeedIds;
     typedef typename TMapper::TIndexSize                TIndexSize;
@@ -298,8 +298,8 @@ inline void filterHits(Mapper<TExecSpace> & mapper, TReadSeqs & readSeqs)
 // Function _mapReads()
 // ----------------------------------------------------------------------------
 
-template <typename TExecSpace, typename TReadSeqs>
-void _mapReads(Mapper<TExecSpace> & mapper, TReadSeqs & readSeqs)
+template <typename TExecSpace, typename TConfig, typename TReadSeqs>
+void _mapReads(Mapper<TExecSpace, TConfig> & mapper, TReadSeqs & readSeqs)
 {
     start(mapper.timer);
     clearHits(mapper.hits);
@@ -330,7 +330,7 @@ void _mapReads(Mapper<TExecSpace> & mapper, TReadSeqs & readSeqs)
     start(mapper.timer);
     clear(mapper.mates);
     reserve(mapper.mates, length(mapper.anchors), Exact());
-    verifyMatches(mapper.verifier, readSeqs, mapper.anchors, mapper.mates);
+    findMates(mapper.verifier, readSeqs, mapper.anchors, mapper.mates);
     stop(mapper.timer);
     std::cout << "Verification time:\t\t" << mapper.timer << std::endl;
     std::cout << "Mates count:\t\t\t" << length(mapper.mates) << std::endl;
@@ -346,8 +346,8 @@ void _mapReads(Mapper<TExecSpace> & mapper, TReadSeqs & readSeqs)
 // Function runMapper()
 // ----------------------------------------------------------------------------
 
-template <typename TExecSpace>
-void runMapper(Mapper<TExecSpace> & mapper)
+template <typename TExecSpace, typename TConfig>
+void runMapper(Mapper<TExecSpace, TConfig> & mapper)
 {
     configureThreads(mapper);
 
@@ -385,10 +385,10 @@ void runMapper(Mapper<TExecSpace> & mapper)
 // Function runMapper()
 // ----------------------------------------------------------------------------
 
-template <typename TExecSpace>
-void runMapper(Mapper<TExecSpace> & mapper, Parallel)
+template <typename TExecSpace, typename TConfig>
+void runMapper(Mapper<TExecSpace, TConfig> & mapper, Parallel)
 {
-    typedef Mapper<TExecSpace>                          TMapper;
+    typedef Mapper<TExecSpace, TConfig>                          TMapper;
     typedef Reads<void, typename TMapper::TReadsConfig> TReads;
     typedef Logger<std::ostream>                        TLogger;
 
@@ -494,7 +494,7 @@ void runMapper(Mapper<TExecSpace> & mapper, Parallel)
 template <typename TExecSpace>
 void spawnMapper(Options const & options, TExecSpace const & /* tag */)
 {
-    Mapper<TExecSpace> mapper(options);
+    Mapper<TExecSpace, CUDAStoreConfig> mapper(options);
     runMapper(mapper);
 }
 
