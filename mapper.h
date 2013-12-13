@@ -95,8 +95,8 @@ struct Mapper
     typedef typename Space<THostReadSeqs, TExecSpace>::Type         TReadSeqs;
     typedef typename Value<TReadSeqs>::Type                         TReadSeq;
 
-//    typedef Exact                                                   TDistance;
-    typedef HammingDistance                                         TDistance;
+    typedef Exact                                                   TDistance;
+//    typedef HammingDistance                                         TDistance;
     typedef typename Size<TIndex>::Type                             TIndexSize;
     typedef Hit<TIndexSize, TDistance>                              THit;
     typedef String<THit>                                            THits;
