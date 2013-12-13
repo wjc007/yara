@@ -95,14 +95,16 @@ struct Mapper
     typedef typename Space<THostReadSeqs, TExecSpace>::Type         TReadSeqs;
     typedef typename Value<TReadSeqs>::Type                         TReadSeq;
 
+//    typedef Exact                                                   TDistance;
+    typedef HammingDistance                                         TDistance;
     typedef typename Size<TIndex>::Type                             TIndexSize;
-    typedef Hit<TIndexSize, Exact>                                  THit;
+    typedef Hit<TIndexSize, TDistance>                              THit;
     typedef String<THit>                                            THits;
 
     typedef Match<void>                                             TMatch;
     typedef String<TMatch>                                          TMatches;
 
-    typedef SeederConfig<Options, TIndex, TReadSeqs, Exact>         TSeederConfig;
+    typedef SeederConfig<Options, TIndex, TReadSeqs, TDistance>     TSeederConfig;
     typedef Seeder<TExecSpace, TSeederConfig>                       TSeeder;
 
     typedef AlignTextBanded<FindPrefix, NMatchesNone_, NMatchesNone_> TMyersSpec;
@@ -312,8 +314,8 @@ inline void extendHits(Mapper<TExecSpace, TConfig> & mapper, TReadSeqs & readSeq
 
     typedef typename TMapper::THit                      THit;
     typedef typename Id<THit>::Type                     THitId;
-    typedef typename Size<THit>::Type                   THitSize;
-    typedef Pair<THitSize>                              THitRange;
+    typedef Pair<THitId>                                THitIds;
+    typedef typename Position<THit>::Type               THitRange;
     typedef unsigned char                               THitErrors;
 
     typedef typename TMapper::TMatches                  TMatches;
@@ -340,7 +342,6 @@ inline void extendHits(Mapper<TExecSpace, TConfig> & mapper, TReadSeqs & readSeq
         anchorsManager.prototype.readId = readSeqId;
 
         TSeedIds seedIds = getSeedIds(mapper.seeder, readSeqId);
-
         for (TSeedId seedId = getValueI1(seedIds); seedId < getValueI2(seedIds); ++seedId)
         {
             // Get position in read.
@@ -348,10 +349,9 @@ inline void extendHits(Mapper<TExecSpace, TConfig> & mapper, TReadSeqs & readSeq
             TReadSeqSize seedLength = getValueI2(readPos) - getValueI1(readPos);
 
             // TODO(esiragusa): iterate over all hits of the seed.
-            // THitIds hitIds = getHitIds(mapper.seeder, seedId);
+            THitIds hitIds = getHitIds(mapper.hits, seedId);
+            for (THitId hitId = getValueI1(hitIds); hitId < getValueI2(hitIds); ++hitId)
             {
-                THitId hitId = seedId;
-
                 THitRange hitRange = getHitRange(mapper.hits, hitId);
                 THitErrors hitErrors = getHitErrors(mapper.hits, hitId);
 
