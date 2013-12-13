@@ -67,7 +67,7 @@ struct Options
         mappingBlock(200000),
         noCuda(false),
         threadsCount(1),
-        hitsThreshold(300)
+        hitsThreshold(150)
     {}
 };
 
@@ -287,11 +287,16 @@ inline void filterHits(Mapper<TExecSpace, TConfig> & mapper, TReadSeqs & readSeq
         clearHits(mapper.hits, mateSecondFwdFirstRevHitIds);
 
         // Clear the hits of the anchor and skip the pair.
-        if (firstFwdSecondRevHits + secondFwdFirstRevHits > mapper.options.hitsThreshold)
+        if (firstFwdSecondRevHits > mapper.options.hitsThreshold)
         {
             THitIds anchorFirstFwdSecondRevHitIds = (firstFwdSecondRevHits == firstMateFwdHits) ? firstMateFwdHitIds : secondMateRevHitIds;
-            THitIds anchorSecondFwdFirstRevHitIds = (secondFwdFirstRevHits == secondMateFwdHits) ? secondMateFwdHitIds : firstMateRevHitIds;
             clearHits(mapper.hits, anchorFirstFwdSecondRevHitIds);
+        }
+
+        // Clear the hits of the anchor and skip the pair.
+        if (secondFwdFirstRevHits > mapper.options.hitsThreshold)
+        {
+            THitIds anchorSecondFwdFirstRevHitIds = (secondFwdFirstRevHits == secondMateFwdHits) ? secondMateFwdHitIds : firstMateRevHitIds;
             clearHits(mapper.hits, anchorSecondFwdFirstRevHitIds);
         }
     }
