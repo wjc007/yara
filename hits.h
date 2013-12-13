@@ -38,49 +38,74 @@
 using namespace seqan;
 
 // ============================================================================
-// Tags
-// ============================================================================
-
-// ----------------------------------------------------------------------------
-// Tag Ranges_
-// ----------------------------------------------------------------------------
-
-struct Ranges_;
-
-// ============================================================================
 // Classes
 // ============================================================================
 
 // ----------------------------------------------------------------------------
-// Class Hits
+// Class Hit<Exact>
 // ----------------------------------------------------------------------------
 
-template <typename TSize, typename TSpec = void>
-struct Hits
+template <typename TSize, typename TSpec = Exact>
+struct Hit
 {
-    typedef typename Member<Hits, Ranges_>::Type    TRanges;
-    typedef typename Size<TRanges>::Type            THitId;
-    typedef Pair<THitId>                            THitIds;
-    typedef Pair<TSize>                             THitRange;
-    typedef unsigned char                           THitErrors;
-
-    TRanges ranges;
-
-    template <typename TFinder>
-    inline SEQAN_HOST_DEVICE void
-    operator() (TFinder const & finder)
-    {
-        ranges[finder._patternIt] = range(textIterator(finder));
-    }
+    typename Position<Hit>::Type    range;
 };
 
-//template <typename TSize>
-//struct Hits<TSize, HammingDistance>
-//{
-//    typename Member<Hits, Ids_>::Type       seedIds;
-//    typename Member<Hits, Ranges_>::Type    ranges;
-//    typename Member<Hits, Errors_>::Type    errors;
-//};
+// ----------------------------------------------------------------------------
+// Class Hit<HammingDistance>
+// ----------------------------------------------------------------------------
+
+template <typename TSize>
+struct Hit<TSize, HammingDistance>
+{
+    typename Position<Hit>::Type    range;
+    typename Id<Hit>::Type          seedId;
+    unsigned char                   errors;
+};
+
+namespace seqan
+{
+
+// ----------------------------------------------------------------------------
+// Metafunction Size<Hit>
+// ----------------------------------------------------------------------------
+
+template <typename TSize, typename TSpec>
+struct Size<Hit<TSize, TSpec> >
+{
+    typedef TSize Type;
+};
+
+// ----------------------------------------------------------------------------
+// Metafunction Position<Hit>
+// ----------------------------------------------------------------------------
+
+template <typename TSize, typename TSpec>
+struct Position<Hit<TSize, TSpec> >
+{
+    typedef Pair<TSize> Type;
+};
+
+// ----------------------------------------------------------------------------
+// Metafunction Id<Hit>
+// ----------------------------------------------------------------------------
+
+template <typename TSize, typename TSpec>
+struct Id<Hit<TSize, TSpec> >
+{
+    typedef unsigned int Type;
+};
+
+// ----------------------------------------------------------------------------
+// Metafunction Spec<Hit>
+// ----------------------------------------------------------------------------
+
+template <typename TSize, typename TSpec>
+struct Spec<Hit<TSize, TSpec> >
+{
+    typedef TSpec Type;
+};
+}
 
 // ----------------------------------------------------------------------------
 // Class HitsCounter
@@ -95,9 +120,34 @@ struct HitsCounter
         count(0)
     {}
 
-    void operator() (Pair<TSize> const & range)
+    template <typename THit>
+    void operator() (THit const & hit)
     {
-        count += getValueI2(range) - getValueI1(range);
+        count += getValueI2(hit.range) - getValueI1(hit.range);
+    }
+};
+
+// ----------------------------------------------------------------------------
+// Class HitsManager
+// ----------------------------------------------------------------------------
+
+template <typename THits, typename TSpec = void>
+struct HitsManager
+{
+    typedef typename Value<THits>::Type  THit;
+    typedef typename Spec<THit>::Type    THitSpec;
+
+    THits & hits;
+
+    HitsManager(THits & hits) :
+        hits(hits)
+    {}
+
+    template <typename TFinder>
+    SEQAN_HOST_DEVICE void
+    operator() (TFinder const & finder)
+    {
+        _addHit(*this, finder, THitSpec());
     }
 };
 
@@ -106,57 +156,14 @@ struct HitsCounter
 // ============================================================================
 
 // ----------------------------------------------------------------------------
-// Member Ranges_
-// ----------------------------------------------------------------------------
-
-struct Ranges_;
-
-namespace seqan {
-template <typename TSize, typename TSpec>
-struct Member<Hits<TSize, TSpec>, Ranges_>
-{
-    typedef Pair<TSize>                         TRange_;
-    typedef String<TRange_>                     Type;
-};
-
-#ifdef PLATFORM_CUDA
-template <typename TSize, typename TSpec>
-struct Member<Hits<TSize, Device<TSpec> >, Ranges_>
-{
-    typedef Pair<TSize>                         TRange_;
-    typedef thrust::device_vector<TRange_>      Type;
-};
-#endif
-
-template <typename TSize, typename TSpec>
-struct Member<Hits<TSize, View<TSpec> >, Ranges_>
-{
-    typedef typename Member<Hits<TSize, TSpec>, Ranges_>::Type  TRanges_;
-    typedef typename View<TRanges_>::Type   Type;
-};
-}
-
-// ----------------------------------------------------------------------------
 // Metafunction View
 // ----------------------------------------------------------------------------
 
 namespace seqan {
-template <typename TSize, typename TSpec>
-struct View<Hits<TSize, TSpec> >
+template <typename THits, typename TSpec>
+struct View<HitsManager<THits, TSpec> >
 {
-    typedef Hits<TSize, View<TSpec> >  Type;
-};
-}
-
-// ----------------------------------------------------------------------------
-// Metafunction Device
-// ----------------------------------------------------------------------------
-
-namespace seqan {
-template <typename TSize, typename TSpec>
-struct Device<Hits<TSize, TSpec> >
-{
-    typedef Hits<TSize, Device<TSpec> >  Type;
+    typedef HitsManager<typename View<THits>::Type, TSpec>  Type;
 };
 }
 
@@ -164,115 +171,239 @@ struct Device<Hits<TSize, TSpec> >
 // Functions
 // ============================================================================
 
-// ----------------------------------------------------------------------------
-// Function init()
-// ----------------------------------------------------------------------------
-
-template <typename TSize, typename TSpec, typename TPattern>
-inline void init(Hits<TSize, TSpec> & hits, TPattern const & pattern)
+template <typename TSize, typename TSpec>
+inline bool operator< (Hit<TSize, TSpec> const & a, Hit<TSize, TSpec> const & b)
 {
-    resize(hits.ranges, length(needle(pattern)), Exact());
+    return a.seedId < b.seedId;
 }
 
 // ----------------------------------------------------------------------------
-// Function view()
+// Function clearHitRange()
 // ----------------------------------------------------------------------------
 
-template <typename TSize, typename TSpec>
-inline typename View<Hits<TSize, TSpec> >::Type
-view(Hits<TSize, TSpec> & hits)
+template <typename THit>
+inline THit clearHitRange(THit hit)
 {
-    typename View<Hits<TSize, TSpec> >::Type hitsView;
-
-    hitsView.ranges = view(hits.ranges);
-
-    return hitsView;
+    setValueI1(hit.range, 0);
+    setValueI2(hit.range, 0);
+    return hit;
 }
 
 // ----------------------------------------------------------------------------
 // Function getHitErrors()
 // ----------------------------------------------------------------------------
 
-template <typename TSize, typename TSpec, typename THitId>
-inline typename Hits<TSize, TSpec>::THitErrors
-getHitErrors(Hits<TSize, TSpec> const & /* hits */, THitId /* hitId */)
+template <typename TSize, typename TSpec>
+inline unsigned char
+getHitErrors(Hit<TSize, TSpec> const & /* hit */)
 {
     return 0;
+}
+
+template <typename TSize>
+inline unsigned char
+getHitErrors(Hit<TSize, HammingDistance> const & hit)
+{
+    return hit.errors;
+}
+
+// ----------------------------------------------------------------------------
+// Function view()
+// ----------------------------------------------------------------------------
+
+template <typename THits, typename TSpec>
+inline typename View<HitsManager<THits, TSpec> >::Type
+view(HitsManager<THits, TSpec> & manager)
+{
+    return typename View<HitsManager<THits, TSpec> >::Type(view(manager.hits));
+}
+
+// ----------------------------------------------------------------------------
+// Function init()
+// ----------------------------------------------------------------------------
+
+template <typename TSize, typename TSpec, typename TPattern>
+inline void init(HitsManager<TSize, TSpec> & manager, TPattern const & pattern)
+{
+    typedef HitsManager<TSize, TSpec>   TManager;
+    typedef typename TManager::THitSpec THitSpec;
+
+    _init(manager, pattern, THitSpec());
+}
+
+// ----------------------------------------------------------------------------
+// Function _init()
+// ----------------------------------------------------------------------------
+
+template <typename TSize, typename TSpec, typename TPattern>
+inline void _init(HitsManager<TSize, TSpec> & manager, TPattern const & pattern, Exact)
+{
+    resize(manager.hits, length(needle(pattern)), Exact());
+}
+
+template <typename TSize, typename TSpec, typename TPattern>
+inline void _init(HitsManager<TSize, TSpec> & manager, TPattern const & pattern, HammingDistance)
+{
+    // TODO(esiragusa): reserve more than this.
+    reserve(manager.hits, length(needle(pattern)), Exact());
+}
+
+// ----------------------------------------------------------------------------
+// Function _addHit()
+// ----------------------------------------------------------------------------
+
+template <typename THits, typename TSpec, typename TFinder>
+inline SEQAN_HOST_DEVICE void
+_addHit(HitsManager<THits, TSpec> & manager, TFinder const & finder, Exact)
+{
+    manager.hits[finder._patternIt].range = range(textIterator(finder));
+}
+
+template <typename THits, typename TSpec, typename TFinder>
+inline SEQAN_HOST_DEVICE void
+_addHit(HitsManager<THits, TSpec> & manager, TFinder const & finder, HammingDistance)
+{
+    typedef typename Value<THits>::Type THit;
+
+    // TODO(esiragusa): implement getScore(finder) for multiple finder.
+    THit hit = { range(textIterator(finder)), finder._patternIt, 1 };
+
+    // TODO(esiragusa): atomic append.
+    appendValue(manager.hits, hit);
+}
+
+// ----------------------------------------------------------------------------
+// Function getHitErrors()
+// ----------------------------------------------------------------------------
+
+template <typename THits, typename THitId>
+inline unsigned char
+getHitErrors(THits const & hits, THitId hitId)
+{
+    return getHitErrors(hits[hitId]);
 }
 
 // ----------------------------------------------------------------------------
 // Function getHitRange()
 // ----------------------------------------------------------------------------
 
-template <typename TSize, typename TSpec, typename THitId>
-inline typename Hits<TSize, TSpec>::THitRange
-getHitRange(Hits<TSize, TSpec> const & hits, THitId hitId)
+template <typename THits, typename THitId>
+inline typename Position<typename Value<THits>::Type>::Type
+getHitRange(THits const & hits, THitId hitId)
 {
-    return hits.ranges[hitId];
+    return hits[hitId].range;
 }
 
 // ----------------------------------------------------------------------------
 // Function getHitIds()
 // ----------------------------------------------------------------------------
 
-template <typename TSize, typename TSpec, typename TSeedId>
-inline typename Hits<TSize, TSpec>::THitIds
-getHitIds(Hits<TSize, TSpec> const & /* hits */, TSeedId seedId)
+template <typename THits, typename TSeedId>
+inline Pair<typename Id<typename Value<THits>::Type>::Type>
+getHitIds(THits const & hits, TSeedId seedId)
 {
-    typedef Hits<TSize, TSpec> const    THits;
-    typedef typename THits::THitIds     THitIds;
+    return getHitIds(hits, Pair<TSeedId>(seedId, seedId + 1));
+}
 
-    return THitIds(seedId, seedId + 1);
+template <typename THits, typename TSeedId>
+inline Pair<typename Id<typename Value<THits>::Type>::Type>
+getHitIds(THits const & hits, Pair<TSeedId> seedIds)
+{
+    typedef typename Value<THits>::Type THit;
+    typedef typename Spec<THit>::Type   THitSpec;
+
+    return _getHitIds(hits, seedIds, THitSpec());
+}
+
+template <typename THits, typename TSeedId>
+inline Pair<typename Id<typename Value<THits>::Type>::Type>
+_getHitIds(THits const & /* hits */, Pair<TSeedId> seedIds, Exact)
+{
+    return seedIds;
+}
+
+template <typename THits, typename TSeedId>
+inline Pair<typename Id<typename Value<THits>::Type>::Type>
+_getHitIds(THits const & hits, Pair<TSeedId> seedIds, HammingDistance)
+{
+    typedef typename Value<THits>::Type                     THit;
+    typedef typename Id<THit>::Type                         THitId;
+    typedef Pair<THitId>                                    THitIds;
+    typedef typename Iterator<THits const, Standard>::Type  THitsIterator;
+
+    THit firstSeedHit;
+    THit lastSeedHit;
+    firstSeedHit.seedId = getValueI1(seedIds);
+    lastSeedHit.seedId = getValueI2(seedIds) - 1;
+
+    THitsIterator hitsBegin = begin(hits, Standard());
+    THitsIterator hitsEnd = end(hits, Standard());
+
+    THitsIterator firstHit = std::lower_bound(hitsBegin, hitsEnd, firstSeedHit);
+    THitsIterator lastHit = std::upper_bound(hitsBegin, hitsEnd, lastSeedHit);
+
+    return THitIds(position(firstHit, hits), position(lastHit, hits));
+}
+
+// ----------------------------------------------------------------------------
+// Function sortHits()
+// ----------------------------------------------------------------------------
+
+template <typename THits>
+inline void sortHits(THits & hits)
+{
+    typedef typename Value<THits>::Type THit;
+    typedef typename Spec<THit>::Type   THitSpec;
+
+    _sortHits(hits, THitSpec());
+}
+
+template <typename THits>
+inline void _sortHits(THits & /* hits */, Exact) {}
+
+template <typename THits>
+inline void _sortHits(THits & hits, HammingDistance)
+{
+    return std::stable_sort(begin(hits, Standard()), end(hits, Standard()));
 }
 
 // ----------------------------------------------------------------------------
 // Function countHits()
 // ----------------------------------------------------------------------------
 
-template <typename TSize, typename TSpec>
-inline unsigned long countHits(Hits<TSize, TSpec> const & hits)
+template <typename TSize, typename THits>
+inline TSize countHits(THits const & hits)
 {
-    return std::for_each(begin(hits.ranges, Standard()),
-                         end(hits.ranges, Standard()),
-                         HitsCounter<unsigned long, TSpec>()).count;
+    return std::for_each(begin(hits, Standard()),
+                         end(hits, Standard()),
+                         HitsCounter<TSize>()).count;
 }
 
 // ----------------------------------------------------------------------------
 // Function countHits()
 // ----------------------------------------------------------------------------
 
-template <typename TSize, typename TSpec, typename TSeedId>
-inline TSize countHits(Hits<TSize, TSpec> const & hits, Pair<TSeedId> seedIds)
+template <typename TSize, typename THits, typename THitId>
+inline TSize countHits(THits const & hits, Pair<THitId> hitIds)
 {
-    return std::for_each(begin(hits.ranges, Standard()) + getValueI1(seedIds),
-                         begin(hits.ranges, Standard()) + getValueI2(seedIds),
-                         HitsCounter<TSize, TSpec>()).count;
+    return std::for_each(begin(hits, Standard()) + getValueI1(hitIds),
+                         begin(hits, Standard()) + getValueI2(hitIds),
+                         HitsCounter<TSize>()).count;
 }
 
 // ----------------------------------------------------------------------------
 // Function clearHits()
 // ----------------------------------------------------------------------------
 
-template <typename TSize, typename TSpec>
-inline void clearHits(Hits<TSize, TSpec> & hits)
+template <typename THits, typename THitId>
+inline void clearHits(THits & hits, Pair<THitId> hitIds)
 {
-    clear(hits.ranges);
-}
+    typedef typename Value<THits>::Type THit;
 
-// ----------------------------------------------------------------------------
-// Function clearHits()
-// ----------------------------------------------------------------------------
-
-template <typename TSize, typename TSpec, typename TSeedId>
-inline void clearHits(Hits<TSize, TSpec> & hits, Pair<TSeedId> seedIds)
-{
-    Pair<TSize> emptyRange;
-    setValueI1(emptyRange, 0);
-    setValueI2(emptyRange, 0);
-
-    std::fill(begin(hits.ranges, Standard()) + getValueI1(seedIds),
-              begin(hits.ranges, Standard()) + getValueI2(seedIds),
-              emptyRange);
+    std::transform(begin(hits, Standard()) + getValueI1(hitIds),
+                   begin(hits, Standard()) + getValueI2(hitIds),
+                   begin(hits, Standard()) + getValueI1(hitIds),
+                   clearHitRange<THit>);
 }
 
 #endif  // #ifndef APP_CUDAMAPPER_HITS_H_

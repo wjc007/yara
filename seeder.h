@@ -215,11 +215,13 @@ inline void fillSeeds(Seeder<TExecSpace, TConfig> & seeder, TReadSeqs & readSeqs
 // Function findSeeds()
 // ----------------------------------------------------------------------------
 
-template <typename TExecSpace, typename TConfig, typename TDelegate>
-inline void findSeeds(Seeder<TExecSpace, TConfig> & seeder, TDelegate & delegate)
+template <typename TExecSpace, typename TConfig, typename THits>
+inline void findSeeds(Seeder<TExecSpace, TConfig> & seeder, THits & hits)
 {
     typedef Seeder<TExecSpace, TConfig>     TSeeder;
     typedef typename TSeeder::TPattern      TPattern;
+
+    HitsManager<THits> manager(hits);
 
 #ifdef PLATFORM_CUDA
     cudaPrintFreeMemory();
@@ -229,10 +231,10 @@ inline void findSeeds(Seeder<TExecSpace, TConfig> & seeder, TDelegate & delegate
     TPattern pattern(seeder.seeds);
 
     // Initialize the delegate.
-    init(delegate, pattern);
+    init(manager, pattern);
 
     // Find hits.
-    find(seeder.finder, pattern, delegate);
+    find(seeder.finder, pattern, manager);
 
 #ifdef PLATFORM_CUDA
     cudaPrintFreeMemory();
