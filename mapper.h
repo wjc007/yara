@@ -360,9 +360,8 @@ inline void extendHits(Mapper<TExecSpace, TConfig> & mapper, TReadSeqs & readSeq
                     setSeqOffset(saValue, suffixLength(saValue, contigs(mapper.genome)) - seedLength);
 
                     // Compute position in contig.
-                    TContigsPos contigBegin = TContigsPos(getValueI1(saValue), getValueI2(saValue));
-                    TContigsPos contigEnd = contigBegin;
-                    posAdd(contigEnd, seedLength);
+                    TContigsPos contigBegin = saValue;
+                    TContigsPos contigEnd = posAdd(contigBegin, seedLength);
 
                     extend(mapper.extender,
                            readSeq,
