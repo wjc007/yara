@@ -386,11 +386,11 @@ inline TSize countHits(THits const & hits)
 // Function countHits()
 // ----------------------------------------------------------------------------
 
-template <typename TSize, typename THits, typename TSeedId>
-inline TSize countHits(THits const & hits, Pair<TSeedId> seedIds)
+template <typename TSize, typename THits, typename THitId>
+inline TSize countHits(THits const & hits, Pair<THitId> hitIds)
 {
-    return std::for_each(begin(hits, Standard()) + getValueI1(seedIds),
-                         begin(hits, Standard()) + getValueI2(seedIds),
+    return std::for_each(begin(hits, Standard()) + getValueI1(hitIds),
+                         begin(hits, Standard()) + getValueI2(hitIds),
                          HitsCounter<TSize>()).count;
 }
 
@@ -398,16 +398,16 @@ inline TSize countHits(THits const & hits, Pair<TSeedId> seedIds)
 // Function clearHits()
 // ----------------------------------------------------------------------------
 
-template <typename THits, typename TSeedId>
-inline void clearHits(THits & hits, Pair<TSeedId> seedIds)
+template <typename THits, typename THitId>
+inline void clearHits(THits & hits, Pair<THitId> hitIds)
 {
     typedef typename Value<THits>::Type THit;
 
     THit emptyHit;
     clear(emptyHit);
 
-    std::fill(begin(hits, Standard()) + getValueI1(seedIds),
-              begin(hits, Standard()) + getValueI2(seedIds),
+    std::fill(begin(hits, Standard()) + getValueI1(hitIds),
+              begin(hits, Standard()) + getValueI2(hitIds),
               emptyHit);
 }
 
