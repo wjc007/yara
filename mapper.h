@@ -67,7 +67,7 @@ struct Options
         mappingBlock(200000),
         noCuda(false),
         threadsCount(1),
-        hitsThreshold(150)
+        hitsThreshold(300)
     {}
 };
 
