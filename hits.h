@@ -178,11 +178,11 @@ inline bool operator< (Hit<TSize, TSpec> const & a, Hit<TSize, TSpec> const & b)
 }
 
 // ----------------------------------------------------------------------------
-// Function clearHitRange()
+// Function clearRange()
 // ----------------------------------------------------------------------------
 
 template <typename THit>
-inline THit clearHitRange(THit hit)
+inline THit clearRange(THit hit)
 {
     setValueI1(hit.range, 0);
     setValueI2(hit.range, 0);
@@ -195,14 +195,14 @@ inline THit clearHitRange(THit hit)
 
 template <typename TSize, typename TSpec>
 inline unsigned char
-getHitErrors(Hit<TSize, TSpec> const & /* hit */)
+getErrors(Hit<TSize, TSpec> const & /* hit */)
 {
     return 0;
 }
 
 template <typename TSize>
 inline unsigned char
-getHitErrors(Hit<TSize, HammingDistance> const & hit)
+getErrors(Hit<TSize, HammingDistance> const & hit)
 {
     return hit.errors;
 }
@@ -273,25 +273,53 @@ _addHit(HitsManager<THits, TSpec> & manager, TFinder const & finder, HammingDist
 }
 
 // ----------------------------------------------------------------------------
-// Function getHitErrors()
+// Function getErrors()
 // ----------------------------------------------------------------------------
 
 template <typename THits, typename THitId>
 inline unsigned char
-getHitErrors(THits const & hits, THitId hitId)
+getErrors(THits const & hits, THitId hitId)
 {
-    return getHitErrors(hits[hitId]);
+    return getErrors(hits[hitId]);
 }
 
 // ----------------------------------------------------------------------------
-// Function getHitRange()
+// Function getRange()
 // ----------------------------------------------------------------------------
 
 template <typename THits, typename THitId>
 inline typename Position<typename Value<THits>::Type>::Type
-getHitRange(THits const & hits, THitId hitId)
+getRange(THits const & hits, THitId hitId)
 {
     return hits[hitId].range;
+}
+
+// ----------------------------------------------------------------------------
+// Function getSeedId()
+// ----------------------------------------------------------------------------
+
+template <typename THits, typename THitId>
+inline typename Id<typename Value<THits>::Type>::Type
+getSeedId(THits const & hits, THitId hitId)
+{
+    typedef typename Value<THits>::Type THit;
+    typedef typename Spec<THit>::Type   THitSpec;
+
+    return _getSeedId(hits, hitId, THitSpec());
+}
+
+template <typename THits, typename THitId>
+inline typename Id<typename Value<THits>::Type>::Type
+_getSeedId(THits const & /* hits */, THitId hitId, Exact)
+{
+    return hitId;
+}
+
+template <typename THits, typename THitId>
+inline typename Id<typename Value<THits>::Type>::Type
+_getSeedId(THits const & hits, THitId hitId, HammingDistance)
+{
+    return hits[hitId].seedId;
 }
 
 // ----------------------------------------------------------------------------
@@ -403,7 +431,7 @@ inline void clearHits(THits & hits, Pair<THitId> hitIds)
     std::transform(begin(hits, Standard()) + getValueI1(hitIds),
                    begin(hits, Standard()) + getValueI2(hitIds),
                    begin(hits, Standard()) + getValueI1(hitIds),
-                   clearHitRange<THit>);
+                   clearRange<THit>);
 }
 
 #endif  // #ifndef APP_CUDAMAPPER_HITS_H_

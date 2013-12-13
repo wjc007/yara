@@ -85,7 +85,10 @@ struct Seeder
     typedef typename Space<THostSeeds, TExecSpace>::Type    TSeeds;
     typedef typename Size<TSeeds>::Type                     TSeedId;
     typedef Pair<TSeedId>                                   TSeedIds;
-    typedef typename Size<TReadSeqs>::Type                  TReadSeqSize;
+
+    typedef typename Size<TReadSeqs>::Type                  TReadSeqId;
+    typedef typename Value<TReadSeqs>::Type                 TReadSeq;
+    typedef typename Size<TReadSeq>::Type                   TReadSeqSize;
     typedef Pair<TReadSeqSize>                              TReadPos;
 
     typedef typename If<IsSameType<TDistance, Exact>,
@@ -247,7 +250,7 @@ inline void findSeeds(Seeder<TExecSpace, TConfig> & seeder, THits & hits)
 
 template <typename TExecSpace, typename TConfig, typename TReadId>
 inline typename Seeder<TExecSpace, TConfig>::TSeedIds
-getSeedIds(Seeder<TExecSpace, TConfig> & seeder, TReadId readId)
+getSeedIds(Seeder<TExecSpace, TConfig> const & seeder, TReadId readId)
 {
     typedef Seeder<TExecSpace, TConfig>     TSeeder;
     typedef typename TSeeder::TSeedIds      TSeedIds;
@@ -256,26 +259,26 @@ getSeedIds(Seeder<TExecSpace, TConfig> & seeder, TReadId readId)
 }
 
 // ----------------------------------------------------------------------------
+// Function getReadSeqId()
+// ----------------------------------------------------------------------------
+
+template <typename TExecSpace, typename TConfig, typename TSeedId>
+inline typename Seeder<TExecSpace, TConfig>::TReadSeqId
+getReadSeqId(Seeder<TExecSpace, TConfig> const & seeder, TSeedId seedId)
+{
+    return seedId / seeder.seedsPerRead;
+}
+
+// ----------------------------------------------------------------------------
 // Function getLocalSeedId()
 // ----------------------------------------------------------------------------
 
 template <typename TExecSpace, typename TConfig, typename TSeedId>
 inline typename Seeder<TExecSpace, TConfig>::TSeedId
-getLocalSeedId(Seeder<TExecSpace, TConfig> & seeder, TSeedId seedId)
+getLocalSeedId(Seeder<TExecSpace, TConfig> const & seeder, TSeedId seedId)
 {
     return seedId % seeder.seedsPerRead;
 }
-
-// ----------------------------------------------------------------------------
-// Function getReadId()
-// ----------------------------------------------------------------------------
-
-//template <typename TExecSpace, typename TConfig, typename TSeedId>
-//inline typename Seeder<TExecSpace, TConfig>::TReadId
-//getReadId(Seeder<TExecSpace, TConfig> & seeder, TSeedId seedId)
-//{
-//    return ...;
-//}
 
 // ----------------------------------------------------------------------------
 // Function getPosInRead()
@@ -283,7 +286,7 @@ getLocalSeedId(Seeder<TExecSpace, TConfig> & seeder, TSeedId seedId)
 
 template <typename TExecSpace, typename TConfig, typename TSeedId>
 inline typename Seeder<TExecSpace, TConfig>::TReadPos
-getPosInRead(Seeder<TExecSpace, TConfig> & seeder, TSeedId seedId)
+getPosInRead(Seeder<TExecSpace, TConfig> const & seeder, TSeedId seedId)
 {
     typedef Seeder<TExecSpace, TConfig>     TSeeder;
     typedef typename TSeeder::TReadPos      TReadPos;
