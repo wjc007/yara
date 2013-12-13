@@ -96,7 +96,8 @@ struct Mapper
     typedef typename Value<TReadSeqs>::Type                         TReadSeq;
 
     typedef typename Size<TIndex>::Type                             TIndexSize;
-    typedef Hits<TIndexSize, Exact>                                 THits;
+    typedef Hit<TIndexSize, Exact>                                  THit;
+    typedef String<THit>                                            THits;
 
     typedef Match<void>                                             TMatch;
     typedef String<TMatch>                                          TMatches;
@@ -259,10 +260,10 @@ inline void filterHits(Mapper<TExecSpace, TConfig> & mapper, TReadSeqs & readSeq
         TSeedIds secondMateRevSeedIds = getSeedIds(mapper.seeder, secondMateRevSeqId);
 
         // Count the hits of each read.
-        TIndexSize firstMateFwdHits = countHits(mapper.hits, firstMateFwdSeedIds);
-        TIndexSize secondMateFwdHits = countHits(mapper.hits, secondMateFwdSeedIds);
-        TIndexSize firstMateRevHits = countHits(mapper.hits, firstMateRevSeedIds);
-        TIndexSize secondMateRevHits = countHits(mapper.hits, secondMateRevSeedIds);
+        TIndexSize firstMateFwdHits = countHits<TIndexSize>(mapper.hits, firstMateFwdSeedIds);
+        TIndexSize secondMateFwdHits = countHits<TIndexSize>(mapper.hits, secondMateFwdSeedIds);
+        TIndexSize firstMateRevHits = countHits<TIndexSize>(mapper.hits, firstMateRevSeedIds);
+        TIndexSize secondMateRevHits = countHits<TIndexSize>(mapper.hits, secondMateRevSeedIds);
 
         // Choose the easiest read as the anchor.
         TIndexSize firstFwdSecondRevHits = std::min(firstMateFwdHits, secondMateRevHits);
@@ -309,10 +310,11 @@ inline void extendHits(Mapper<TExecSpace, TConfig> & mapper, TReadSeqs & readSeq
     typedef typename TSeeder::TSeedIds                  TSeedIds;
     typedef typename TSeeder::TSeedId                   TSeedId;
 
-    typedef typename TMapper::THits                     THits;
-    typedef typename THits::THitId                      THitId;
-    typedef typename THits::THitRange                   THitRange;
-    typedef typename THits::THitErrors                  THitErrors;
+    typedef typename TMapper::THit                      THit;
+    typedef typename Id<THit>::Type                     THitId;
+    typedef typename Size<THit>::Type                   THitSize;
+    typedef Pair<THitSize>                              THitRange;
+    typedef unsigned char                               THitErrors;
 
     typedef typename TMapper::TMatches                  TMatches;
     typedef typename Value<TMatches>::Type              TMatch;
@@ -494,7 +496,8 @@ template <typename TExecSpace, typename TConfig, typename TReadSeqs>
 void _mapReads(Mapper<TExecSpace, TConfig> & mapper, TReadSeqs & readSeqs)
 {
     start(mapper.timer);
-    clearHits(mapper.hits);
+    clear(mapper.hits);
+
     fillSeeds(mapper.seeder, readSeqs);
     std::cout << "Seeds count:\t\t\t" << length(mapper.seeder.seeds) << std::endl;
     findSeeds(mapper.seeder, mapper.hits);
@@ -502,11 +505,11 @@ void _mapReads(Mapper<TExecSpace, TConfig> & mapper, TReadSeqs & readSeqs)
     std::cout << "Seeding time:\t\t\t" << mapper.timer << std::endl;
 
     filterHits(mapper, readSeqs);
-    std::cout << "Hits count:\t\t\t" << countHits(mapper.hits) << std::endl;
+    std::cout << "Hits count:\t\t\t" << countHits<unsigned long>(mapper.hits) << std::endl;
 
     start(mapper.timer);
     clear(mapper.anchors);
-    reserve(mapper.anchors, countHits(mapper.hits) / 5);
+    reserve(mapper.anchors, countHits<unsigned long>(mapper.hits) / 5);
     extendHits(mapper, readSeqs);
     stop(mapper.timer);
     std::cout << "Extension time:\t\t\t" << mapper.timer << std::endl;
