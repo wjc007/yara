@@ -108,19 +108,6 @@ struct Spec<Hit<TSize, TSpec> >
 }
 
 // ----------------------------------------------------------------------------
-// Class HitSorterByXXX
-// ----------------------------------------------------------------------------
-
-template <typename THit>
-struct HitSorterBySeedId
-{
-    inline bool operator()(THit const & a, THit const & b) const
-    {
-        return a.seedId <= b.seedId;
-    }
-};
-
-// ----------------------------------------------------------------------------
 // Class HitsCounter
 // ----------------------------------------------------------------------------
 
@@ -183,6 +170,12 @@ struct View<HitsManager<THits, TSpec> >
 // ============================================================================
 // Functions
 // ============================================================================
+
+template <typename TSize, typename TSpec>
+inline bool operator< (Hit<TSize, TSpec> const & a, Hit<TSize, TSpec> const & b)
+{
+    return a.seedId < b.seedId;
+}
 
 // ----------------------------------------------------------------------------
 // Function clear()
@@ -259,7 +252,8 @@ inline void _init(HitsManager<TSize, TSpec> & manager, TPattern const & pattern,
 template <typename TSize, typename TSpec, typename TPattern>
 inline void _init(HitsManager<TSize, TSpec> & manager, TPattern const & pattern, HammingDistance)
 {
-//    reserve(manager.hits, length(needle(pattern)) * ..., Exact());
+    // TODO(esiragusa): reserve more than this.
+    reserve(manager.hits, length(needle(pattern)), Exact());
 }
 
 // ----------------------------------------------------------------------------
@@ -279,10 +273,8 @@ _addHit(HitsManager<THits, TSpec> & manager, TFinder const & finder, HammingDist
 {
     typedef typename Value<THits>::Type THit;
 
-    THit hit;// = { 0, 0, 0 };
-    hit.range = range(textIterator(finder));
-    hit.seedId = finder._patternIt;
-    hit.errors = getScore(finder);
+    // TODO(esiragusa): implement getScore(finder) for multiple finder.
+    THit hit = { range(textIterator(finder)), finder._patternIt, 1 };
 
     // TODO(esiragusa): atomic append.
     appendValue(manager.hits, hit);
@@ -316,7 +308,17 @@ getHitRange(THits const & hits, THitId hitId)
 
 template <typename THits, typename TSeedId>
 inline Pair<typename Id<typename Value<THits>::Type>::Type>
-getHitIds(THits const & /* hits */, TSeedId seedId)
+getHitIds(THits const & hits, TSeedId seedId)
+{
+    typedef typename Value<THits>::Type THit;
+    typedef typename Spec<THit>::Type   THitSpec;
+
+    return _getHitIds(hits, seedId, THitSpec());
+}
+
+template <typename THits, typename TSeedId>
+inline Pair<typename Id<typename Value<THits>::Type>::Type>
+_getHitIds(THits const & /* hits */, TSeedId seedId, Exact)
 {
     typedef typename Value<THits>::Type THit;
     typedef typename Id<THit>::Type     THitId;
@@ -325,15 +327,48 @@ getHitIds(THits const & /* hits */, TSeedId seedId)
     return THitIds(seedId, seedId + 1);
 }
 
-//template <typename TSize, typename TSpec, typename TSeedId>
-//inline typename Hits<TSize, TSpec>::THitIds
-//getHitIds(Hits<TSize, TSpec> const & /* hits */, TSeedId seedId)
-//{
-//    typedef Hits<TSize, TSpec> const    THits;
-//    typedef typename THits::THitIds     THitIds;
-//
-//    return THitIds(seedId, seedId + 1);
-//}
+template <typename THits, typename TSeedId>
+inline Pair<typename Id<typename Value<THits>::Type>::Type>
+_getHitIds(THits const & hits, TSeedId seedId, HammingDistance)
+{
+    typedef typename Value<THits>::Type                     THit;
+    typedef typename Id<THit>::Type                         THitId;
+    typedef Pair<THitId>                                    THitIds;
+    typedef typename Iterator<THits const, Standard>::Type  THitsIterator;
+
+    THitsIterator hitsBegin = begin(hits, Standard());
+    THitsIterator hitsEnd = end(hits, Standard());
+
+    THit key;
+    key.seedId = seedId;
+
+    THitsIterator firstHit = std::lower_bound(hitsBegin, hitsEnd, key);
+    THitsIterator lastHit = std::upper_bound(hitsBegin, hitsEnd, key);
+
+    return THitIds(position(firstHit, hits), position(lastHit, hits));
+}
+
+// ----------------------------------------------------------------------------
+// Function sortHits()
+// ----------------------------------------------------------------------------
+
+template <typename THits>
+inline void sortHits(THits & hits)
+{
+    typedef typename Value<THits>::Type THit;
+    typedef typename Spec<THit>::Type   THitSpec;
+
+    _sortHits(hits, THitSpec());
+}
+
+template <typename THits>
+inline void _sortHits(THits & /* hits */, Exact) {}
+
+template <typename THits>
+inline void _sortHits(THits & hits, HammingDistance)
+{
+    return std::stable_sort(begin(hits, Standard()), end(hits, Standard()));
+}
 
 // ----------------------------------------------------------------------------
 // Function countHits()
