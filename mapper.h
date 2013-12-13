@@ -341,47 +341,42 @@ inline void extendHits(Mapper<TExecSpace, TConfig> & mapper, TReadSeqs & readSeq
 
     TManager anchorsManager(mapper.anchors);
 
-    // TODO(esiragusa): Iterate by seedId
-    TReadId readSeqsCount = getReadSeqsCount(readSeqs);
-    for (TReadId readSeqId = 0; readSeqId < readSeqsCount; ++readSeqId)
+    THitId hitsCount = length(mapper.hits);
+
+    for (THitId hitId = 0; hitId < hitsCount; ++hitId)
     {
+        // Extract hit info.
+        TSeedId seedId = getSeedId(mapper.hits, hitId);
+        THitRange hitRange = getRange(mapper.hits, hitId);
+        THitErrors hitErrors = getErrors(mapper.hits, hitId);
+
+        // Get read.
+        TReadId readSeqId = getReadSeqId(mapper.seeder, seedId);
         TReadSeq readSeq = readSeqs[readSeqId];
 
         // Fill readSeqId.
         anchorsManager.prototype.readId = readSeqId;
 
-        TSeedIds seedIds = getSeedIds(mapper.seeder, readSeqId);
-        for (TSeedId seedId = getValueI1(seedIds); seedId < getValueI2(seedIds); ++seedId)
+        // Get position in read.
+        TReadPos readPos = getPosInRead(mapper.seeder, seedId);
+        TReadSeqSize seedLength = getValueI2(readPos) - getValueI1(readPos);
+
+        for (TSAPos saPos = getValueI1(hitRange); saPos < getValueI2(hitRange); ++saPos)
         {
-            // Get position in read.
-            TReadPos readPos = getPosInRead(mapper.seeder, seedId);
-            TReadSeqSize seedLength = getValueI2(readPos) - getValueI1(readPos);
+            // Invert SA value.
+            TSAValue saValue = sa[saPos];
+            setSeqOffset(saValue, suffixLength(saValue, contigs(mapper.genome)) - seedLength);
 
-            // TODO(esiragusa): iterate over all hits of the seed.
-            THitIds hitIds = getHitIds(mapper.hits, seedId);
-            for (THitId hitId = getValueI1(hitIds); hitId < getValueI2(hitIds); ++hitId)
-            {
-                THitRange hitRange = getHitRange(mapper.hits, hitId);
-                THitErrors hitErrors = getHitErrors(mapper.hits, hitId);
+            // Compute position in contig.
+            TContigsPos contigBegin = saValue;
+            TContigsPos contigEnd = posAdd(contigBegin, seedLength);
 
-                for (TSAPos saPos = getValueI1(hitRange); saPos < getValueI2(hitRange); ++saPos)
-                {
-                    // Invert SA value.
-                    TSAValue saValue = sa[saPos];
-                    setSeqOffset(saValue, suffixLength(saValue, contigs(mapper.genome)) - seedLength);
-
-                    // Compute position in contig.
-                    TContigsPos contigBegin = saValue;
-                    TContigsPos contigEnd = posAdd(contigBegin, seedLength);
-
-                    extend(mapper.extender,
-                           readSeq,
-                           contigBegin, contigEnd,
-                           readPos.i1, readPos.i2,
-                           hitErrors, mapper.options.errorRate,
-                           anchorsManager);
-                }
-            }
+            extend(mapper.extender,
+                   readSeq,
+                   contigBegin, contigEnd,
+                   readPos.i1, readPos.i2,
+                   hitErrors, mapper.options.errorRate,
+                   anchorsManager);
         }
     }
 }
