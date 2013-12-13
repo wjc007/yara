@@ -247,57 +247,37 @@ inline void filterHits(Mapper<TExecSpace, TConfig> & mapper, TReadSeqs & readSeq
     typedef typename Size<THit>::Type                   THitSize;
     typedef typename Size<TReadSeqs>::Type              TReadId;
 
-    TReadId pairsCount = getPairsCount(readSeqs);
+    TReadId readsCount = getReadsCount(readSeqs);
 
-    // TODO(esiragusa): Iterate by pairFwdId / pairRevId
-    for (TReadId pairId = 0; pairId < pairsCount; ++pairId)
+    for (TReadId readSeqId = 0; readSeqId < readsCount; ++readSeqId)
     {
-        // Get mates ids.
-        TReadId firstMateFwdSeqId = getFirstMateFwdSeqId(readSeqs, pairId);
-        TReadId secondMateFwdSeqId = getSecondMateFwdSeqId(readSeqs, pairId);
-        TReadId firstMateRevSeqId = getFirstMateRevSeqId(readSeqs, pairId);
-        TReadId secondMateRevSeqId = getSecondMateRevSeqId(readSeqs, pairId);
+        // Get mate id.
+        TReadId mateSeqId = getMateSeqId(readSeqs, readSeqId);
 
         // Get seed ids.
-        TSeedIds firstMateFwdSeedIds = getSeedIds(mapper.seeder, firstMateFwdSeqId);
-        TSeedIds secondMateFwdSeedIds = getSeedIds(mapper.seeder, secondMateFwdSeqId);
-        TSeedIds firstMateRevSeedIds = getSeedIds(mapper.seeder, firstMateRevSeqId);
-        TSeedIds secondMateRevSeedIds = getSeedIds(mapper.seeder, secondMateRevSeqId);
+        TSeedIds readSeedIds = getSeedIds(mapper.seeder, readSeqId);
+        TSeedIds mateSeedIds = getSeedIds(mapper.seeder, mateSeqId);
 
         // Get hit ids.
-        THitIds firstMateFwdHitIds = getHitIds(mapper.hits, firstMateFwdSeedIds);
-        THitIds secondMateFwdHitIds = getHitIds(mapper.hits, secondMateFwdSeedIds);
-        THitIds firstMateRevHitIds = getHitIds(mapper.hits, firstMateRevSeedIds);
-        THitIds secondMateRevHitIds = getHitIds(mapper.hits, secondMateRevSeedIds);
+        THitIds readHitIds = getHitIds(mapper.hits, readSeedIds);
+        THitIds mateHitIds = getHitIds(mapper.hits, mateSeedIds);
 
         // Count the hits of each read.
-        THitSize firstMateFwdHits = countHits<THitSize>(mapper.hits, firstMateFwdHitIds);
-        THitSize secondMateFwdHits = countHits<THitSize>(mapper.hits, secondMateFwdHitIds);
-        THitSize firstMateRevHits = countHits<THitSize>(mapper.hits, firstMateRevHitIds);
-        THitSize secondMateRevHits = countHits<THitSize>(mapper.hits, secondMateRevHitIds);
+        THitSize readHits = countHits<THitSize>(mapper.hits, readHitIds);
+        THitSize mateHits = countHits<THitSize>(mapper.hits, mateHitIds);
 
         // Choose the easiest read as the anchor.
-        THitSize firstFwdSecondRevHits = std::min(firstMateFwdHits, secondMateRevHits);
-        THitSize secondFwdFirstRevHits = std::min(secondMateFwdHits, firstMateRevHits);
+        THitSize anchorHits = std::min(readHits, mateHits);
 
-        // Clear the hits of the mates.
-        THitIds mateFirstFwdSecondRevHitIds = (firstFwdSecondRevHits == firstMateFwdHits) ? secondMateRevHitIds : firstMateFwdHitIds;
-        THitIds mateSecondFwdFirstRevHitIds = (secondFwdFirstRevHits == secondMateFwdHits) ? firstMateRevHitIds : secondMateFwdHitIds;
-        clearHits(mapper.hits, mateFirstFwdSecondRevHitIds);
-        clearHits(mapper.hits, mateSecondFwdFirstRevHitIds);
+        // Clear the hits of the hardest.
+        THitIds otherHitIds = (anchorHits == readHits) ? mateHitIds : readHitIds;
+        clearHits(mapper.hits, otherHitIds);
 
-        // Clear the hits of the anchor and skip the pair.
-        if (firstFwdSecondRevHits > mapper.options.hitsThreshold)
+        // Clear also the hits of the anchor and skip the pair.
+        if (anchorHits > mapper.options.hitsThreshold)
         {
-            THitIds anchorFirstFwdSecondRevHitIds = (firstFwdSecondRevHits == firstMateFwdHits) ? firstMateFwdHitIds : secondMateRevHitIds;
-            clearHits(mapper.hits, anchorFirstFwdSecondRevHitIds);
-        }
-
-        // Clear the hits of the anchor and skip the pair.
-        if (secondFwdFirstRevHits > mapper.options.hitsThreshold)
-        {
-            THitIds anchorSecondFwdFirstRevHitIds = (secondFwdFirstRevHits == secondMateFwdHits) ? secondMateFwdHitIds : firstMateRevHitIds;
-            clearHits(mapper.hits, anchorSecondFwdFirstRevHitIds);
+            THitIds anchorHitIds = (anchorHits == readHits) ? readHitIds : mateHitIds;
+            clearHits(mapper.hits, anchorHitIds);
         }
     }
 }
@@ -313,9 +293,7 @@ inline void extendHits(Mapper<TExecSpace, TConfig> & mapper, TReadSeqs & readSeq
     typedef typename TMapper::TSeeder                   TSeeder;
 
     typedef typename TMapper::TContigs                  TContigs;
-    typedef typename TMapper::TContig                   TContig;
     typedef typename Size<TContigs>::Type               TContigId;
-    typedef typename Size<TContig>::Type                TContigPos;
     typedef typename TMapper::TContigsPos               TContigsPos;
 
     typedef typename TMapper::TReadSeq                  TReadSeq;
@@ -323,12 +301,10 @@ inline void extendHits(Mapper<TExecSpace, TConfig> & mapper, TReadSeqs & readSeq
     typedef typename TSeeder::TReadPos                  TReadPos;
     typedef typename TSeeder::TReadSeqSize              TReadSeqSize;
 
-    typedef typename TSeeder::TSeedIds                  TSeedIds;
     typedef typename TSeeder::TSeedId                   TSeedId;
 
     typedef typename TMapper::THit                      THit;
     typedef typename Id<THit>::Type                     THitId;
-    typedef Pair<THitId>                                THitIds;
     typedef typename Position<THit>::Type               THitRange;
     typedef unsigned char                               THitErrors;
 
