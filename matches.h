@@ -40,6 +40,16 @@
 using namespace seqan;
 
 // ============================================================================
+// Forwards
+// ============================================================================
+
+template <typename THaystack, typename TNeedle, typename TSpec>
+struct Extender;
+
+template <typename THaystack, typename TNeedle, typename TSpec>
+struct Verifier;
+
+// ============================================================================
 // Classes
 // ============================================================================
 
@@ -139,9 +149,75 @@ struct MatchesCounter<TReadSeqs, PairedEnd>
     }
 };
 
+// ----------------------------------------------------------------------------
+// Class MatchesManager
+// ----------------------------------------------------------------------------
+
+template <typename TMatches, typename TConfig = void>
+struct MatchesManager
+{
+    typedef typename Value<TMatches>::Type  TMatch;
+
+    TMatches & matches;
+    TMatch prototype;
+
+    MatchesManager(TMatches & matches) :
+        matches(matches),
+        prototype()
+    {}
+
+    template <typename THaystackPos, typename TErrors>
+    void operator() (THaystackPos matchBegin, THaystackPos matchEnd, TErrors errors)
+    {
+        SEQAN_ASSERT_EQ(getValueI1(matchBegin), getValueI1(matchEnd));
+
+        prototype.contigId = getValueI1(matchBegin);
+        prototype.contigBegin = getValueI2(matchBegin);
+        prototype.contigEnd = getValueI2(matchEnd);
+        prototype.errors = errors;
+        appendValue(matches, prototype);
+    }
+
+//    template <typename THaystack, typename TNeedle, typename TSpec>
+//    void operator() (Extender<THaystack, TNeedle, TSpec> const & extender)
+//    {
+//        SEQAN_ASSERT_EQ(getValueI1(extender.matchBegin), getValueI1(extender.matchEnd));
+//
+//        prototype.contigBegin = getValueI2(extender.matchBegin);
+//        prototype.contigEnd = getValueI2(extender.matchEnd);
+//        prototype.errors = extender.errors;
+//        appendValue(matches, prototype);
+//    }
+
+//    template <typename THaystack, typename TNeedle, typename TSpec>
+//    void operator() (Verifier<THaystack, TNeedle, TSpec> const & verifier)
+//    {
+//        appendValue(matches, prototype);
+//    }
+};
+
 // ============================================================================
 // Functions
 // ============================================================================
+
+// ----------------------------------------------------------------------------
+// Function fill()
+// ----------------------------------------------------------------------------
+
+template <typename TSpec, typename TReadId, typename TContigId, typename TContigPos, typename TErrors>
+inline void fill(Match<TSpec> & match,
+                 TReadId readId,
+                 TContigId contigId,
+                 TContigPos contigBegin,
+                 TContigPos contigEnd,
+                 TErrors errors)
+{
+    match.readId = readId;
+    match.contigBegin = contigBegin;
+    match.contigEnd = contigEnd;
+    match.contigId = contigId;
+    match.errors = errors;
+}
 
 // ----------------------------------------------------------------------------
 // Function isDuplicateBegin()
