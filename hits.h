@@ -310,40 +310,49 @@ template <typename THits, typename TSeedId>
 inline Pair<typename Id<typename Value<THits>::Type>::Type>
 getHitIds(THits const & hits, TSeedId seedId)
 {
-    typedef typename Value<THits>::Type THit;
-    typedef typename Spec<THit>::Type   THitSpec;
-
-    return _getHitIds(hits, seedId, THitSpec());
+    return getHitIds(hits, Pair<TSeedId>(seedId, seedId));
 }
 
 template <typename THits, typename TSeedId>
 inline Pair<typename Id<typename Value<THits>::Type>::Type>
-_getHitIds(THits const & /* hits */, TSeedId seedId, Exact)
+getHitIds(THits const & hits, Pair<TSeedId> seedIds)
+{
+    typedef typename Value<THits>::Type THit;
+    typedef typename Spec<THit>::Type   THitSpec;
+
+    return _getHitIds(hits, seedIds, THitSpec());
+}
+
+template <typename THits, typename TSeedId>
+inline Pair<typename Id<typename Value<THits>::Type>::Type>
+_getHitIds(THits const & /* hits */, Pair<TSeedId> seedIds, Exact)
 {
     typedef typename Value<THits>::Type THit;
     typedef typename Id<THit>::Type     THitId;
     typedef Pair<THitId>                THitIds;
 
-    return THitIds(seedId, seedId + 1);
+    return THitIds(getValueI1(seedIds), getValueI2(seedIds) + 1);
 }
 
 template <typename THits, typename TSeedId>
 inline Pair<typename Id<typename Value<THits>::Type>::Type>
-_getHitIds(THits const & hits, TSeedId seedId, HammingDistance)
+_getHitIds(THits const & hits, Pair<TSeedId> seedIds, HammingDistance)
 {
     typedef typename Value<THits>::Type                     THit;
     typedef typename Id<THit>::Type                         THitId;
     typedef Pair<THitId>                                    THitIds;
     typedef typename Iterator<THits const, Standard>::Type  THitsIterator;
 
+    THit firstSeedHit;
+    THit lastSeedHit;
+    firstSeedHit.seedId = getValueI1(seedIds);
+    lastSeedHit.seedId = getValueI2(seedIds);
+
     THitsIterator hitsBegin = begin(hits, Standard());
     THitsIterator hitsEnd = end(hits, Standard());
 
-    THit key;
-    key.seedId = seedId;
-
-    THitsIterator firstHit = std::lower_bound(hitsBegin, hitsEnd, key);
-    THitsIterator lastHit = std::upper_bound(hitsBegin, hitsEnd, key);
+    THitsIterator firstHit = std::lower_bound(hitsBegin, hitsEnd, firstSeedHit);
+    THitsIterator lastHit = std::upper_bound(hitsBegin, hitsEnd, lastSeedHit);
 
     return THitIds(position(firstHit, hits), position(lastHit, hits));
 }
