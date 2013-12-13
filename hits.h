@@ -178,39 +178,31 @@ inline bool operator< (Hit<TSize, TSpec> const & a, Hit<TSize, TSpec> const & b)
 }
 
 // ----------------------------------------------------------------------------
-// Function clear()
+// Function clearHitRange()
 // ----------------------------------------------------------------------------
 
-template <typename TSize>
-inline void clear(Hit<TSize, Exact> & hit)
+template <typename THit>
+inline THit clearHitRange(THit hit)
 {
     setValueI1(hit.range, 0);
     setValueI2(hit.range, 0);
-}
-
-template <typename TSize>
-inline void clear(Hit<TSize, HammingDistance> & hit)
-{
-    setValueI1(hit.range, 0);
-    setValueI2(hit.range, 0);
-    hit.seedId = 0;
-    hit.errors = 0;
+    return hit;
 }
 
 // ----------------------------------------------------------------------------
-// Function getErrors()
+// Function getHitErrors()
 // ----------------------------------------------------------------------------
 
 template <typename TSize, typename TSpec>
 inline unsigned char
-getErrors(Hit<TSize, TSpec> const & /* hit */)
+getHitErrors(Hit<TSize, TSpec> const & /* hit */)
 {
     return 0;
 }
 
 template <typename TSize>
 inline unsigned char
-getErrors(Hit<TSize, HammingDistance> const & hit)
+getHitErrors(Hit<TSize, HammingDistance> const & hit)
 {
     return hit.errors;
 }
@@ -288,7 +280,7 @@ template <typename THits, typename THitId>
 inline unsigned char
 getHitErrors(THits const & hits, THitId hitId)
 {
-    return getErrors(hits[hitId]);
+    return getHitErrors(hits[hitId]);
 }
 
 // ----------------------------------------------------------------------------
@@ -310,7 +302,7 @@ template <typename THits, typename TSeedId>
 inline Pair<typename Id<typename Value<THits>::Type>::Type>
 getHitIds(THits const & hits, TSeedId seedId)
 {
-    return getHitIds(hits, Pair<TSeedId>(seedId, seedId));
+    return getHitIds(hits, Pair<TSeedId>(seedId, seedId + 1));
 }
 
 template <typename THits, typename TSeedId>
@@ -327,11 +319,7 @@ template <typename THits, typename TSeedId>
 inline Pair<typename Id<typename Value<THits>::Type>::Type>
 _getHitIds(THits const & /* hits */, Pair<TSeedId> seedIds, Exact)
 {
-    typedef typename Value<THits>::Type THit;
-    typedef typename Id<THit>::Type     THitId;
-    typedef Pair<THitId>                THitIds;
-
-    return THitIds(getValueI1(seedIds), getValueI2(seedIds) + 1);
+    return seedIds;
 }
 
 template <typename THits, typename TSeedId>
@@ -346,7 +334,7 @@ _getHitIds(THits const & hits, Pair<TSeedId> seedIds, HammingDistance)
     THit firstSeedHit;
     THit lastSeedHit;
     firstSeedHit.seedId = getValueI1(seedIds);
-    lastSeedHit.seedId = getValueI2(seedIds);
+    lastSeedHit.seedId = getValueI2(seedIds) - 1;
 
     THitsIterator hitsBegin = begin(hits, Standard());
     THitsIterator hitsEnd = end(hits, Standard());
@@ -412,12 +400,10 @@ inline void clearHits(THits & hits, Pair<THitId> hitIds)
 {
     typedef typename Value<THits>::Type THit;
 
-    THit emptyHit;
-    clear(emptyHit);
-
-    std::fill(begin(hits, Standard()) + getValueI1(hitIds),
-              begin(hits, Standard()) + getValueI2(hitIds),
-              emptyHit);
+    std::transform(begin(hits, Standard()) + getValueI1(hitIds),
+                   begin(hits, Standard()) + getValueI2(hitIds),
+                   begin(hits, Standard()) + getValueI1(hitIds),
+                   clearHitRange<THit>);
 }
 
 #endif  // #ifndef APP_CUDAMAPPER_HITS_H_
