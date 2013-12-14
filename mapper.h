@@ -95,17 +95,22 @@ struct Mapper
     typedef typename Space<THostReadSeqs, TExecSpace>::Type         TReadSeqs;
     typedef typename Value<TReadSeqs>::Type                         TReadSeq;
 
+    typedef SeedSet<TReadSeqs>                                      TSeedSet;
+    typedef typename Value<TSeedSet>::Type                          TSeeds;
+
     typedef Exact                                                   TDistance;
 //    typedef HammingDistance                                         TDistance;
+    typedef typename SeedingAlgorithm<TDistance>::Type              TSeedingAlgorithmSpec;
+    typedef Multiple<TSeedingAlgorithmSpec>                         TSeedingAlgorithm;
+    typedef Pattern<TSeeds, TSeedingAlgorithm>                      TSeedsPattern;
+    typedef Finder2<TIndex, TSeedsPattern, TSeedingAlgorithm>       TSeeder;
+
     typedef typename Size<TIndex>::Type                             TIndexSize;
     typedef Hit<TIndexSize, TDistance>                              THit;
     typedef String<THit>                                            THits;
 
     typedef Match<void>                                             TMatch;
     typedef String<TMatch>                                          TMatches;
-
-    typedef SeederConfig<Options, TIndex, TReadSeqs, TDistance>     TSeederConfig;
-    typedef Seeder<TExecSpace, TSeederConfig>                       TSeeder;
 
     typedef AlignTextBanded<FindPrefix, NMatchesNone_, NMatchesNone_> TMyersSpec;
     typedef Myers<TMyersSpec, True, void>                           TExtenderAlgorithm;
@@ -147,7 +152,10 @@ struct Mapper
         extender(contigs(genome)),
         verifier(contigs(genome))
 //        writer(options, genome)
-    {};
+    {
+        // Set the error threshold.
+    //    setScoreThreshold(seeder, errorsPerSeed);
+    };
 };
 
 // ============================================================================
@@ -229,6 +237,38 @@ void loadReads(Mapper<TExecSpace, TConfig> & mapper)
     std::cout << mapper.timer << std::endl;
 
     std::cout << "Reads count:\t\t\t" << mapper.reads.readsCount << std::endl;
+}
+
+
+// ----------------------------------------------------------------------------
+// Function findSeeds()
+// ----------------------------------------------------------------------------
+
+template <typename TExecSpace, typename TConfig>
+inline void findSeeds(Mapper<TExecSpace, TConfig> & mapper)
+{
+    typedef Mapper<TExecSpace, TConfig>                 TMapper;
+    typedef typename TMapper::THits                     THits;
+    typedef typename TMapper::TSeedsPattern             TSeedsPattern;
+
+    HitsManager<THits> manager(mapper.hits);
+
+#ifdef PLATFORM_CUDA
+    cudaPrintFreeMemory();
+#endif
+
+    // Instantiate a pattern object.
+    TSeedsPattern pattern(mapper.seeds);
+
+    // Initialize the delegate.
+    init(manager, pattern);
+
+    // Find hits.
+    find(mapper.seeder, pattern, manager);
+
+#ifdef PLATFORM_CUDA
+    cudaPrintFreeMemory();
+#endif
 }
 
 // ----------------------------------------------------------------------------
