@@ -165,7 +165,7 @@ getSeedIds(StringSet<THost, Segment<TSpec> > const & seeds, TReadId readId)
     TPos pos(readId, 0);
 
     TPositionsIter seedsBegin = std::lower_bound(posBegin, posEnd, TPos(readId, 0));
-    TPositionsIter seedsEnd = std::lower_bound(posBegin, posEnd, TPos(readId + 1, 0)) + 1;
+    TPositionsIter seedsEnd = std::lower_bound(posBegin, posEnd, TPos(readId + 1, 0));
 
     return Pair<TId>(position(seedsBegin, seeds.positions), position(seedsEnd, seeds.positions));
 }
