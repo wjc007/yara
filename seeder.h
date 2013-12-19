@@ -38,100 +38,102 @@
 using namespace seqan;
 
 // ============================================================================
-// Functions
+// Classes
 // ============================================================================
 
 // ----------------------------------------------------------------------------
-// Kernel _fillSeedsKernel()
+// Class SeedsCounter
 // ----------------------------------------------------------------------------
 
-//#ifdef PLATFORM_CUDA
-//template <typename TSeeds, typename TString, typename TSize>
-//SEQAN_GLOBAL void
-//_fillSeedsKernel(TSeeds seeds, TString readSeqs, TSize readSeqsCount, TSize seedsPerReadSeq, TSize seedLength)
-//{
-//    typedef typename Value<TString>::Type                 TReadSeq;
-//
-//    TSize readSeqId = getThreadId();
-//
-//    if (readSeqId >= readSeqsCount) return;
-//
-//    TReadSeq const & readSeq = readSeqs[readSeqId];
-//
-//    for (TSize seedId = 0; seedId < seedsPerReadSeq; ++seedId)
-//        seeds[readSeqId * seedsPerReadSeq + seedId] = infix(readSeq, seedId * seedLength, (seedId + 1) * seedLength);
-//}
-//#endif
+template <typename TSize, typename TSpec = void>
+struct SeedsCounter
+{
+    String<TSize> seedsPerRead;
+
+    template <typename TCount>
+    SeedsCounter(TCount readsCount)
+    {
+        resize(seedsPerRead, readsCount, 0, Exact());
+    }
+
+    template <typename TPos, typename TLength>
+    void operator() (TPos pos, TLength /* length */)
+    {
+        seedsPerRead[getSeqNo(pos)]++;
+    }
+};
 
 // ----------------------------------------------------------------------------
-// Function _fillSeeds(); ExecDevice
+// Class SeedsManager
 // ----------------------------------------------------------------------------
 
-//#ifdef PLATFORM_CUDA
-//template <typename TConfig, typename TString, typename TSize>
-//inline void _fillSeeds(StringSet<TString, TSpec> & seeds, TString & readSeqs,
-//                       TSize readSeqsCount, TSize seedsPerReadSeq, TSize seedLength)
-//{
-//    // Compute grid size.
-//    unsigned ctaSize = 256;
-//    unsigned activeBlocks = (readSeqsCount + ctaSize - 1) / ctaSize;
-//
-//    _fillSeedsKernel<<<activeBlocks, ctaSize>>>(view(seeds.seeds), view(readSeqs),
-//                                                readSeqsCount, seedsPerReadSeq, seedLength);
-//}
-//#endif
+template <typename TSeeds, typename TSeedsCount, typename TSpec = void>
+struct SeedsManager
+{
+    TSeeds & seeds;
+    TSeedsCount & seedsPerRead;
 
-// ----------------------------------------------------------------------------
-// Function _fillSeeds(); ExecHost
-// ----------------------------------------------------------------------------
+    SeedsManager(TSeeds & seeds, TSeedsCount & seedsPerRead) :
+        seeds(seeds),
+        seedsPerRead(seedsPerRead)
+    {
+        std::partial_sum(begin(seedsPerRead, Standard()), end(seedsPerRead, Standard()), begin(seedsPerRead, Standard()));
 
-//template <typename TConfig, typename TString, typename TSize>
-//inline void _fillSeeds(StringSet<ExecHost, TConfig> & seeds, TString & readSeqs,
-//                       TSize readSeqsCount, TSize seedsPerReadSeq, TSize seedLength)
-//{
-//    typedef typename Value<TString>::Type                 TReadSeq;
-//    typedef typename Infix<TString>::Type                 TReadSeqInfix;
-//
-//    for (TSize readSeqId = 0; readSeqId != readSeqsCount; ++readSeqId)
-//    {
-//        TReadSeq const & readSeq = readSeqs[readSeqId];
-//
-//        for (TSize seedId = 0; seedId < seedsPerReadSeq; ++seedId)
-//        {
-//            TReadSeqInfix seedInfix = infix(readSeq, seedId * seedLength, (seedId + 1) * seedLength);
-//
-//            seeds.seeds[readSeqId * seedsPerReadSeq + seedId] = view(seedInfix);
-//        }
-//    }
-//}
+        // Resize space for seeds.
+        clear(seeds);
+        resize(seeds, back(seedsPerRead), Exact());
+    }
+
+    template <typename TPos, typename TLength>
+    void operator() (TPos pos, TLength length)
+    {
+        assignInfixWithLength(seeds, --seedsPerRead[getSeqNo(pos)], pos, length);
+    }
+};
+
+// ============================================================================
+// Functions
+// ============================================================================
 
 // ----------------------------------------------------------------------------
 // Function selectSeeds()
 // ----------------------------------------------------------------------------
 
-template <typename THost, typename TSpec>
-inline void selectSeeds(StringSet<THost, Segment<TSpec> > & seeds, THost & readSeqs)
+template <typename TReadSeqs, typename TReadSeqId, typename TDelegate>
+inline void selectSeeds(TReadSeqs const & readSeqs, TReadSeqId readSeqId, TDelegate & delegate)
 {
-    typedef typename Id<THost>::Type                   TId;
-    typedef typename StringSetPosition<THost>::Type    TPos;
-    typedef typename Value<THost>::Type                TString;
-    typedef typename Size<TString>::Type                    TSize;
+    typedef typename StringSetPosition<TReadSeqs>::Type     TPos;
+    typedef typename Value<TReadSeqs>::Type                 TReadSeq;
+    typedef typename Size<TReadSeq>::Type                   TSize;
 
-    TId readsCount = length(readSeqs);
-    TSize readsLength = length(front(readSeqs));
+    TSize readLength = length(readSeqs[readSeqId]);
 //    TSize errorsPerRead = std::ceil(readsLength * (options.errorRate / 100.0));
     TSize seedsPerRead = 6;//errorsPerRead + 1;
-    TSize seedsLength = readsLength / seedsPerRead;
+    TSize seedsLength = readLength / seedsPerRead;
 
-    // Resize space for seeds.
-    clear(seeds);
-    reserve(seeds, readsCount * seedsPerRead, Exact());
+    for (TSize seedId = 0; seedId < seedsPerRead; ++seedId)
+        delegate(TPos(readSeqId, seedId * seedsLength), seedsLength);
+}
 
+template <typename TReadSeqs, typename TSpec>
+inline void selectSeeds(StringSet<TReadSeqs, Segment<TSpec> > & seeds, TReadSeqs & readSeqs)
+{
+    typedef StringSet<TReadSeqs, Segment<TSpec> >       TSeeds;
+    typedef typename Value<TReadSeqs>::Type             TReadSeq;
+    typedef typename Id<TReadSeqs>::Type                TId;
+    typedef typename Size<TReadSeq>::Type               TSize;
+    typedef SeedsCounter<TSize>                         TCounter;
+    typedef SeedsManager<TSeeds, String<TSize> >        TManager;
+
+    TId readsCount = length(readSeqs);
+
+    TCounter counter(readsCount);
     for (TId readSeqId = 0; readSeqId < readsCount; ++readSeqId)
-        for (TSize seedId = 0; seedId < seedsPerRead; ++seedId)
-            appendInfixWithLength(seeds, TPos(readSeqId, seedId * seedsLength), seedsLength, Exact());
+        selectSeeds(readSeqs, readSeqId, counter);
 
-//    _fillSeeds(seeds, readSeqs, readsCount, seedsPerRead, seedsLength);
+    TManager manager(seeds, counter.seedsPerRead);
+    for (TId readSeqId = 0; readSeqId < readsCount; ++readSeqId)
+        selectSeeds(readSeqs, readSeqId, manager);
 }
 
 // --------------------------------------------------------------------------
