@@ -81,17 +81,19 @@ struct SeedsManager
 
         // Resize space for seeds.
         clear(seeds);
-//        resize(seeds, back(seedsPerRead), Exact());
-        reserve(seeds, back(seedsPerRead), Exact());
+        resize(seeds, back(seedsPerRead), Exact());
     }
 
     template <typename TPos, typename TLength>
     void operator() (TPos pos, TLength len)
     {
-        appendInfixWithLength(seeds, pos, len, Exact());
         --seedsPerRead[getSeqNo(pos)];
-//        assignInfixWithLength(seeds, seedsPerRead[getSeqNo(pos)], pos, length);
-        SEQAN_ASSERT_EQ(length(seeds), seedsPerRead[getSeqNo(pos)]);
+        assignInfixWithLength(seeds, seedsPerRead[getSeqNo(pos)], pos, len);
+    }
+
+    ~SeedsManager()
+    {
+        _refreshStringSetLimits(seeds);
     }
 };
 
