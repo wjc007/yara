@@ -38,91 +38,62 @@
 using namespace seqan;
 
 // ============================================================================
-// Metafunctions
-// ============================================================================
-
-// ----------------------------------------------------------------------------
-// Metafunction Seed
-// ----------------------------------------------------------------------------
-
-template <typename TNeedles, typename TSpec = void>
-struct Seed
-{
-    typedef typename Value<TNeedles>::Type  TNeedle_;
-    typedef typename View<TNeedle_>::Type   Type;
-};
-
-// ============================================================================
 // Classes
 // ============================================================================
 
 // ----------------------------------------------------------------------------
-// Class SeederConfig
+// Class SeedsCounter
 // ----------------------------------------------------------------------------
 
-template <typename TOptions_, typename TIndex_, typename TReadSeqs_, typename TDistance_>
-struct SeederConfig
+template <typename TSize, typename TSpec = void>
+struct SeedsCounter
 {
-    typedef TOptions_    TOptions;
-    typedef TIndex_      TIndex;
-    typedef TReadSeqs_   TReadSeqs;
-    typedef TDistance_   TDistance;
+    String<TSize> seedsPerRead;
+
+    template <typename TCount>
+    SeedsCounter(TCount readsCount)
+    {
+        resize(seedsPerRead, readsCount, 0, Exact());
+    }
+
+    template <typename TPos, typename TLength>
+    void operator() (TPos pos, TLength /* length */)
+    {
+        seedsPerRead[getSeqNo(pos)]++;
+    }
 };
 
 // ----------------------------------------------------------------------------
-// Class Seeder
+// Class SeedsManager
 // ----------------------------------------------------------------------------
 
-template <typename TExecSpace, typename TConfig>
-struct Seeder
+template <typename TSeeds, typename TSeedsCount, typename TSpec = void>
+struct SeedsManager
 {
-    typedef typename TConfig::TOptions                      TOptions;
-    typedef typename TConfig::TIndex                        TIndex;
-    typedef typename TConfig::TReadSeqs                     TReadSeqs;
-    typedef typename TConfig::TDistance                     TDistance;
+    TSeeds & seeds;
+    TSeedsCount & seedsPerRead;
 
-    typedef String<typename Seed<TReadSeqs>::Type>          THostSeeds;
-    typedef typename Space<THostSeeds, TExecSpace>::Type    TSeeds;
-    typedef typename Size<TSeeds>::Type                     TSeedId;
-    typedef Pair<TSeedId>                                   TSeedIds;
-
-    typedef typename Size<TReadSeqs>::Type                  TReadSeqId;
-    typedef typename Value<TReadSeqs>::Type                 TReadSeq;
-    typedef typename Size<TReadSeq>::Type                   TReadSeqSize;
-    typedef Pair<TReadSeqSize>                              TReadPos;
-
-    typedef typename If<IsSameType<TDistance, Exact>,
-                        FinderSTree,
-                        Backtracking<HammingDistance>
-                       >::Type                              TAlgorithmSpec;
-    typedef Multiple<TAlgorithmSpec>                        TAlgorithm;
-    typedef Pattern<TSeeds, TAlgorithm>                     TPattern;
-    typedef Finder2<TIndex, TPattern, TAlgorithm>           TFinder;
-
-    TOptions const &    options;
-    TFinder             finder;
-    TSeeds              seeds;
-    TReadSeqSize        errorsPerSeed;
-
-    TSeedId             readsCount;
-    TReadSeqSize        readsLength;
-    TReadSeqSize        seedsLength;
-    TReadSeqSize        seedsPerRead;
-    TReadSeqSize        errorsPerRead;
-
-    template <typename TErrors>
-    Seeder(TOptions const & options, TIndex & index, TErrors errorsPerSeed) :
-        options(options),
-        finder(index),
-        errorsPerSeed(errorsPerSeed),
-        readsCount(0),
-        readsLength(0),
-        seedsLength(0),
-        seedsPerRead(0),
-        errorsPerRead(0)
+    SeedsManager(TSeeds & seeds, TSeedsCount & seedsPerRead) :
+        seeds(seeds),
+        seedsPerRead(seedsPerRead)
     {
-        // Set the error threshold.
-    //    setScoreThreshold(finder, errorsPerSeed);
+        std::partial_sum(begin(seedsPerRead, Standard()), end(seedsPerRead, Standard()), begin(seedsPerRead, Standard()));
+
+        // Resize space for seeds.
+        clear(seeds);
+        resize(seeds, back(seedsPerRead), Exact());
+    }
+
+    template <typename TPos, typename TLength>
+    void operator() (TPos pos, TLength len)
+    {
+        --seedsPerRead[getSeqNo(pos)];
+        assignInfixWithLength(seeds, seedsPerRead[getSeqNo(pos)], pos, len);
+    }
+
+    ~SeedsManager()
+    {
+        _refreshStringSetLimits(seeds);
     }
 };
 
@@ -131,169 +102,107 @@ struct Seeder
 // ============================================================================
 
 // ----------------------------------------------------------------------------
-// Kernel _fillSeedsKernel()
+// Function selectSeeds()
 // ----------------------------------------------------------------------------
 
-#ifdef PLATFORM_CUDA
-template <typename TSeeds, typename TReadSeqs, typename TSize>
-SEQAN_GLOBAL void
-_fillSeedsKernel(TSeeds seeds, TReadSeqs readSeqs, TSize readSeqsCount, TSize seedsPerReadSeq, TSize seedLength)
+template <typename TReadSeqs, typename TReadSeqId, typename TDelegate>
+inline void selectSeeds(TReadSeqs const & readSeqs, TReadSeqId readSeqId, TDelegate & delegate)
 {
+    typedef typename StringSetPosition<TReadSeqs>::Type     TPos;
     typedef typename Value<TReadSeqs>::Type                 TReadSeq;
+    typedef typename Size<TReadSeq>::Type                   TSize;
 
-    TSize readSeqId = getThreadId();
+    TSize readLength = length(readSeqs[readSeqId]);
+//    TSize errorsPerRead = std::ceil(readsLength * (options.errorRate / 100.0));
+    TSize seedsPerRead = 6;//errorsPerRead + 1;
+    TSize seedsLength = readLength / seedsPerRead;
 
-    if (readSeqId >= readSeqsCount) return;
-
-    TReadSeq const & readSeq = readSeqs[readSeqId];
-
-    for (TSize seedId = 0; seedId < seedsPerReadSeq; ++seedId)
-        seeds[readSeqId * seedsPerReadSeq + seedId] = infix(readSeq, seedId * seedLength, (seedId + 1) * seedLength);
-}
-#endif
-
-// ----------------------------------------------------------------------------
-// Function _fillSeeds(); ExecDevice
-// ----------------------------------------------------------------------------
-
-#ifdef PLATFORM_CUDA
-template <typename TConfig, typename TReadSeqs, typename TSize>
-inline void _fillSeeds(Seeder<ExecDevice, TConfig> & seeder, TReadSeqs & readSeqs,
-                       TSize readSeqsCount, TSize seedsPerReadSeq, TSize seedLength)
-{
-    // Compute grid size.
-    unsigned ctaSize = 256;
-    unsigned activeBlocks = (readSeqsCount + ctaSize - 1) / ctaSize;
-
-    _fillSeedsKernel<<<activeBlocks, ctaSize>>>(view(seeder.seeds), view(readSeqs),
-                                                readSeqsCount, seedsPerReadSeq, seedLength);
-}
-#endif
-
-// ----------------------------------------------------------------------------
-// Function _fillSeeds(); ExecHost
-// ----------------------------------------------------------------------------
-
-template <typename TConfig, typename TReadSeqs, typename TSize>
-inline void _fillSeeds(Seeder<ExecHost, TConfig> & seeder, TReadSeqs & readSeqs,
-                       TSize readSeqsCount, TSize seedsPerReadSeq, TSize seedLength)
-{
-    typedef typename Value<TReadSeqs>::Type                 TReadSeq;
-    typedef typename Infix<TReadSeqs>::Type                 TReadSeqInfix;
-
-    for (TSize readSeqId = 0; readSeqId != readSeqsCount; ++readSeqId)
-    {
-        TReadSeq const & readSeq = readSeqs[readSeqId];
-
-        for (TSize seedId = 0; seedId < seedsPerReadSeq; ++seedId)
-        {
-            TReadSeqInfix seedInfix = infix(readSeq, seedId * seedLength, (seedId + 1) * seedLength);
-
-            seeder.seeds[readSeqId * seedsPerReadSeq + seedId] = view(seedInfix);
-        }
-    }
+    for (TSize seedId = 0; seedId < seedsPerRead; ++seedId)
+        delegate(TPos(readSeqId, seedId * seedsLength), seedsLength);
 }
 
-// ----------------------------------------------------------------------------
-// Function fillSeeds()
-// ----------------------------------------------------------------------------
-
-template <typename TExecSpace, typename TConfig, typename TReadSeqs>
-inline void fillSeeds(Seeder<TExecSpace, TConfig> & seeder, TReadSeqs & readSeqs)
+template <typename TReadSeqs, typename TSpec>
+inline void selectSeeds(StringSet<TReadSeqs, Segment<TSpec> > & seeds, TReadSeqs & readSeqs)
 {
-    seeder.readsCount = length(readSeqs);
-    seeder.readsLength = length(front(readSeqs));
-    seeder.errorsPerRead = std::ceil(seeder.readsLength * (seeder.options.errorRate / 100.0));
-    seeder.seedsPerRead = seeder.errorsPerRead + 1;
-    seeder.seedsLength = seeder.readsLength / seeder.seedsPerRead;
+    typedef StringSet<TReadSeqs, Segment<TSpec> >       TSeeds;
+    typedef typename Value<TReadSeqs>::Type             TReadSeq;
+    typedef typename Id<TReadSeqs>::Type                TId;
+    typedef typename Size<TReadSeq>::Type               TSize;
+    typedef SeedsCounter<TSize>                         TCounter;
+    typedef SeedsManager<TSeeds, String<TSize> >        TManager;
 
-    // Resize space for seeds.
-    clear(seeder.seeds);
-    resize(seeder.seeds, seeder.readsCount * seeder.seedsPerRead, Exact());
+    TId readsCount = length(readSeqs);
 
-    _fillSeeds(seeder, readSeqs, seeder.readsCount, seeder.seedsPerRead, seeder.seedsLength);
+    TCounter counter(readsCount);
+    for (TId readSeqId = 0; readSeqId < readsCount; ++readSeqId)
+        selectSeeds(readSeqs, readSeqId, counter);
+
+    TManager manager(seeds, counter.seedsPerRead);
+    for (TId readSeqId = 0; readSeqId < readsCount; ++readSeqId)
+        selectSeeds(readSeqs, readSeqId, manager);
 }
 
-// ----------------------------------------------------------------------------
-// Function findSeeds()
-// ----------------------------------------------------------------------------
+// --------------------------------------------------------------------------
+// Function getHostPos()
+// --------------------------------------------------------------------------
 
-template <typename TExecSpace, typename TConfig, typename THits>
-inline void findSeeds(Seeder<TExecSpace, TConfig> & seeder, THits & hits)
+template <typename THost, typename TSpec, typename TPos>
+inline typename StringSetPosition<THost>::Type
+getHostPos(StringSet<THost, Segment<TSpec> > const & me, TPos pos)
 {
-    typedef Seeder<TExecSpace, TConfig>     TSeeder;
-    typedef typename TSeeder::TPattern      TPattern;
-
-    HitsManager<THits> manager(hits);
-
-#ifdef PLATFORM_CUDA
-    cudaPrintFreeMemory();
-#endif
-
-    // Instantiate a pattern object.
-    TPattern pattern(seeder.seeds);
-
-    // Initialize the delegate.
-    init(manager, pattern);
-
-    // Find hits.
-    find(seeder.finder, pattern, manager);
-
-#ifdef PLATFORM_CUDA
-    cudaPrintFreeMemory();
-#endif
+    return me.positions[pos];
 }
 
 // ----------------------------------------------------------------------------
 // Function getSeedIds()
 // ----------------------------------------------------------------------------
+// getSeqNosByHostSeqNo(seqNo)
 
-template <typename TExecSpace, typename TConfig, typename TReadId>
-inline typename Seeder<TExecSpace, TConfig>::TSeedIds
-getSeedIds(Seeder<TExecSpace, TConfig> const & seeder, TReadId readId)
+template <typename THost, typename TSpec, typename TReadId>
+inline Pair<typename Id<StringSet<THost, Segment<TSpec> > const>::Type>
+getSeedIds(StringSet<THost, Segment<TSpec> > const & seeds, TReadId readId)
 {
-    typedef Seeder<TExecSpace, TConfig>     TSeeder;
-    typedef typename TSeeder::TSeedIds      TSeedIds;
+    typedef StringSet<THost, Segment<TSpec> > const         TStringSet;
+    typedef typename Id<TStringSet>::Type                   TId;
+    typedef typename StringSetPositions<THost>::Type const  TPositions;
+    typedef typename Iterator<TPositions, Standard>::Type   TPositionsIter;
+    typedef typename Value<TPositions>::Type                TPos;
 
-    return TSeedIds(readId * seeder.seedsPerRead, (readId + 1) * seeder.seedsPerRead);
+    TPositionsIter posBegin = begin(seeds.positions, Standard());
+    TPositionsIter posEnd = end(seeds.positions, Standard());
+    TPos pos(readId, 0);
+
+    TPositionsIter seedsBegin = std::lower_bound(posBegin, posEnd, TPos(readId, 0));
+    TPositionsIter seedsEnd = std::lower_bound(posBegin, posEnd, TPos(readId + 1, 0));
+
+    return Pair<TId>(position(seedsBegin, seeds.positions), position(seedsEnd, seeds.positions));
 }
 
 // ----------------------------------------------------------------------------
 // Function getReadSeqId()
 // ----------------------------------------------------------------------------
 
-template <typename TExecSpace, typename TConfig, typename TSeedId>
-inline typename Seeder<TExecSpace, TConfig>::TReadSeqId
-getReadSeqId(Seeder<TExecSpace, TConfig> const & seeder, TSeedId seedId)
+template <typename THost, typename TSpec, typename TSeedId>
+inline typename Id<THost>::Type
+getReadSeqId(StringSet<THost, Segment<TSpec> > const & seeds, TSeedId seedId)
 {
-    return seedId / seeder.seedsPerRead;
-}
-
-// ----------------------------------------------------------------------------
-// Function getLocalSeedId()
-// ----------------------------------------------------------------------------
-
-template <typename TExecSpace, typename TConfig, typename TSeedId>
-inline typename Seeder<TExecSpace, TConfig>::TSeedId
-getLocalSeedId(Seeder<TExecSpace, TConfig> const & seeder, TSeedId seedId)
-{
-    return seedId % seeder.seedsPerRead;
+    return getSeqNo(getHostPos(seeds, seedId));
 }
 
 // ----------------------------------------------------------------------------
 // Function getPosInRead()
 // ----------------------------------------------------------------------------
 
-template <typename TExecSpace, typename TConfig, typename TSeedId>
-inline typename Seeder<TExecSpace, TConfig>::TReadPos
-getPosInRead(Seeder<TExecSpace, TConfig> const & seeder, TSeedId seedId)
+template <typename THost, typename TSpec, typename TSeedId>
+inline Pair<typename Position<typename Value<THost>::Type>::Type>
+getPosInRead(StringSet<THost, Segment<TSpec> > const & seeds, TSeedId seedId)
 {
-    typedef Seeder<TExecSpace, TConfig>     TSeeder;
-    typedef typename TSeeder::TReadPos      TReadPos;
+    typedef typename Position<typename Value<THost>::Type>::Type TPos;
 
-    TSeedId localSeedId = getLocalSeedId(seeder, seedId);
+    TPos seedBegin = getSeqOffset(getHostPos(seeds, seedId));
+    TPos seedEnd = seedBegin + length(value(seeds, seedId));
 
-    return TReadPos(localSeedId * seeder.seedsLength, (localSeedId + 1) * seeder.seedsLength);
+    return Pair<TPos>(seedBegin, seedEnd);
 }
 
 #endif  // #ifndef APP_CUDAMAPPER_SEEDER_H_
