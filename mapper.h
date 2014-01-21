@@ -252,24 +252,28 @@ void loadReads(Mapper<TExecSpace, TConfig> & mapper)
 // Function selectSeeds()
 // ----------------------------------------------------------------------------
 
-template <typename TReadSeqs, typename TReadSeqId, typename TDelegate>
-inline void _selectSeeds(TReadSeqs const & readSeqs, TReadSeqId readSeqId, TDelegate & delegate)
+template <typename TExecSpace, typename TConfig, typename TReadSeqs, typename TReadSeqId, typename TDelegate>
+inline void _selectSeeds(Mapper<TExecSpace, TConfig> & mapper, TReadSeqs const & readSeqs, TReadSeqId readSeqId, TDelegate & delegate)
 {
     typedef typename StringSetPosition<TReadSeqs>::Type     TPos;
     typedef typename Value<TReadSeqs>::Type                 TReadSeq;
     typedef typename Size<TReadSeq>::Type                   TSize;
 
     TSize readLength = length(readSeqs[readSeqId]);
-//    TSize errorsPerRead = std::ceil(readsLength * (options.errorRate / 100.0));
-    TSize seedsPerRead = 6;//errorsPerRead + 1;
+    TSize errorsPerRead = std::ceil(readLength * (mapper.options.errorRate / 100.0));
+    TSize seedsPerRead = errorsPerRead + 1;
     TSize seedsLength = readLength / seedsPerRead;
 
     for (TSize seedId = 0; seedId < seedsPerRead; ++seedId)
         delegate(TPos(readSeqId, seedId * seedsLength), seedsLength);
 }
 
+// ----------------------------------------------------------------------------
+// Function selectSeeds()
+// ----------------------------------------------------------------------------
+
 template <typename TExecSpace, typename TConfig, typename TReadSeqs, typename TSpec>
-inline void selectSeeds(Mapper<TExecSpace, TConfig> & /* mapper */, StringSet<TReadSeqs, Segment<TSpec> > & seeds, TReadSeqs & readSeqs)
+inline void selectSeeds(Mapper<TExecSpace, TConfig> & mapper, StringSet<TReadSeqs, Segment<TSpec> > & seeds, TReadSeqs & readSeqs)
 {
     typedef StringSet<TReadSeqs, Segment<TSpec> >       TSeedsSet;
     typedef typename Value<TReadSeqs>::Type             TReadSeq;
@@ -282,24 +286,20 @@ inline void selectSeeds(Mapper<TExecSpace, TConfig> & /* mapper */, StringSet<TR
 
     TCounter counter(readsCount);
     for (TId readSeqId = 0; readSeqId < readsCount; ++readSeqId)
-        _selectSeeds(readSeqs, readSeqId, counter);
+        _selectSeeds(mapper, readSeqs, readSeqId, counter);
 
     TManager manager(seeds, counter.seedsPerRead);
     for (TId readSeqId = 0; readSeqId < readsCount; ++readSeqId)
-        _selectSeeds(readSeqs, readSeqId, manager);
+        _selectSeeds(mapper, readSeqs, readSeqId, manager);
 }
 
 // ----------------------------------------------------------------------------
 // Function findSeeds()
 // ----------------------------------------------------------------------------
 
-template <typename TExecSpace, typename TConfig, typename THitsString, typename TSeeder, typename TSeeds>
-inline void findSeeds(Mapper<TExecSpace, TConfig> & /* mapper */, THitsString & hits, TSeeder & seeder, TSeeds const & seeds)
+template <typename TExecSpace, typename TConfig, typename THitsString, typename TSeeder, typename TPattern>
+inline void findSeeds(Mapper<TExecSpace, TConfig> & /* mapper */, THitsString & hits, TSeeder & seeder, TPattern & pattern)
 {
-    typedef Mapper<TExecSpace, TConfig>                 TMapper;
-//    typedef typename TMapper::THitsString               THitsString;
-    typedef typename TMapper::TSeedsExt                 TSeedsPattern;
-
     HitsManager<THitsString> manager(hits);
 
 #ifdef PLATFORM_CUDA
@@ -307,7 +307,7 @@ inline void findSeeds(Mapper<TExecSpace, TConfig> & /* mapper */, THitsString & 
 #endif
 
     // Instantiate a pattern object.
-    TSeedsPattern pattern(seeds);
+//    TPattern pattern(seeds);
 
     // Initialize the delegate.
     init(manager, pattern);
@@ -570,12 +570,16 @@ void mapReads(Mapper<TExecSpace, TConfig> & mapper)
 template <typename TExecSpace, typename TConfig, typename TReadSeqs>
 void _mapReads(Mapper<TExecSpace, TConfig> & mapper, TReadSeqs & readSeqs)
 {
+    typedef Mapper<TExecSpace, TConfig>     TMapper;
+    typedef typename TMapper::TSeedsExt     TSeedsExt;
+
     start(mapper.timer);
     clear(mapper.hits);
 
     selectSeeds(mapper, mapper.seeds[0], readSeqs);
     std::cout << "Seeds count:\t\t\t" << length(mapper.seeds[0]) << std::endl;
-    findSeeds(mapper, mapper.hits[0], mapper.seederExt, mapper.seeds[0]);
+    TSeedsExt seedsExt(mapper.seeds[0]);
+    findSeeds(mapper, mapper.hits[0], mapper.seederExt, seedsExt);
     stop(mapper.timer);
     std::cout << "Seeding time:\t\t\t" << mapper.timer << std::endl;
 
