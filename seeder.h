@@ -101,47 +101,6 @@ struct SeedsManager
 // Functions
 // ============================================================================
 
-// ----------------------------------------------------------------------------
-// Function selectSeeds()
-// ----------------------------------------------------------------------------
-
-template <typename TReadSeqs, typename TReadSeqId, typename TDelegate>
-inline void selectSeeds(TReadSeqs const & readSeqs, TReadSeqId readSeqId, TDelegate & delegate)
-{
-    typedef typename StringSetPosition<TReadSeqs>::Type     TPos;
-    typedef typename Value<TReadSeqs>::Type                 TReadSeq;
-    typedef typename Size<TReadSeq>::Type                   TSize;
-
-    TSize readLength = length(readSeqs[readSeqId]);
-//    TSize errorsPerRead = std::ceil(readsLength * (options.errorRate / 100.0));
-    TSize seedsPerRead = 6;//errorsPerRead + 1;
-    TSize seedsLength = readLength / seedsPerRead;
-
-    for (TSize seedId = 0; seedId < seedsPerRead; ++seedId)
-        delegate(TPos(readSeqId, seedId * seedsLength), seedsLength);
-}
-
-template <typename TReadSeqs, typename TSpec>
-inline void selectSeeds(StringSet<TReadSeqs, Segment<TSpec> > & seeds, TReadSeqs & readSeqs)
-{
-    typedef StringSet<TReadSeqs, Segment<TSpec> >       TSeeds;
-    typedef typename Value<TReadSeqs>::Type             TReadSeq;
-    typedef typename Id<TReadSeqs>::Type                TId;
-    typedef typename Size<TReadSeq>::Type               TSize;
-    typedef SeedsCounter<TSize>                         TCounter;
-    typedef SeedsManager<TSeeds, String<TSize> >        TManager;
-
-    TId readsCount = length(readSeqs);
-
-    TCounter counter(readsCount);
-    for (TId readSeqId = 0; readSeqId < readsCount; ++readSeqId)
-        selectSeeds(readSeqs, readSeqId, counter);
-
-    TManager manager(seeds, counter.seedsPerRead);
-    for (TId readSeqId = 0; readSeqId < readsCount; ++readSeqId)
-        selectSeeds(readSeqs, readSeqId, manager);
-}
-
 // --------------------------------------------------------------------------
 // Function getHostPos()
 // --------------------------------------------------------------------------
