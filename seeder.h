@@ -50,10 +50,12 @@ struct SeedsCounter
 {
     String<TSize> seedsPerRead;
 
+    SeedsCounter() {};
+
     template <typename TCount>
     SeedsCounter(TCount readsCount)
     {
-        resize(seedsPerRead, readsCount, 0, Exact());
+        resize(*this, readsCount);
     }
 
     template <typename TPos, typename TLength>
@@ -70,36 +72,64 @@ struct SeedsCounter
 template <typename TSeeds, typename TSeedsCount, typename TSpec = void>
 struct SeedsManager
 {
-    TSeeds & seeds;
-    TSeedsCount & seedsPerRead;
+    TSeeds      * seeds;
+    TSeedsCount * seedsPerRead;
 
-    SeedsManager(TSeeds & seeds, TSeedsCount & seedsPerRead) :
-        seeds(seeds),
-        seedsPerRead(seedsPerRead)
+    SeedsManager() :
+        seeds(),
+        seedsPerRead()
+    {};
+
+    SeedsManager(TSeeds & seeds, TSeedsCount & seedsPerRead)
     {
-        std::partial_sum(begin(seedsPerRead, Standard()), end(seedsPerRead, Standard()), begin(seedsPerRead, Standard()));
-
-        // Resize space for seeds.
-        clear(seeds);
-        resize(seeds, back(seedsPerRead), Exact());
+        init(*this, seeds, seedsPerRead);
     }
 
     template <typename TPos, typename TLength>
     void operator() (TPos pos, TLength len)
     {
-        --seedsPerRead[getSeqNo(pos)];
-        assignInfixWithLength(seeds, seedsPerRead[getSeqNo(pos)], pos, len);
+        --(*seedsPerRead)[getSeqNo(pos)];
+        assignInfixWithLength(*seeds, (*seedsPerRead)[getSeqNo(pos)], pos, len);
     }
 
     ~SeedsManager()
     {
-        _refreshStringSetLimits(seeds);
+        _refreshStringSetLimits(*seeds);
     }
 };
 
 // ============================================================================
 // Functions
 // ============================================================================
+
+// --------------------------------------------------------------------------
+// Function resize()
+// --------------------------------------------------------------------------
+
+template <typename TSize, typename TSpec, typename TCount>
+inline void resize(SeedsCounter<TSize, TSpec> & counter, TCount count)
+{
+    resize(counter.seedsPerRead, count, 0, Exact());
+}
+
+// --------------------------------------------------------------------------
+// Function init()
+// --------------------------------------------------------------------------
+
+template <typename TSeeds, typename TSeedsCount, typename TSpec>
+inline void init(SeedsManager<TSeeds, TSeedsCount, TSpec> & manager, TSeeds & seeds, TSeedsCount & seedsPerRead)
+{
+    manager.seeds = &seeds;
+    manager.seedsPerRead = &seedsPerRead;
+
+    std::partial_sum(begin(*manager.seedsPerRead, Standard()),
+                     end(*manager.seedsPerRead, Standard()),
+                     begin(*manager.seedsPerRead, Standard()));
+
+    // Resize space for seeds.
+    clear(*manager.seeds);
+    resize(*manager.seeds, back(*manager.seedsPerRead), Exact());
+}
 
 // --------------------------------------------------------------------------
 // Function getHostPos()
