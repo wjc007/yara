@@ -689,6 +689,7 @@ void _mapReads(Mapper<TExecSpace, TConfig> & mapper, TReadSeqs & readSeqs)
 //#ifdef _OPENMP
 //    sortHits(mapper.hits[0]);
 //#endif
+
     reSeed(mapper, readSeqs, mapper.hits[0], mapper.seeds[0], mapper.info);
     selectSeeds(mapper, mapper.seeds, readSeqs, mapper.info, Pair<unsigned>(1,2));
     std::cout << "Hits count:\t\t\t" << countHits<unsigned long>(mapper.hits[0]) << std::endl;
@@ -711,9 +712,10 @@ void _mapReads(Mapper<TExecSpace, TConfig> & mapper, TReadSeqs & readSeqs)
     std::cout << "Seeding time:\t\t\t" << mapper.timer << std::endl;
     std::cout << "Hits count:\t\t\t" << countHits<unsigned long>(mapper.hits[2]) << std::endl;
 
-    start(mapper.timer);
     clear(mapper.anchors);
     reserve(mapper.anchors, countHits<unsigned long>(mapper.hits[0]) + countHits<unsigned long>(mapper.hits[1]) + countHits<unsigned long>(mapper.hits[2]) / 5);
+
+    start(mapper.timer);
     extendHits(mapper, readSeqs, mapper.hits[0], mapper.seeds[0]);
     extendHits(mapper, readSeqs, mapper.hits[1], mapper.seeds[1]);
     extendHits(mapper, readSeqs, mapper.hits[2], mapper.seeds[2]);
@@ -721,13 +723,13 @@ void _mapReads(Mapper<TExecSpace, TConfig> & mapper, TReadSeqs & readSeqs)
     std::cout << "Extension time:\t\t\t" << mapper.timer << std::endl;
     std::cout << "Anchors count:\t\t\t" << length(mapper.anchors) << std::endl;
 
-//    start(mapper.timer);
-//    removeDuplicateMatches(mapper.anchors);
-//    stop(mapper.timer);
-//    std::cout << "Compaction time:\t\t" << mapper.timer << std::endl;
-//    std::cout << "Anchors count:\t\t\t" << length(mapper.anchors) << std::endl;
-//    std::cout << "Anchored pairs:\t\t\t" << countMatches(readSeqs, mapper.anchors, PairedEnd()) << std::endl;
-//
+    start(mapper.timer);
+    removeDuplicateMatches(mapper.anchors);
+    stop(mapper.timer);
+    std::cout << "Compaction time:\t\t" << mapper.timer << std::endl;
+    std::cout << "Anchors count:\t\t\t" << length(mapper.anchors) << std::endl;
+    std::cout << "Anchored pairs:\t\t\t" << countMatches(readSeqs, mapper.anchors, PairedEnd()) << std::endl;
+
 //    start(mapper.timer);
 //    clear(mapper.mates);
 //    reserve(mapper.mates, length(mapper.anchors), Exact());
