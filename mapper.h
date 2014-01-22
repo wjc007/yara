@@ -408,7 +408,7 @@ inline void reSeed(Mapper<TExecSpace, TConfig> & mapper, TReadSeqs & readSeqs, T
         if (readHits > mapper.options.hitsThreshold)
         {
             // Guess a good seeding stragegy.
-            info[readSeqId].seedErrors = (readHits < 10 * mapper.options.hitsThreshold) ? 1 : 2;
+            info[readSeqId].seedErrors = (readHits < 30 * mapper.options.hitsThreshold) ? 1 : 2;
             info[readSeqId].status = STATUS_UNSEEDED;
 
             // Clear the hits of the read.
