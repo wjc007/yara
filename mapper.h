@@ -637,8 +637,8 @@ void _mapReads(Mapper<TExecSpace, TConfig> & mapper, TReadSeqs & readSeqs)
     clear(mapper.hits[1]);
     clear(mapper.hits[2]);
 
-    resize(mapper.info, getReadSeqsCount(readSeqs));
     clear(mapper.info);
+    resize(mapper.info, getReadSeqsCount(readSeqs));
 
     start(mapper.timer);
     selectSeeds(mapper, mapper.seeds[0], readSeqs, mapper.info);
