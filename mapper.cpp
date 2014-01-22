@@ -169,6 +169,7 @@ parseCommandLine(Options & options, ArgumentParser & parser, int argc, char cons
     case 2:
         getArgumentValue(options.readsFile.i1, parser, 1, 0);
         getArgumentValue(options.readsFile.i2, parser, 1, 1);
+        options.singleEnd = false;
         break;
     default:
         return ArgumentParser::PARSE_ERROR;
