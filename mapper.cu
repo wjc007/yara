@@ -64,7 +64,7 @@
 #include "hits.h"
 #include "matches.h"
 #include "index.h"
-#include "seeder.h"
+#include "seeds.h"
 #include "extender.h"
 #include "verifier.h"
 #include "writer.h"

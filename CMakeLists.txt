@@ -108,7 +108,7 @@ if (SEQAN_HAS_CUDA)
                                   hits.h
 				  matches.h
                                   index.h
-                                  seeder.h
+                                  seeds.h
                                   extender.h
                                   verifier.h
                                   writer.h)
@@ -124,7 +124,7 @@ else ()
                                   hits.h
 				  matches.h
                                   index.h
-                                  seeder.h
+                                  seeds.h
                                   extender.h
                                   verifier.h
                                   writer.h)
