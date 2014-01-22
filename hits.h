@@ -265,8 +265,7 @@ _addHit(HitsManager<THits, TSpec> & manager, TFinder const & finder, HammingDist
 {
     typedef typename Value<THits>::Type THit;
 
-    // TODO(esiragusa): implement getScore(finder) for multiple finder.
-    THit hit = { range(textIterator(finder)), finder._patternIt, 1 };
+    THit hit = { range(textIterator(finder)), finder._patternIt, getScore(finder) };
 
     // TODO(esiragusa): atomic append.
     appendValue(manager.hits, hit);
