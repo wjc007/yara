@@ -88,13 +88,16 @@ struct SeedsManager
     template <typename TPos, typename TLength>
     void operator() (TPos pos, TLength len)
     {
+        SEQAN_ASSERT(seeds);
+        SEQAN_ASSERT(seedsPerRead);
+
         --(*seedsPerRead)[getSeqNo(pos)];
         assignInfixWithLength(*seeds, (*seedsPerRead)[getSeqNo(pos)], pos, len);
     }
 
     ~SeedsManager()
     {
-        _refreshStringSetLimits(*seeds);
+        if (seeds) _refreshStringSetLimits(*seeds);
     }
 };
 
