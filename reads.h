@@ -77,25 +77,16 @@ struct Reads
     typedef typename TFragmentStore_::TReadSeqStore TReadSeqStore;
 
     Holder<TFragmentStore_>         _store;
-    unsigned                        _avgSeqLengthEstimate;
-    unsigned                        _avgNameLengthEstimate;
-    unsigned                        _countEstimate;
     unsigned                        readsCount;
 
     Reads() :
         _store(),
-        _avgSeqLengthEstimate(0),
-        _avgNameLengthEstimate(0),
-        _countEstimate(0),
         readsCount(0)
     {}
 
     template <typename TFragmentStore>
     Reads(TFragmentStore & store) :
         _store(store),
-        _avgSeqLengthEstimate(0),
-        _avgNameLengthEstimate(0),
-        _countEstimate(0),
         readsCount(0)
     {}
 };
@@ -112,17 +103,13 @@ struct ReadsLoader
     typedef Reads<TSpec, TConfig>                   TReads;
 
     TStream                         _file;
-    unsigned long                   _fileSize;
     AutoSeqStreamFormat             _fileFormat;
     std::auto_ptr<TRecordReader>    _reader;
     Holder<TReads>                  reads;
 
-    ReadsLoader() :
-        _fileSize(0)
-    {}
+    ReadsLoader() {}
 
     ReadsLoader(TReads & reads) :
-        _fileSize(0),
         reads(reads)
     {}
 };
@@ -198,63 +185,6 @@ inline typename ReadsHost<TObject>::Type &
 getReads(TObject & object)
 {
     return value(object.reads);
-}
-
-// ----------------------------------------------------------------------------
-// Function reserve()                                                   [Reads]
-// ----------------------------------------------------------------------------
-
-template <typename TSpec, typename TConfig>
-inline void reserve(Reads<TSpec, TConfig> & reads)
-{
-    reserve(reads, reads._countEstimate);
-}
-
-template <typename TConfig>
-inline void reserve(Reads<PairedEnd, TConfig> & /* reads */)
-{}
-
-template <typename TSpec, typename TConfig, typename TSize>
-inline void reserve(Reads<TSpec, TConfig> & reads, TSize count)
-{
-    // Reserve space in the readSeqStore, also considering reverse complemented reads.
-    reserve(value(reads._store).readSeqStore.concat, 2 * count * reads._avgSeqLengthEstimate, Exact());
-    reserve(value(reads._store).readSeqStore, 2 * count, Exact());
-
-    // Reserve space for ids.
-    reserveIds(reads, count, typename TConfig::TUseReadStore());
-
-    // Reserve space for names.
-    reserveNames(reads, count, reads._avgNameLengthEstimate, typename TConfig::TUseReadNameStore());
-}
-
-// ----------------------------------------------------------------------------
-// Function reserveIds()                                                [Reads]
-// ----------------------------------------------------------------------------
-
-template <typename TSpec, typename TConfig, typename TSize>
-inline void reserveIds(Reads<TSpec, TConfig> & /* reads */, TSize /* space */, False const & /* tag */)
-{}
-
-template <typename TSpec, typename TConfig, typename TSize>
-inline void reserveIds(Reads<TSpec, TConfig> & reads, TSize space, True const & /* tag */)
-{
-    reserve(getSeqs(reads), space, Exact());
-}
-
-// ----------------------------------------------------------------------------
-// Function reserveNames()                                              [Reads]
-// ----------------------------------------------------------------------------
-
-template <typename TSpec, typename TConfig, typename TSize, typename TLength>
-inline void reserveNames(Reads<TSpec, TConfig> & /* reads */, TSize /* count */, TLength /* length */, False const & /* tag */)
-{}
-
-template <typename TSpec, typename TConfig, typename TSize, typename TLength>
-inline void reserveNames(Reads<TSpec, TConfig> & reads, TSize count, TLength length, True const & /* tag */)
-{
-    reserve(getNames(reads).concat, count * length, Exact());
-    reserve(getNames(reads), count, Exact());
 }
 
 // ----------------------------------------------------------------------------
@@ -377,77 +307,6 @@ inline bool isReverse(Reads<TSpec, TConfig> const & reads, TSeqId seqId)
 }
 
 // ----------------------------------------------------------------------------
-// Function avgSeqLength()                                              [Reads]
-// ----------------------------------------------------------------------------
-
-template <typename TSpec, typename TConfig>
-inline typename Size<typename FragmentStore<TSpec, typename TConfig::TFragStoreConfig>::TReadSeqStore>::Type
-avgSeqLength(Reads<TSpec, TConfig> const & reads)
-{
-    return reads._avgSeqLengthEstimate;
-}
-
-// ----------------------------------------------------------------------------
-// Function _estimateRecordSize()                                 [ReadsLoader]
-// ----------------------------------------------------------------------------
-
-template <typename TSpec, typename TConfig>
-unsigned long _estimateRecordSize(ReadsLoader<TSpec, TConfig> const & loader, Fastq const & /* tag */)
-{
-    // 6 stands for: @, +, and four \n.
-    return getReads(loader)._avgNameLengthEstimate + 2 * getReads(loader)._avgSeqLengthEstimate + 6;
-}
-
-template <typename TSpec, typename TConfig>
-unsigned long _estimateRecordSize(ReadsLoader<TSpec, TConfig> const & loader, Fasta const & /* tag */)
-{
-    // 3 stands for: >, and two \n.
-    return getReads(loader)._avgNameLengthEstimate + getReads(loader)._avgSeqLengthEstimate + 3;
-}
-
-// ----------------------------------------------------------------------------
-// Function _estimateReadsStatistics()                            [ReadsLoader]
-// ----------------------------------------------------------------------------
-
-template <typename TSpec, typename TConfig>
-void _estimateReadsStatistics(ReadsLoader<TSpec, TConfig> & loader)
-{
-    typedef typename TConfig::TFragStoreConfig::TReadSeq    TReadSeq;
-
-    CharString  seqName;
-    TReadSeq    seq;
-
-    // Read first record.
-    if (readRecord(seqName, seq, *(loader._reader), loader._fileFormat) != 0)
-        return;
-
-    // Estimate read seqs and names length.
-    getReads(loader)._avgSeqLengthEstimate = length(seq);
-    getReads(loader)._avgNameLengthEstimate = length(seqName);
-
-    // Estimate record size.
-    unsigned long recordSize;
-    switch (loader._fileFormat.tagId)
-    {
-    case Find<AutoSeqStreamFormat, Fasta>::VALUE:
-        recordSize = _estimateRecordSize(loader, Fasta());
-        break;
-    case Find<AutoSeqStreamFormat, Fastq>::VALUE:
-        recordSize = _estimateRecordSize(loader, Fastq());
-        break;
-    default:
-        recordSize = 0;
-        break;
-    }
-
-    // Estimate number of reads in file.
-    if (recordSize > 0)
-        getReads(loader)._countEstimate = loader._fileSize / recordSize;
-    else
-        getReads(loader)._countEstimate = 0;
-}
-
-// ----------------------------------------------------------------------------
 // Function open()                                                [ReadsLoader]
 // ----------------------------------------------------------------------------
 
@@ -463,25 +322,12 @@ void open(ReadsLoader<TSpec, TConfig> & loader, TString const & readsFile)
     if (!loader._file.is_open())
         throw std::runtime_error("Error while opening reads file.");
 
-    // Compute file size.
-    loader._file.seekg(0, std::ios::end);
-    loader._fileSize = loader._file.tellg();
-    loader._file.seekg(0, std::ios::beg);
-
     // Initialize record reader.
     loader._reader.reset(new TRecordReader(loader._file));
 
     // Autodetect file format.
     if (!guessStreamFormat(*(loader._reader), loader._fileFormat))
         throw std::runtime_error("Error while guessing reads file format.");
-
-    // Estimate statistics for reads in file.
-    _estimateReadsStatistics(loader);
-
-    // Reopen file and reinitialize record reader, the ugly way...
-    loader._file.close();
-    loader._file.open(toCString(readsFile), std::ios::binary | std::ios::in);
-    loader._reader.reset(new TRecordReader(loader._file));
 }
 
 template <typename TConfig, typename TString>
