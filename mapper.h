@@ -696,7 +696,7 @@ void _mapReads(Mapper<TExecSpace, TConfig> & mapper, TReadSeqs & readSeqs)
     start(mapper.timer);
     std::cout << "Seeds count:\t\t\t" << length(mapper.seeds[1]) << std::endl;
     TSeedsApx seeds1(mapper.seeds[1]);
-//    setScoreThreshold(mapper.seederApx, 1);
+    setScoreThreshold(mapper.seederApx, 1);
     findSeeds(mapper, mapper.hits[1], mapper.seederApx, seeds1);
     stop(mapper.timer);
     std::cout << "Seeding time:\t\t\t" << mapper.timer << std::endl;
@@ -705,7 +705,7 @@ void _mapReads(Mapper<TExecSpace, TConfig> & mapper, TReadSeqs & readSeqs)
     start(mapper.timer);
     std::cout << "Seeds count:\t\t\t" << length(mapper.seeds[2]) << std::endl;
     TSeedsApx seeds2(mapper.seeds[2]);
-//    setScoreThreshold(mapper.seederApx, 2);
+    setScoreThreshold(mapper.seederApx, 2);
     findSeeds(mapper, mapper.hits[2], mapper.seederApx, seeds2);
     stop(mapper.timer);
     std::cout << "Seeding time:\t\t\t" << mapper.timer << std::endl;
