@@ -71,6 +71,22 @@ struct Options
     {}
 };
 
+enum ReadStatus { STATUS_UNSEEDED, STATUS_SEEDED, STATUS_MAPPED, STATUS_UNMAPPABLE };
+//enum ReadAnchor { ANCHOR_FIRST, ANCHOR_SECOND };
+
+template <typename TConfig = void>
+struct ReadInfo
+{
+    unsigned char seedErrors    : 2;
+    ReadStatus    status        : 2;
+//    ReadAnchor    anchor        : 1;
+
+    ReadInfo() :
+        seedErrors(0),
+        status(STATUS_UNSEEDED)
+    {};
+};
+
 // ----------------------------------------------------------------------------
 // Class Mapper
 // ----------------------------------------------------------------------------
@@ -95,15 +111,10 @@ struct Mapper
     typedef typename Space<THostReadSeqs, TExecSpace>::Type         TReadSeqs;
     typedef typename Value<TReadSeqs>::Type                         TReadSeq;
 
+    typedef String<ReadInfo<TConfig> >                              TReadInfoString;
+
     typedef StringSet<TReadSeqs, Segment<TReadSeqs> >               TSeedsSet;
     typedef Tuple<TSeedsSet, 3>                                     TSeeds;
-
-    typedef Multiple<FinderSTree>                                   TSeedingExt;
-    typedef Multiple<Backtracking<HammingDistance> >                TSeedingApx;
-    typedef Pattern<TSeedsSet, TSeedingExt>                         TSeedsExt;
-    typedef Pattern<TSeedsSet, TSeedingApx>                         TSeedsApx;
-    typedef Finder2<TIndex, TSeedsExt, TSeedingExt>                 TSeederExt;
-    typedef Finder2<TIndex, TSeedsApx, TSeedingApx>                 TSeederApx;
 
     typedef typename Size<TIndex>::Type                             TIndexSize;
     typedef Hit<TIndexSize, HammingDistance>                        THit;
@@ -112,6 +123,13 @@ struct Mapper
 
     typedef Match<void>                                             TMatch;
     typedef String<TMatch>                                          TMatches;
+
+    typedef Multiple<FinderSTree>                                   TSeedingExt;
+    typedef Multiple<Backtracking<HammingDistance> >                TSeedingApx;
+    typedef Pattern<TSeedsSet, TSeedingExt>                         TSeedsExt;
+    typedef Pattern<TSeedsSet, TSeedingApx>                         TSeedsApx;
+    typedef Finder2<TIndex, TSeedsExt, TSeedingExt>                 TSeederExt;
+    typedef Finder2<TIndex, TSeedsApx, TSeedingApx>                 TSeederApx;
 
     typedef AlignTextBanded<FindPrefix, NMatchesNone_, NMatchesNone_> TMyersSpec;
     typedef Myers<TMyersSpec, True, void>                           TExtenderAlgorithm;
@@ -132,6 +150,7 @@ struct Mapper
     TReads              reads;
     TReadsLoader        readsLoader;
 
+    TReadInfoString     info;
     TSeeds              seeds;
     THits               hits;
     TMatches            anchors;
