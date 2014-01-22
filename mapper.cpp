@@ -104,7 +104,7 @@ void setupArgumentParser(ArgumentParser & parser, Options const & options)
     // Setup mapping options.
     addSection(parser, "Mapping Options");
 
-    addOption(parser, ArgParseOption("er", "error-rate", "Maximum error rate.", ArgParseOption::INTEGER));
+    addOption(parser, ArgParseOption("e", "error-rate", "Maximum error rate.", ArgParseOption::INTEGER));
     setMinValue(parser, "error-rate", "0");
     setMaxValue(parser, "error-rate", "10");
     setDefaultValue(parser, "error-rate", options.errorRate);
