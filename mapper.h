@@ -130,10 +130,11 @@ struct Mapper
     typedef Index<TFMContigs, TGenomeIndexSpec>                     THostIndex;
     typedef typename Space<THostIndex, TExecSpace>::Type            TIndex;
 
+    typedef typename TConfig::TSequencing                           TSequencing;
     typedef FragmentStore<void, TConfig>                            TStore;
     typedef ReadsConfig<False, False, True, True, TConfig>          TReadsConfig;
-    typedef Reads<PairedEnd, TReadsConfig>                          TReads;
-    typedef ReadsLoader<PairedEnd, TReadsConfig>                    TReadsLoader;
+    typedef Reads<TSequencing, TReadsConfig>                        TReads;
+    typedef ReadsLoader<TSequencing, TReadsConfig>                  TReadsLoader;
     typedef typename TStore::TReadSeqStore                          THostReadSeqs;
     typedef typename Space<THostReadSeqs, TExecSpace>::Type         TReadSeqs;
     typedef typename Value<TReadSeqs>::Type                         TReadSeq;
@@ -276,6 +277,28 @@ void loadGenomeIndex(Mapper<TSpec, TConfig> & mapper)
 #ifdef PLATFORM_CUDA
     cudaPrintFreeMemory();
 #endif
+}
+
+// ----------------------------------------------------------------------------
+// Function openReads()
+// ----------------------------------------------------------------------------
+
+template <typename TSpec, typename TConfig>
+void openReads(Mapper<TSpec, TConfig> & mapper)
+{
+    _openReads(mapper, typename TConfig::TSequencing());
+}
+
+template <typename TSpec, typename TConfig, typename TSequencing>
+void _openReads(Mapper<TSpec, TConfig> & mapper, TSequencing const & /*tag */)
+{
+    open(mapper.readsLoader, mapper.options.readsFile);
+}
+
+template <typename TSpec, typename TConfig>
+void _openReads(Mapper<TSpec, TConfig> & mapper, SingleEnd const & /* tag */)
+{
+    open(mapper.readsLoader, mapper.options.readsFile.i1);
 }
 
 // ----------------------------------------------------------------------------
@@ -787,10 +810,7 @@ void runMapper(Mapper<TSpec, TConfig> & mapper)
     loadGenomeIndex(mapper);
 
     // Open reads file.
-    open(mapper.readsLoader, mapper.options.readsFile);
-
-    // Reserve space for reads.
-    reserve(mapper.reads, mapper.options.mappingBlock);
+    openReads(mapper);
 
     // Process reads in blocks.
     while (!atEnd(mapper.readsLoader))
