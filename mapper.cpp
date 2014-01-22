@@ -100,7 +100,7 @@ void setupArgumentParser(ArgumentParser & parser, Options const & options)
     setValidValues(parser, 0, "fasta fa");
     setHelpText(parser, 0, "A reference genome file.");
 
-    addArgument(parser, ArgParseArgument(ArgParseArgument::INPUTFILE));
+    addArgument(parser, ArgParseArgument(ArgParseArgument::INPUTFILE, "READS", true));
     setValidValues(parser, 1, "fastq fasta fa");
     setHelpText(parser, 1, "Either one single-end or two paired-end read files.");
 
