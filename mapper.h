@@ -52,6 +52,7 @@ struct Options
     Pair<CharString>    readsFile;
 
     unsigned            errorRate;
+    bool                singleEnd;
     unsigned            libraryLength;
     unsigned            libraryError;
 
@@ -62,6 +63,7 @@ struct Options
 
     Options() :
         errorRate(5),
+        singleEnd(true),
         libraryLength(220),
         libraryError(50),
         mappingBlock(200000),

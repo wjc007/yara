@@ -194,9 +194,9 @@ void setDateAndVersion(ArgumentParser & parser)
 
 void setDescription(ArgumentParser & parser)
 {
-    addDescription(parser, "XXXX is a fast and accurate paired-end read mapper.");
+    addDescription(parser, "XXXX is a fast and accurate read mapper.");
     addDescription(parser, "See \\fIhttp://www.seqan.de/projects/XXXX\\fP for more information.");
-    addDescription(parser, "(c) Copyright 2011-2013 by Enrico Siragusa <enrico.siragusa@fu-berlin.de>.");
+    addDescription(parser, "(c) Copyright 2011-2014 by Enrico Siragusa <enrico.siragusa@fu-berlin.de>.");
 }
 
 // ----------------------------------------------------------------------------
@@ -295,7 +295,7 @@ void getOutputFile(TString & file,
 
 void setTmpFolder(ArgumentParser & parser)
 {
-    addOption(parser, ArgParseOption("t", "tmp-folder", "Specify a huge temporary folder. \
+    addOption(parser, ArgParseOption("t", "tmp-folder", "Specify a temporary folder where to construct the index. \
                                      Default: use the genome folder.", ArgParseOption::STRING));
 }
 

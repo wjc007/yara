@@ -93,13 +93,16 @@ void setupArgumentParser(ArgumentParser & parser, Options const & options)
     setDescription(parser);
 
     // Setup mandatory arguments.
+    addUsageLine(parser, "[\\fIOPTIONS\\fP] <\\fIGENOME FILE\\fP> <\\fISE-READS FILE\\fP>");
     addUsageLine(parser, "[\\fIOPTIONS\\fP] <\\fIGENOME FILE\\fP> <\\fIPE-READS FILE 1\\fP> <\\fIPE-READS FILE 2\\fP>");
-    addArgument(parser, ArgParseArgument(ArgParseArgument::INPUTFILE));
-    addArgument(parser, ArgParseArgument(ArgParseArgument::INPUTFILE));
+
     addArgument(parser, ArgParseArgument(ArgParseArgument::INPUTFILE));
     setValidValues(parser, 0, "fasta fa");
+    setHelpText(parser, 0, "A reference genome file.");
+
+    addArgument(parser, ArgParseArgument(ArgParseArgument::INPUTFILE));
     setValidValues(parser, 1, "fastq fasta fa");
-    setValidValues(parser, 2, "fastq fasta fa");
+    setHelpText(parser, 1, "Either one single-end or two paired-end read files.");
 
     // Setup mapping options.
     addSection(parser, "Mapping Options");
@@ -150,15 +153,26 @@ parseCommandLine(Options & options, ArgumentParser & parser, int argc, char cons
 {
     ArgumentParser::ParseResult res = parse(parser, argc, argv);
 
-    if (res != seqan::ArgumentParser::PARSE_OK)
+    if (res != ArgumentParser::PARSE_OK)
         return res;
 
     // Parse genome input file.
     getArgumentValue(options.genomeFile, parser, 0);
 
-    // Parse reads input file.
-    getArgumentValue(options.readsFile.i1, parser, 1);
-    getArgumentValue(options.readsFile.i2, parser, 2);
+    // Parse read input files.
+    switch (getArgumentValueCount(parser, 1))
+    {
+    case 1:
+        getArgumentValue(options.readsFile.i1, parser, 1, 0);
+        options.singleEnd = true;
+        break;
+    case 2:
+        getArgumentValue(options.readsFile.i1, parser, 1, 0);
+        getArgumentValue(options.readsFile.i2, parser, 1, 1);
+        break;
+    default:
+        return ArgumentParser::PARSE_ERROR;
+    }
 
     // Parse mapping options.
     getOptionValue(options.errorRate, parser, "error-rate");
@@ -185,6 +199,19 @@ parseCommandLine(Options & options, ArgumentParser & parser, int argc, char cons
 }
 
 // ----------------------------------------------------------------------------
+// Function configureSequencing()
+// ----------------------------------------------------------------------------
+
+template <typename TExecSpace>
+void configureSequencing(Options const & options, TExecSpace const & execSpace)
+{
+    if (options.singleEnd)
+        spawnMapper(options, execSpace, SingleEnd(), All());
+    else
+        spawnMapper(options, execSpace, PairedEnd(), All());
+}
+
+// ----------------------------------------------------------------------------
 // Function configureMapper()
 // ----------------------------------------------------------------------------
 
@@ -193,24 +220,24 @@ void configureMapper(Options const & options)
 #ifndef CUDA_DISABLED
     if (options.noCuda)
 #endif
-        spawnMapper(options, ExecHost(), PairedEnd(), All());
+        configureSequencing(options, ExecHost());
 #ifndef CUDA_DISABLED
     else
-        spawnMapper(options, ExecDevice(), PairedEnd(), All());
+        configureSequencing(options, ExecDevice());
 #endif
 }
 
-inline void printDescription(ArgumentParser const & me)
-{
-    ToolDoc toolDoc(me._toolDoc);
-    clearEntries(toolDoc);
-
-    addSection(toolDoc, "Description");
-    for (unsigned i = 0; i < me._description.size(); ++i)
-        addText(toolDoc, me._description[i]);
-
-    print(std::cout, toolDoc, "txt");
-}
+//inline void printDescription(ArgumentParser const & me)
+//{
+//    ToolDoc toolDoc(me._toolDoc);
+//    clearEntries(toolDoc);
+//
+//    addSection(toolDoc, "Description");
+//    for (unsigned i = 0; i < me._description.size(); ++i)
+//        addText(toolDoc, me._description[i]);
+//
+//    print(std::cout, toolDoc, "txt");
+//}
 
 // ----------------------------------------------------------------------------
 // Function main()
@@ -227,7 +254,7 @@ int main(int argc, char const ** argv)
     if (res != seqan::ArgumentParser::PARSE_OK)
         return res == seqan::ArgumentParser::PARSE_ERROR;
 
-    printDescription(parser);
+//    printDescription(parser);
 
     try
     {
