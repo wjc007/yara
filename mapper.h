@@ -71,8 +71,16 @@ struct Options
     {}
 };
 
+// ----------------------------------------------------------------------------
+// Enum ReadStatus
+// ----------------------------------------------------------------------------
+
 enum ReadStatus { STATUS_UNSEEDED, STATUS_SEEDED, STATUS_MAPPED, STATUS_UNMAPPABLE };
 //enum ReadAnchor { ANCHOR_FIRST, ANCHOR_SECOND };
+
+// ----------------------------------------------------------------------------
+// Class ReadInfo
+// ----------------------------------------------------------------------------
 
 template <typename TConfig = void>
 struct ReadInfo
@@ -88,10 +96,26 @@ struct ReadInfo
 };
 
 // ----------------------------------------------------------------------------
+// Mapper Configuration
+// ----------------------------------------------------------------------------
+
+template <typename TExecSpace_  = ExecHost,
+          typename TSequencing_ = SingleEnd,
+          typename TStrategy_   = AnyBest,
+          typename TAnchoring_  = Nothing>
+struct ReadMapperConfig : public CUDAStoreConfig
+{
+    typedef TExecSpace_     TExecSpace;
+    typedef TSequencing_    TSequencing;
+    typedef TStrategy_      TStrategy;
+    typedef TAnchoring_     TAnchoring;
+};
+
+// ----------------------------------------------------------------------------
 // Class Mapper
 // ----------------------------------------------------------------------------
 
-template <typename TExecSpace, typename TConfig = void>
+template <typename TSpec, typename TConfig = void>
 struct Mapper
 {
     typedef Genome<void, TConfig>                                   TGenome;
@@ -100,6 +124,7 @@ struct Mapper
     typedef typename Value<TContigs>::Type                          TContig;
     typedef typename StringSetPosition<TContigs>::Type              TContigsPos;
 
+    typedef typename TConfig::TExecSpace                            TExecSpace;
     typedef Index<TFMContigs, TGenomeIndexSpec>                     THostIndex;
     typedef typename Space<THostIndex, TExecSpace>::Type            TIndex;
 
@@ -138,7 +163,7 @@ struct Mapper
     typedef Verifier<TContigs, TReadSeq, Myers<> >                  TVerifier;
 
 //    typedef WriterConfig<Options, TReadSeqs>                        TWriterConfig;
-//    typedef Writer<TExecSpace, TWriterConfig>                       TWriter;
+//    typedef Writer<TSpec, TWriterConfig>                       TWriter;
 
     Timer<double>       timer;
     Options const &     options;
@@ -195,8 +220,8 @@ struct Mapper
 // ----------------------------------------------------------------------------
 // Sets the number of threads that OpenMP can spawn.
 
-template <typename TExecSpace, typename TConfig>
-void configureThreads(Mapper<TExecSpace, TConfig> & mapper)
+template <typename TSpec, typename TConfig>
+void configureThreads(Mapper<TSpec, TConfig> & mapper)
 {
 #ifdef _OPENMP
     omp_set_num_threads(mapper.options.threadsCount);
@@ -210,8 +235,8 @@ void configureThreads(Mapper<TExecSpace, TConfig> & mapper)
 // Function loadGenome()
 // ----------------------------------------------------------------------------
 
-template <typename TExecSpace, typename TConfig>
-void loadGenome(Mapper<TExecSpace, TConfig> & mapper)
+template <typename TSpec, typename TConfig>
+void loadGenome(Mapper<TSpec, TConfig> & mapper)
 {
     std::cout << "Loading genome:\t\t\t" << std::flush;
     start(mapper.timer);
@@ -230,8 +255,8 @@ void loadGenome(Mapper<TExecSpace, TConfig> & mapper)
 // Function loadGenomeIndex()
 // ----------------------------------------------------------------------------
 
-template <typename TExecSpace, typename TConfig>
-void loadGenomeIndex(Mapper<TExecSpace, TConfig> & mapper)
+template <typename TSpec, typename TConfig>
+void loadGenomeIndex(Mapper<TSpec, TConfig> & mapper)
 {
 #ifdef PLATFORM_CUDA
     cudaPrintFreeMemory();
@@ -255,8 +280,8 @@ void loadGenomeIndex(Mapper<TExecSpace, TConfig> & mapper)
 // Function loadReads()
 // ----------------------------------------------------------------------------
 
-template <typename TExecSpace, typename TConfig>
-void loadReads(Mapper<TExecSpace, TConfig> & mapper)
+template <typename TSpec, typename TConfig>
+void loadReads(Mapper<TSpec, TConfig> & mapper)
 {
     std::cout << "Loading reads:\t\t\t" << std::flush;
     start(mapper.timer);
@@ -271,8 +296,8 @@ void loadReads(Mapper<TExecSpace, TConfig> & mapper)
 // Function selectSeeds()
 // ----------------------------------------------------------------------------
 
-template <typename TExecSpace, typename TConfig, typename TReadSeqs, typename TReadSeqId, typename TDelegate>
-inline void _selectSeeds(Mapper<TExecSpace, TConfig> & mapper, TReadSeqs const & readSeqs, TReadSeqId readSeqId, TDelegate & delegate)
+template <typename TSpec, typename TConfig, typename TReadSeqs, typename TReadSeqId, typename TDelegate>
+inline void _selectSeeds(Mapper<TSpec, TConfig> & mapper, TReadSeqs const & readSeqs, TReadSeqId readSeqId, TDelegate & delegate)
 {
     typedef typename StringSetPosition<TReadSeqs>::Type     TPos;
     typedef typename Value<TReadSeqs>::Type                 TReadSeq;
@@ -287,8 +312,8 @@ inline void _selectSeeds(Mapper<TExecSpace, TConfig> & mapper, TReadSeqs const &
         delegate(TPos(readSeqId, seedId * seedsLength), seedsLength);
 }
 
-template <typename TExecSpace, typename TConfig, typename TReadSeqs, typename TReadSeqId, typename TErrors, typename TDelegate>
-inline void _selectSeeds(Mapper<TExecSpace, TConfig> & mapper, TReadSeqs const & readSeqs, TReadSeqId readSeqId, TErrors seedErrors, TDelegate & delegate)
+template <typename TSpec, typename TConfig, typename TReadSeqs, typename TReadSeqId, typename TErrors, typename TDelegate>
+inline void _selectSeeds(Mapper<TSpec, TConfig> & mapper, TReadSeqs const & readSeqs, TReadSeqId readSeqId, TErrors seedErrors, TDelegate & delegate)
 {
     typedef typename StringSetPosition<TReadSeqs>::Type     TPos;
     typedef typename Value<TReadSeqs>::Type                 TReadSeq;
@@ -307,8 +332,8 @@ inline void _selectSeeds(Mapper<TExecSpace, TConfig> & mapper, TReadSeqs const &
 // Function selectSeeds()
 // ----------------------------------------------------------------------------
 
-template <typename TExecSpace, typename TConfig, typename TSeeds, typename TReadSeqs, typename TReadsInfo, typename TErrors>
-inline void selectSeeds(Mapper<TExecSpace, TConfig> & mapper, TSeeds & seeds, TReadSeqs & readSeqs, TReadsInfo & info, Pair<TErrors> seedErrors)
+template <typename TSpec, typename TConfig, typename TSeeds, typename TReadSeqs, typename TReadsInfo, typename TErrors>
+inline void selectSeeds(Mapper<TSpec, TConfig> & mapper, TSeeds & seeds, TReadSeqs & readSeqs, TReadsInfo & info, Pair<TErrors> seedErrors)
 {
     typedef typename Value<TReadSeqs>::Type             TReadSeq;
     typedef typename Id<TReadSeqs>::Type                TId;
@@ -355,8 +380,8 @@ inline void selectSeeds(Mapper<TExecSpace, TConfig> & mapper, TSeeds & seeds, TR
 // Function findSeeds()
 // ----------------------------------------------------------------------------
 
-template <typename TExecSpace, typename TConfig, typename THitsString, typename TSeeder, typename TPattern>
-inline void findSeeds(Mapper<TExecSpace, TConfig> & /* mapper */, THitsString & hits, TSeeder & seeder, TPattern & pattern)
+template <typename TSpec, typename TConfig, typename THitsString, typename TSeeder, typename TPattern>
+inline void findSeeds(Mapper<TSpec, TConfig> & /* mapper */, THitsString & hits, TSeeder & seeder, TPattern & pattern)
 {
     HitsManager<THitsString> manager(hits);
 
@@ -382,10 +407,10 @@ inline void findSeeds(Mapper<TExecSpace, TConfig> & /* mapper */, THitsString & 
 // Function reSeed()
 // ----------------------------------------------------------------------------
 
-template <typename TExecSpace, typename TConfig, typename TReadSeqs, typename THits, typename TSeeds, typename TReadsInfo>
-inline void reSeed(Mapper<TExecSpace, TConfig> & mapper, TReadSeqs & readSeqs, THits & hits, TSeeds & seeds, TReadsInfo & info)
+template <typename TSpec, typename TConfig, typename TReadSeqs, typename THits, typename TSeeds, typename TReadsInfo>
+inline void reSeed(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, THits & hits, TSeeds & seeds, TReadsInfo & info)
 {
-    typedef Mapper<TExecSpace, TConfig>                 TMapper;
+    typedef Mapper<TSpec, TConfig>                      TMapper;
     typedef typename TMapper::TSeedsSet                 TSeedsSet;
     typedef typename Id<TSeedsSet>::Type                TSeedId;
     typedef Pair<TSeedId>                               TSeedIds;
@@ -421,10 +446,10 @@ inline void reSeed(Mapper<TExecSpace, TConfig> & mapper, TReadSeqs & readSeqs, T
 // Function selectAnchors()
 // ----------------------------------------------------------------------------
 
-template <typename TExecSpace, typename TConfig, typename TReadSeqs, typename THits, typename TSeeds>
-inline void selectAnchors(Mapper<TExecSpace, TConfig> & mapper, TReadSeqs & readSeqs, THits & hits, TSeeds & seeds)
+template <typename TSpec, typename TConfig, typename TReadSeqs, typename THits, typename TSeeds>
+inline void selectAnchors(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, THits & hits, TSeeds & seeds)
 {
-    typedef Mapper<TExecSpace, TConfig>                 TMapper;
+    typedef Mapper<TSpec, TConfig>                      TMapper;
     typedef typename TMapper::TSeedsSet                 TSeedsSet;
     typedef typename Id<TSeedsSet>::Type                TSeedId;
     typedef Pair<TSeedId>                               TSeedIds;
@@ -473,10 +498,10 @@ inline void selectAnchors(Mapper<TExecSpace, TConfig> & mapper, TReadSeqs & read
 // Function extendHits()
 // ----------------------------------------------------------------------------
 
-template <typename TExecSpace, typename TConfig, typename TReadSeqs, typename THits, typename TSeeds>
-inline void extendHits(Mapper<TExecSpace, TConfig> & mapper, TReadSeqs & readSeqs, THits & hits, TSeeds & seeds)
+template <typename TSpec, typename TConfig, typename TReadSeqs, typename THits, typename TSeeds>
+inline void extendHits(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, THits & hits, TSeeds & seeds)
 {
-    typedef Mapper<TExecSpace, TConfig>                 TMapper;
+    typedef Mapper<TSpec, TConfig>                      TMapper;
 
     typedef typename TMapper::TContigs                  TContigs;
     typedef typename Size<TContigs>::Type               TContigId;
@@ -553,14 +578,14 @@ inline void extendHits(Mapper<TExecSpace, TConfig> & mapper, TReadSeqs & readSeq
 // Function _getMateContigPos()
 // ----------------------------------------------------------------------------
 
-template <typename TExecSpace, typename TConfig, typename TContigPos, typename TMatch>
-inline void _getMateContigPos(Mapper<TExecSpace, TConfig> & mapper,
+template <typename TSpec, typename TConfig, typename TContigPos, typename TMatch>
+inline void _getMateContigPos(Mapper<TSpec, TConfig> & mapper,
                               TContigPos & contigBegin,
                               TContigPos & contigEnd,
                               TMatch const & anchor,
                               RightMate)
 {
-    typedef Mapper<TExecSpace, TConfig>             TMapper;
+    typedef Mapper<TSpec, TConfig>                  TMapper;
     typedef typename TMapper::TContig               TContig;
     typedef typename Size<TContig>::Type            TContigSize;
 
@@ -580,8 +605,8 @@ inline void _getMateContigPos(Mapper<TExecSpace, TConfig> & mapper,
     SEQAN_ASSERT_LEQ(getValueI2(contigEnd) - getValueI2(contigBegin), 2 * mapper.options.libraryError);
 }
 
-template <typename TExecSpace, typename TConfig, typename TContigPos, typename TMatch>
-inline void _getMateContigPos(Mapper<TExecSpace, TConfig> & mapper,
+template <typename TSpec, typename TConfig, typename TContigPos, typename TMatch>
+inline void _getMateContigPos(Mapper<TSpec, TConfig> & mapper,
                               TContigPos & contigBegin,
                               TContigPos & contigEnd,
                               TMatch const & anchor,
@@ -606,13 +631,13 @@ inline void _getMateContigPos(Mapper<TExecSpace, TConfig> & mapper,
 // Function findMates()
 // ----------------------------------------------------------------------------
 
-template <typename TExecSpace, typename TConfig, typename TReadSeqs, typename TMatches>
-inline void findMates(Mapper<TExecSpace, TConfig> & mapper,
+template <typename TSpec, typename TConfig, typename TReadSeqs, typename TMatches>
+inline void findMates(Mapper<TSpec, TConfig> & mapper,
                       TReadSeqs & readSeqs,
                       TMatches const & anchors,
                       TMatches & mates)
 {
-    typedef Mapper<TExecSpace, TConfig>                 TMapper;
+    typedef Mapper<TSpec, TConfig>                      TMapper;
     typedef typename TMapper::TContigsPos               TContigsPos;
 
     typedef typename Size<TMatches>::Type               TMatchId;
@@ -651,8 +676,8 @@ inline void findMates(Mapper<TExecSpace, TConfig> & mapper,
 // Function mapReads()
 // ----------------------------------------------------------------------------
 
-template <typename TExecSpace, typename TConfig>
-void mapReads(Mapper<TExecSpace, TConfig> & mapper)
+template <typename TSpec, typename TConfig>
+void mapReads(Mapper<TSpec, TConfig> & mapper)
 {
 //SEQAN_OMP_PRAGMA(critical(_mapper_mapReads_filter))
 //{
@@ -664,10 +689,10 @@ void mapReads(Mapper<TExecSpace, TConfig> & mapper)
 // Function _mapReads()
 // ----------------------------------------------------------------------------
 
-template <typename TExecSpace, typename TConfig, typename TReadSeqs>
-void _mapReads(Mapper<TExecSpace, TConfig> & mapper, TReadSeqs & readSeqs)
+template <typename TSpec, typename TConfig, typename TReadSeqs>
+void _mapReads(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs)
 {
-    typedef Mapper<TExecSpace, TConfig>     TMapper;
+    typedef Mapper<TSpec, TConfig>          TMapper;
     typedef typename TMapper::TSeedsExt     TSeedsExt;
     typedef typename TMapper::TSeedsApx     TSeedsApx;
 
@@ -749,8 +774,8 @@ void _mapReads(Mapper<TExecSpace, TConfig> & mapper, TReadSeqs & readSeqs)
 // Function runMapper()
 // ----------------------------------------------------------------------------
 
-template <typename TExecSpace, typename TConfig>
-void runMapper(Mapper<TExecSpace, TConfig> & mapper)
+template <typename TSpec, typename TConfig>
+void runMapper(Mapper<TSpec, TConfig> & mapper)
 {
     configureThreads(mapper);
 
@@ -788,10 +813,10 @@ void runMapper(Mapper<TExecSpace, TConfig> & mapper)
 // Function runMapper()
 // ----------------------------------------------------------------------------
 
-template <typename TExecSpace, typename TConfig>
-void runMapper(Mapper<TExecSpace, TConfig> & mapper, Parallel)
+template <typename TSpec, typename TConfig>
+void runMapper(Mapper<TSpec, TConfig> & mapper, Parallel)
 {
-    typedef Mapper<TExecSpace, TConfig>                          TMapper;
+    typedef Mapper<TSpec, TConfig>                      TMapper;
     typedef Reads<void, typename TMapper::TReadsConfig> TReads;
     typedef Logger<std::ostream>                        TLogger;
 
@@ -894,10 +919,15 @@ void runMapper(Mapper<TExecSpace, TConfig> & mapper, Parallel)
 // Function spawnMapper()
 // ----------------------------------------------------------------------------
 
-template <typename TExecSpace>
-void spawnMapper(Options const & options, TExecSpace const & /* tag */)
+template <typename TExecSpace, typename TSequencing, typename TStrategy>
+void spawnMapper(Options const & options,
+                 TExecSpace const & /* tag */,
+                 TSequencing const & /* tag */,
+                 TStrategy const & /* tag */)
 {
-    Mapper<TExecSpace, CUDAStoreConfig> mapper(options);
+    typedef ReadMapperConfig<TExecSpace, TSequencing, TStrategy, AnchorBoth> TConfig;
+
+    Mapper<void, TConfig> mapper(options);
     runMapper(mapper);
 }
 

@@ -193,23 +193,18 @@ void configureMapper(Options const & options)
 #ifndef CUDA_DISABLED
     if (options.noCuda)
 #endif
-        spawnMapper(options, ExecHost());
+        spawnMapper(options, ExecHost(), PairedEnd(), All());
 #ifndef CUDA_DISABLED
     else
-        spawnMapper(options, ExecDevice());
+        spawnMapper(options, ExecDevice(), PairedEnd(), All());
 #endif
 }
 
 inline void printDescription(ArgumentParser const & me)
 {
     ToolDoc toolDoc(me._toolDoc);
-    clearEntries(toolDoc);  // We will append me._toolDoc later.
+    clearEntries(toolDoc);
 
-    // Build synopsis section.
-//    addSection(toolDoc, "Synopsis");
-//    _addUsage(toolDoc, me);
-
-    // Add description to tool documentation.
     addSection(toolDoc, "Description");
     for (unsigned i = 0; i < me._description.size(); ++i)
         addText(toolDoc, me._description[i]);
