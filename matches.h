@@ -43,11 +43,11 @@ using namespace seqan;
 // Forwards
 // ============================================================================
 
-template <typename THaystack, typename TNeedle, typename TSpec>
-struct Extender;
-
-template <typename THaystack, typename TNeedle, typename TSpec>
-struct Verifier;
+//template <typename THaystack, typename TNeedle, typename TSpec>
+//struct Extender;
+//
+//template <typename THaystack, typename TNeedle, typename TSpec>
+//struct Verifier;
 
 // ============================================================================
 // Classes

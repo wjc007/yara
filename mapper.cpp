@@ -64,7 +64,7 @@
 #include "hits.h"
 #include "matches.h"
 #include "index.h"
-#include "seeder.h"
+#include "seeds.h"
 #include "verifier.h"
 #include "extender.h"
 #include "writer.h"
@@ -93,18 +93,21 @@ void setupArgumentParser(ArgumentParser & parser, Options const & options)
     setDescription(parser);
 
     // Setup mandatory arguments.
+    addUsageLine(parser, "[\\fIOPTIONS\\fP] <\\fIGENOME FILE\\fP> <\\fISE-READS FILE\\fP>");
     addUsageLine(parser, "[\\fIOPTIONS\\fP] <\\fIGENOME FILE\\fP> <\\fIPE-READS FILE 1\\fP> <\\fIPE-READS FILE 2\\fP>");
-    addArgument(parser, ArgParseArgument(ArgParseArgument::INPUTFILE));
-    addArgument(parser, ArgParseArgument(ArgParseArgument::INPUTFILE));
+
     addArgument(parser, ArgParseArgument(ArgParseArgument::INPUTFILE));
     setValidValues(parser, 0, "fasta fa");
+    setHelpText(parser, 0, "A reference genome file.");
+
+    addArgument(parser, ArgParseArgument(ArgParseArgument::INPUTFILE, "READS", true));
     setValidValues(parser, 1, "fastq fasta fa");
-    setValidValues(parser, 2, "fastq fasta fa");
+    setHelpText(parser, 1, "Either one single-end or two paired-end read files.");
 
     // Setup mapping options.
     addSection(parser, "Mapping Options");
 
-    addOption(parser, ArgParseOption("er", "error-rate", "Maximum error rate.", ArgParseOption::INTEGER));
+    addOption(parser, ArgParseOption("e", "error-rate", "Maximum error rate.", ArgParseOption::INTEGER));
     setMinValue(parser, "error-rate", "0");
     setMaxValue(parser, "error-rate", "10");
     setDefaultValue(parser, "error-rate", options.errorRate);
@@ -116,6 +119,8 @@ void setupArgumentParser(ArgumentParser & parser, Options const & options)
     addOption(parser, ArgParseOption("le", "library-error", "Paired-end library length tolerance.", ArgParseOption::INTEGER));
     setMinValue(parser, "library-error", "0");
     setDefaultValue(parser, "library-error", options.libraryError);
+
+    addOption(parser, ArgParseOption("a", "anchor", "Anchor one read and verify the mate."));
 
     // Setup index options.
     addSection(parser, "Index Options");
@@ -150,20 +155,33 @@ parseCommandLine(Options & options, ArgumentParser & parser, int argc, char cons
 {
     ArgumentParser::ParseResult res = parse(parser, argc, argv);
 
-    if (res != seqan::ArgumentParser::PARSE_OK)
+    if (res != ArgumentParser::PARSE_OK)
         return res;
 
     // Parse genome input file.
     getArgumentValue(options.genomeFile, parser, 0);
 
-    // Parse reads input file.
-    getArgumentValue(options.readsFile.i1, parser, 1);
-    getArgumentValue(options.readsFile.i2, parser, 2);
+    // Parse read input files.
+    switch (getArgumentValueCount(parser, 1))
+    {
+    case 1:
+        getArgumentValue(options.readsFile.i1, parser, 1, 0);
+        options.singleEnd = true;
+        break;
+    case 2:
+        getArgumentValue(options.readsFile.i1, parser, 1, 0);
+        getArgumentValue(options.readsFile.i2, parser, 1, 1);
+        options.singleEnd = false;
+        break;
+    default:
+        return ArgumentParser::PARSE_ERROR;
+    }
 
     // Parse mapping options.
     getOptionValue(options.errorRate, parser, "error-rate");
     getOptionValue(options.libraryLength, parser, "library-length");
     getOptionValue(options.libraryError, parser, "library-error");
+    getOptionValue(options.anchorOne, parser, "anchor");
 
     // Parse genome index prefix.
     getIndexPrefix(options, parser);
@@ -185,6 +203,32 @@ parseCommandLine(Options & options, ArgumentParser & parser, int argc, char cons
 }
 
 // ----------------------------------------------------------------------------
+// Function configureAnchoring()
+// ----------------------------------------------------------------------------
+
+template <typename TExecSpace, typename TSequencing>
+void configureAnchoring(Options const & options, TExecSpace const & execSpace, TSequencing const & sequencing)
+{
+    if (options.anchorOne)
+        spawnMapper(options, execSpace, sequencing, All(), AnchorOne());
+    else
+        spawnMapper(options, execSpace, sequencing, All(), AnchorBoth());
+}
+
+// ----------------------------------------------------------------------------
+// Function configureSequencing()
+// ----------------------------------------------------------------------------
+
+template <typename TExecSpace>
+void configureSequencing(Options const & options, TExecSpace const & execSpace)
+{
+    if (options.singleEnd)
+        configureAnchoring(options, execSpace, SingleEnd());
+    else
+        configureAnchoring(options, execSpace, PairedEnd());
+}
+
+// ----------------------------------------------------------------------------
 // Function configureMapper()
 // ----------------------------------------------------------------------------
 
@@ -193,28 +237,11 @@ void configureMapper(Options const & options)
 #ifndef CUDA_DISABLED
     if (options.noCuda)
 #endif
-        spawnMapper(options, ExecHost());
+        configureSequencing(options, ExecHost());
 #ifndef CUDA_DISABLED
     else
-        spawnMapper(options, ExecDevice());
+        configureSequencing(options, ExecDevice());
 #endif
-}
-
-inline void printDescription(ArgumentParser const & me)
-{
-    ToolDoc toolDoc(me._toolDoc);
-    clearEntries(toolDoc);  // We will append me._toolDoc later.
-
-    // Build synopsis section.
-//    addSection(toolDoc, "Synopsis");
-//    _addUsage(toolDoc, me);
-
-    // Add description to tool documentation.
-    addSection(toolDoc, "Description");
-    for (unsigned i = 0; i < me._description.size(); ++i)
-        addText(toolDoc, me._description[i]);
-
-    print(std::cout, toolDoc, "txt");
 }
 
 // ----------------------------------------------------------------------------
@@ -231,8 +258,6 @@ int main(int argc, char const ** argv)
 
     if (res != seqan::ArgumentParser::PARSE_OK)
         return res == seqan::ArgumentParser::PARSE_ERROR;
-
-    printDescription(parser);
 
     try
     {

@@ -45,11 +45,43 @@ using namespace seqan;
 // Tags
 // ============================================================================
 
+// ----------------------------------------------------------------------------
+// Mapping Strategy Tags
+// ----------------------------------------------------------------------------
+
+struct AnyBest_;
+struct AllBest_;
+struct All_;
+
+typedef Tag<AnyBest_>   AnyBest;
+typedef Tag<AllBest_>   AllBest;
+typedef Tag<All_>       All;
+
+// ----------------------------------------------------------------------------
+// Pairing Strategy Tags
+// ----------------------------------------------------------------------------
+
+struct AnchorOne_;
+struct AnchorBoth_;
+
+typedef Tag<AnchorBoth_>    AnchorOne;
+typedef Tag<AnchorOne_>     AnchorBoth;
+
+// ----------------------------------------------------------------------------
+// Sequencing Technologies Tags
+// ----------------------------------------------------------------------------
+
 struct SingleEnd_;
 struct PairedEnd_;
+struct MatePairs_;
 
 typedef Tag<SingleEnd_>     SingleEnd;
 typedef Tag<PairedEnd_>     PairedEnd;
+typedef Tag<MatePairs_>     MatePairs;
+
+// ----------------------------------------------------------------------------
+// File Tags
+// ----------------------------------------------------------------------------
 
 struct LeftMate_;
 struct RightMate_;
