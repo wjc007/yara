@@ -120,6 +120,8 @@ void setupArgumentParser(ArgumentParser & parser, Options const & options)
     setMinValue(parser, "library-error", "0");
     setDefaultValue(parser, "library-error", options.libraryError);
 
+    addOption(parser, ArgParseOption("a", "anchor", "Anchor one read and verify the mate."));
+
     // Setup index options.
     addSection(parser, "Index Options");
 
@@ -179,6 +181,7 @@ parseCommandLine(Options & options, ArgumentParser & parser, int argc, char cons
     getOptionValue(options.errorRate, parser, "error-rate");
     getOptionValue(options.libraryLength, parser, "library-length");
     getOptionValue(options.libraryError, parser, "library-error");
+    getOptionValue(options.anchorOne, parser, "anchor");
 
     // Parse genome index prefix.
     getIndexPrefix(options, parser);
@@ -200,6 +203,19 @@ parseCommandLine(Options & options, ArgumentParser & parser, int argc, char cons
 }
 
 // ----------------------------------------------------------------------------
+// Function configureAnchoring()
+// ----------------------------------------------------------------------------
+
+template <typename TExecSpace, typename TSequencing>
+void configureAnchoring(Options const & options, TExecSpace const & execSpace, TSequencing const & sequencing)
+{
+    if (options.anchorOne)
+        spawnMapper(options, execSpace, sequencing, All(), AnchorOne());
+    else
+        spawnMapper(options, execSpace, sequencing, All(), AnchorBoth());
+}
+
+// ----------------------------------------------------------------------------
 // Function configureSequencing()
 // ----------------------------------------------------------------------------
 
@@ -207,9 +223,9 @@ template <typename TExecSpace>
 void configureSequencing(Options const & options, TExecSpace const & execSpace)
 {
     if (options.singleEnd)
-        spawnMapper(options, execSpace, SingleEnd(), All());
+        configureAnchoring(options, execSpace, SingleEnd());
     else
-        spawnMapper(options, execSpace, PairedEnd(), All());
+        configureAnchoring(options, execSpace, PairedEnd());
 }
 
 // ----------------------------------------------------------------------------
@@ -228,18 +244,6 @@ void configureMapper(Options const & options)
 #endif
 }
 
-//inline void printDescription(ArgumentParser const & me)
-//{
-//    ToolDoc toolDoc(me._toolDoc);
-//    clearEntries(toolDoc);
-//
-//    addSection(toolDoc, "Description");
-//    for (unsigned i = 0; i < me._description.size(); ++i)
-//        addText(toolDoc, me._description[i]);
-//
-//    print(std::cout, toolDoc, "txt");
-//}
-
 // ----------------------------------------------------------------------------
 // Function main()
 // ----------------------------------------------------------------------------
@@ -254,8 +258,6 @@ int main(int argc, char const ** argv)
 
     if (res != seqan::ArgumentParser::PARSE_OK)
         return res == seqan::ArgumentParser::PARSE_ERROR;
-
-//    printDescription(parser);
 
     try
     {

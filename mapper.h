@@ -53,6 +53,7 @@ struct Options
 
     unsigned            errorRate;
     bool                singleEnd;
+    bool                anchorOne;
     unsigned            libraryLength;
     unsigned            libraryError;
 
@@ -64,6 +65,7 @@ struct Options
     Options() :
         errorRate(5),
         singleEnd(true),
+        anchorOne(false),
         libraryLength(220),
         libraryError(50),
         mappingBlock(200000),
@@ -471,8 +473,8 @@ inline void reSeed(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, THits 
 // Function selectAnchors()
 // ----------------------------------------------------------------------------
 
-template <typename TSpec, typename TConfig, typename TReadSeqs, typename THits, typename TSeeds>
-inline void selectAnchors(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, THits & hits, TSeeds & seeds)
+template <typename TSpec, typename TConfig, typename TReadSeqs, typename THits, typename TSeeds, typename TReadsInfo>
+inline void selectAnchors(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, THits & hits, TSeeds & seeds, TReadsInfo & info)
 {
     typedef Mapper<TSpec, TConfig>                      TMapper;
     typedef typename TMapper::TSeedsSet                 TSeedsSet;
@@ -503,17 +505,41 @@ inline void selectAnchors(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs,
         THitSize readHits = countHits<THitSize>(hits, readHitIds);
         THitSize mateHits = countHits<THitSize>(hits, mateHitIds);
 
+        TReadId anchorSeqId;
+        TReadId otherSeqId;
+        THitIds anchorHitIds;
+        THitIds otherHitIds;
+
         // Choose the easiest read as the anchor.
         THitSize anchorHits = std::min(readHits, mateHits);
 
-        // Clear the hits of the hardest.
-        THitIds otherHitIds = (anchorHits == readHits) ? mateHitIds : readHitIds;
-        clearHits(hits, otherHitIds);
+        if (anchorHits == readHits)
+        {
+            anchorSeqId = readSeqId;
+            anchorHitIds = readHitIds;
+            otherSeqId = mateSeqId;
+            otherHitIds = mateHitIds;
+        }
+        else
+        {
+            anchorSeqId = mateSeqId;
+            anchorHitIds = mateHitIds;
+            otherSeqId = readSeqId;
+            otherHitIds = readHitIds;
+        }
 
-        // Clear also the hits of the anchor and skip the pair.
+        // Clear the hits of the other read.
+        clearHits(hits, otherHitIds);
+        info[otherSeqId].status = STATUS_UNMAPPABLE;
+
+        // Re-seed hard anchors.
         if (anchorHits > mapper.options.hitsThreshold)
         {
-            THitIds anchorHitIds = (anchorHits == readHits) ? readHitIds : mateHitIds;
+            // Guess a good seeding stragegy.
+            info[anchorSeqId].seedErrors = (anchorHits < 30 * mapper.options.hitsThreshold) ? 1 : 2;
+            info[anchorSeqId].status = STATUS_UNSEEDED;
+
+            // Clear the hits of the anchor.
             clearHits(hits, anchorHitIds);
         }
     }
@@ -706,7 +732,7 @@ void mapReads(Mapper<TSpec, TConfig> & mapper)
 {
 //SEQAN_OMP_PRAGMA(critical(_mapper_mapReads_filter))
 //{
-    _mapReads(mapper, getSeqs(mapper.reads));
+    _mapReads(mapper, getSeqs(mapper.reads), typename TConfig::TAnchoring());
 //}
 }
 
@@ -715,7 +741,7 @@ void mapReads(Mapper<TSpec, TConfig> & mapper)
 // ----------------------------------------------------------------------------
 
 template <typename TSpec, typename TConfig, typename TReadSeqs>
-void _mapReads(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs)
+void _mapReads(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, AnchorBoth)
 {
     typedef Mapper<TSpec, TConfig>          TMapper;
     typedef typename TMapper::TSeedsExt     TSeedsExt;
@@ -778,16 +804,83 @@ void _mapReads(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs)
     stop(mapper.timer);
     std::cout << "Compaction time:\t\t" << mapper.timer << std::endl;
     std::cout << "Anchors count:\t\t\t" << length(mapper.anchors) << std::endl;
-    std::cout << "Anchored pairs:\t\t\t" << countMatches(readSeqs, mapper.anchors, PairedEnd()) << std::endl;
+    std::cout << "Anchored pairs:\t\t\t" << countMatches(readSeqs, mapper.anchors, typename TConfig::TSequencing()) << std::endl;
+}
 
-//    start(mapper.timer);
-//    clear(mapper.mates);
-//    reserve(mapper.mates, length(mapper.anchors), Exact());
-//    findMates(mapper, readSeqs, mapper.anchors, mapper.mates);
-//    stop(mapper.timer);
-//    std::cout << "Verification time:\t\t" << mapper.timer << std::endl;
-//    std::cout << "Mates count:\t\t\t" << length(mapper.mates) << std::endl;
-//    std::cout << "Mapped pairs:\t\t\t" << countMatches(readSeqs, mapper.mates, PairedEnd()) << std::endl;
+template <typename TSpec, typename TConfig, typename TReadSeqs>
+void _mapReads(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, AnchorOne)
+{
+    typedef Mapper<TSpec, TConfig>          TMapper;
+    typedef typename TMapper::TSeedsExt     TSeedsExt;
+    typedef typename TMapper::TSeedsApx     TSeedsApx;
+
+    clear(mapper.hits[0]);
+    clear(mapper.hits[1]);
+    clear(mapper.hits[2]);
+
+    clear(mapper.info);
+    resize(mapper.info, getReadSeqsCount(readSeqs));
+
+    start(mapper.timer);
+    selectSeeds(mapper, mapper.seeds, readSeqs, mapper.info, Pair<unsigned>(0,0));
+    std::cout << "Seeds count:\t\t\t" << length(mapper.seeds[0]) << std::endl;
+    TSeedsExt seeds0(mapper.seeds[0]);
+    findSeeds(mapper, mapper.hits[0], mapper.seederExt, seeds0);
+    stop(mapper.timer);
+    std::cout << "Seeding time:\t\t\t" << mapper.timer << std::endl;
+
+//#ifdef _OPENMP
+//    sortHits(mapper.hits[0]);
+//#endif
+
+    selectAnchors(mapper, readSeqs, mapper.hits[0], mapper.seeds[0], mapper.info);
+    selectSeeds(mapper, mapper.seeds, readSeqs, mapper.info, Pair<unsigned>(1,2));
+    std::cout << "Hits count:\t\t\t" << countHits<unsigned long>(mapper.hits[0]) << std::endl;
+
+    start(mapper.timer);
+    std::cout << "Seeds count:\t\t\t" << length(mapper.seeds[1]) << std::endl;
+    TSeedsApx seeds1(mapper.seeds[1]);
+    setScoreThreshold(mapper.seederApx, 1);
+    findSeeds(mapper, mapper.hits[1], mapper.seederApx, seeds1);
+    stop(mapper.timer);
+    std::cout << "Seeding time:\t\t\t" << mapper.timer << std::endl;
+    std::cout << "Hits count:\t\t\t" << countHits<unsigned long>(mapper.hits[1]) << std::endl;
+
+    start(mapper.timer);
+    std::cout << "Seeds count:\t\t\t" << length(mapper.seeds[2]) << std::endl;
+    TSeedsApx seeds2(mapper.seeds[2]);
+    setScoreThreshold(mapper.seederApx, 2);
+    findSeeds(mapper, mapper.hits[2], mapper.seederApx, seeds2);
+    stop(mapper.timer);
+    std::cout << "Seeding time:\t\t\t" << mapper.timer << std::endl;
+    std::cout << "Hits count:\t\t\t" << countHits<unsigned long>(mapper.hits[2]) << std::endl;
+
+    clear(mapper.anchors);
+    reserve(mapper.anchors, countHits<unsigned long>(mapper.hits[0]) + countHits<unsigned long>(mapper.hits[1]) + countHits<unsigned long>(mapper.hits[2]) / 5);
+
+    start(mapper.timer);
+    extendHits(mapper, readSeqs, mapper.hits[0], mapper.seeds[0]);
+    extendHits(mapper, readSeqs, mapper.hits[1], mapper.seeds[1]);
+    extendHits(mapper, readSeqs, mapper.hits[2], mapper.seeds[2]);
+    stop(mapper.timer);
+    std::cout << "Extension time:\t\t\t" << mapper.timer << std::endl;
+    std::cout << "Anchors count:\t\t\t" << length(mapper.anchors) << std::endl;
+
+    start(mapper.timer);
+    removeDuplicateMatches(mapper.anchors);
+    stop(mapper.timer);
+    std::cout << "Compaction time:\t\t" << mapper.timer << std::endl;
+    std::cout << "Anchors count:\t\t\t" << length(mapper.anchors) << std::endl;
+    std::cout << "Anchored pairs:\t\t\t" << countMatches(readSeqs, mapper.anchors, typename TConfig::TSequencing()) << std::endl;
+
+    start(mapper.timer);
+    clear(mapper.mates);
+    reserve(mapper.mates, length(mapper.anchors), Exact());
+    findMates(mapper, readSeqs, mapper.anchors, mapper.mates);
+    stop(mapper.timer);
+    std::cout << "Verification time:\t\t" << mapper.timer << std::endl;
+    std::cout << "Mates count:\t\t\t" << length(mapper.mates) << std::endl;
+    std::cout << "Mapped pairs:\t\t\t" << countMatches(readSeqs, mapper.mates, typename TConfig::TSequencing()) << std::endl;
 
 //    start(mapper.timer);
 //    runWriter(mapper.writer, readSeqs);
@@ -941,13 +1034,14 @@ void runMapper(Mapper<TSpec, TConfig> & mapper, Parallel)
 // Function spawnMapper()
 // ----------------------------------------------------------------------------
 
-template <typename TExecSpace, typename TSequencing, typename TStrategy>
+template <typename TExecSpace, typename TSequencing, typename TStrategy, typename TAnchoring>
 void spawnMapper(Options const & options,
                  TExecSpace const & /* tag */,
                  TSequencing const & /* tag */,
-                 TStrategy const & /* tag */)
+                 TStrategy const & /* tag */,
+                 TAnchoring const & /* tag */)
 {
-    typedef ReadMapperConfig<TExecSpace, TSequencing, TStrategy, AnchorBoth> TConfig;
+    typedef ReadMapperConfig<TExecSpace, TSequencing, TStrategy, TAnchoring> TConfig;
 
     Mapper<void, TConfig> mapper(options);
     runMapper(mapper);
