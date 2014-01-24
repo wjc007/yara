@@ -810,7 +810,7 @@ void _mapReads(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, AnchorBoth
 
     reSeed(mapper, readSeqs, mapper.hits[0], mapper.seeds[0], mapper.info);
     std::cout << "Hits count:\t\t\t" << countHits<unsigned long>(mapper.hits[0]) << std::endl;
-    writeHits(mapper, readSeqs, mapper.hits[0], mapper.seeds[0], mapper.info, "hits_0.csv");
+//    writeHits(mapper, readSeqs, mapper.hits[0], mapper.seeds[0], mapper.info, "hits_0.csv");
 
     selectSeeds(mapper, mapper.seeds, readSeqs, mapper.info, Pair<unsigned>(1,2));
 
@@ -822,7 +822,7 @@ void _mapReads(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, AnchorBoth
     stop(mapper.timer);
     std::cout << "Seeding time:\t\t\t" << mapper.timer << std::endl;
     std::cout << "Hits count:\t\t\t" << countHits<unsigned long>(mapper.hits[1]) << std::endl;
-    writeHits(mapper, readSeqs, mapper.hits[1], mapper.seeds[1], mapper.info, "hits_1.csv");
+//    writeHits(mapper, readSeqs, mapper.hits[1], mapper.seeds[1], mapper.info, "hits_1.csv");
 
     start(mapper.timer);
     std::cout << "Seeds count:\t\t\t" << length(mapper.seeds[2]) << std::endl;
@@ -832,7 +832,7 @@ void _mapReads(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, AnchorBoth
     stop(mapper.timer);
     std::cout << "Seeding time:\t\t\t" << mapper.timer << std::endl;
     std::cout << "Hits count:\t\t\t" << countHits<unsigned long>(mapper.hits[2]) << std::endl;
-    writeHits(mapper, readSeqs, mapper.hits[2], mapper.seeds[2], mapper.info, "hits_2.csv");
+//    writeHits(mapper, readSeqs, mapper.hits[2], mapper.seeds[2], mapper.info, "hits_2.csv");
 
     clear(mapper.anchors);
     reserve(mapper.anchors, countHits<unsigned long>(mapper.hits[0]) + countHits<unsigned long>(mapper.hits[1]) + countHits<unsigned long>(mapper.hits[2]) / 5);
