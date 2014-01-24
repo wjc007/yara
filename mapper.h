@@ -431,6 +431,48 @@ inline void findSeeds(Mapper<TSpec, TConfig> & /* mapper */, THitsString & hits,
 }
 
 // ----------------------------------------------------------------------------
+// Function writeHits()
+// ----------------------------------------------------------------------------
+
+template <typename TSpec, typename TConfig, typename TReadSeqs, typename THits, typename TSeedsSet, typename TReadsInfo, typename TFilename>
+inline void writeHits(Mapper<TSpec, TConfig> & /* mapper */, TReadSeqs & readSeqs, THits & hits, TSeedsSet & seeds, TReadsInfo & info, TFilename const & filename)
+{
+    typedef Mapper<TSpec, TConfig>                      TMapper;
+//    typedef typename TMapper::TSeedsSet                 TSeedsSet;
+    typedef typename Id<TSeedsSet>::Type                TSeedId;
+    typedef Pair<TSeedId>                               TSeedIds;
+    typedef typename TMapper::THit                      THit;
+    typedef typename Id<THit>::Type                     THitId;
+    typedef typename Id<THit>::Type                     THitId;
+    typedef Pair<THitId>                                THitIds;
+    typedef typename Position<THit>::Type               THitRange;
+    typedef typename Size<THit>::Type                   THitSize;
+    typedef typename Size<TReadSeqs>::Type              TReadId;
+
+    std::ofstream file;
+    file.open(filename);
+
+    TReadId readSeqsCount = getReadSeqsCount(readSeqs);
+
+    for (TReadId readSeqId = 0; readSeqId < readSeqsCount; ++readSeqId)
+    {
+        TSeedIds readSeedIds = getSeedIds(seeds, readSeqId);
+
+        if (info[readSeqId].status == STATUS_UNSEEDED) continue;
+        if (getValueI2(readSeedIds) <= getValueI1(readSeedIds)) continue;
+
+        for (TSeedId seedId = getValueI1(readSeedIds); seedId < getValueI2(readSeedIds); ++seedId)
+        {
+            THitIds seedHitIds = getHitIds(hits, seedId);
+            file << countHits<THitSize>(hits, seedHitIds) << "\t";
+        }
+        file << "\n";
+    }
+
+    file.close();
+}
+
+// ----------------------------------------------------------------------------
 // Function reSeed()
 // ----------------------------------------------------------------------------
 
@@ -767,8 +809,10 @@ void _mapReads(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, AnchorBoth
 //#endif
 
     reSeed(mapper, readSeqs, mapper.hits[0], mapper.seeds[0], mapper.info);
-    selectSeeds(mapper, mapper.seeds, readSeqs, mapper.info, Pair<unsigned>(1,2));
     std::cout << "Hits count:\t\t\t" << countHits<unsigned long>(mapper.hits[0]) << std::endl;
+    writeHits(mapper, readSeqs, mapper.hits[0], mapper.seeds[0], mapper.info, "hits_0.csv");
+
+    selectSeeds(mapper, mapper.seeds, readSeqs, mapper.info, Pair<unsigned>(1,2));
 
     start(mapper.timer);
     std::cout << "Seeds count:\t\t\t" << length(mapper.seeds[1]) << std::endl;
@@ -778,6 +822,7 @@ void _mapReads(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, AnchorBoth
     stop(mapper.timer);
     std::cout << "Seeding time:\t\t\t" << mapper.timer << std::endl;
     std::cout << "Hits count:\t\t\t" << countHits<unsigned long>(mapper.hits[1]) << std::endl;
+    writeHits(mapper, readSeqs, mapper.hits[1], mapper.seeds[1], mapper.info, "hits_1.csv");
 
     start(mapper.timer);
     std::cout << "Seeds count:\t\t\t" << length(mapper.seeds[2]) << std::endl;
@@ -787,6 +832,7 @@ void _mapReads(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, AnchorBoth
     stop(mapper.timer);
     std::cout << "Seeding time:\t\t\t" << mapper.timer << std::endl;
     std::cout << "Hits count:\t\t\t" << countHits<unsigned long>(mapper.hits[2]) << std::endl;
+    writeHits(mapper, readSeqs, mapper.hits[2], mapper.seeds[2], mapper.info, "hits_2.csv");
 
     clear(mapper.anchors);
     reserve(mapper.anchors, countHits<unsigned long>(mapper.hits[0]) + countHits<unsigned long>(mapper.hits[1]) + countHits<unsigned long>(mapper.hits[2]) / 5);
