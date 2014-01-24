@@ -460,7 +460,7 @@ inline void reSeed(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, THits 
         if (readHits > mapper.options.hitsThreshold)
         {
             // Guess a good seeding stragegy.
-            info[readSeqId].seedErrors = (readHits < 30 * mapper.options.hitsThreshold) ? 1 : 2;
+            info[readSeqId].seedErrors = (readHits < 200 * mapper.options.hitsThreshold) ? 1 : 2;
             info[readSeqId].status = STATUS_UNSEEDED;
 
             // Clear the hits of the read.
@@ -536,7 +536,7 @@ inline void selectAnchors(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs,
         if (anchorHits > mapper.options.hitsThreshold)
         {
             // Guess a good seeding stragegy.
-            info[anchorSeqId].seedErrors = (anchorHits < 30 * mapper.options.hitsThreshold) ? 1 : 2;
+            info[anchorSeqId].seedErrors = (anchorHits < 200 * mapper.options.hitsThreshold) ? 1 : 2;
             info[anchorSeqId].status = STATUS_UNSEEDED;
 
             // Clear the hits of the anchor.
