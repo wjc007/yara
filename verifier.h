@@ -65,6 +65,31 @@ struct Verifier
 };
 
 // ----------------------------------------------------------------------------
+// Class Verifier
+// ----------------------------------------------------------------------------
+
+template <typename THaystack, typename TNeedle, typename TSpec>
+struct Verifier<THaystack, TNeedle, Filter<TSpec> >
+{
+    typedef typename Infix<THaystack const>::Type           THaystackInfix;
+    typedef Finder<THaystackInfix>                          TFinder;
+    typedef StringSet<TNeedle, Segment<TNeedle> >           TSeedsSet;
+    typedef Pattern<TSeedsSet, TSpec>                       TPattern;
+
+    THaystack const &   haystack;
+    TFinder             finder;
+    TSeedsSet           seeds;
+    TPattern            pattern;
+
+    Verifier(THaystack const & haystack) :
+        haystack(haystack)
+    {
+//        _patternMatchNOfPattern(pattern, false);
+//        _patternMatchNOfFinder(pattern, false);
+    }
+};
+
+// ----------------------------------------------------------------------------
 // Function verify()
 // ----------------------------------------------------------------------------
 
@@ -90,6 +115,53 @@ verify(Verifier<THaystack, TNeedle, TSpec> & verifier,
     // TODO(esiragusa): Enumerate all minima.
     bool paired = false;
     while (find(verifier.finder, verifier.pattern, -static_cast<int>(maxErrors)))
+        paired = true;
+
+//    delegate(verifier);
+    if (paired) delegate(haystackBegin, haystackEnd, maxErrors);
+}
+
+// ----------------------------------------------------------------------------
+// Function verify()
+// ----------------------------------------------------------------------------
+
+template <typename THaystack, typename TNeedle, typename TSpec,
+          typename THaystackPos, typename TErrors, typename TDelegate>
+inline void
+verify(Verifier<THaystack, TNeedle, Filter<TSpec> > & verifier,
+       TNeedle & needle,
+       THaystackPos haystackBegin,
+       THaystackPos haystackEnd,
+       TErrors maxErrors,
+       TDelegate & delegate)
+{
+    typedef Verifier<THaystack, TNeedle, TSpec>         TVerifier;
+    typedef typename TVerifier::THaystackInfix          THaystackInfix;
+    typedef typename Size<TNeedle>::Type                TNeedleSize;
+    typedef uint64_t                                    TWord;
+
+    TNeedleSize seedsCount = maxErrors + 1;
+    TNeedleSize seedLength = BitsPerValue<TWord>::VALUE / seedsCount;
+//    TNeedleSize needleLength = length(needle);
+//    TNeedleSize seedLength = needleLength / seedsCount;
+
+    clear(verifier.seeds);
+    reserve(verifier.seeds, seedsCount, Exact());
+    setHost(verifier.seeds, needle);
+
+    for (TNeedleSize seedId = 0; seedId < seedsCount; ++seedId)
+        appendInfixWithLength(verifier.seeds, seedId * seedLength, seedLength, Exact());
+
+    THaystackInfix haystackInfix = infix(verifier.haystack, haystackBegin, haystackEnd);
+
+    clear(verifier.finder);
+    setHost(verifier.finder, haystackInfix);
+    setHost(verifier.pattern, verifier.seeds);
+
+
+    // TODO(esiragusa): Enumerate all minima.
+    bool paired = false;
+    while (find(verifier.finder, verifier.pattern))
         paired = true;
 
 //    delegate(verifier);

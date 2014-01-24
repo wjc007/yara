@@ -165,7 +165,8 @@ struct Mapper
     typedef Myers<TMyersSpec, True, void>                           TExtenderAlgorithm;
     typedef Extender<TContigs, TReadSeq, TExtenderAlgorithm>        TExtender;
 
-    typedef Verifier<TContigs, TReadSeq, Myers<> >                  TVerifier;
+//    typedef Verifier<TContigs, TReadSeq, Myers<> >                  TVerifier;
+    typedef Verifier<TContigs, TReadSeq, Filter<MultipleShiftAnd> > TVerifier;
 
 //    typedef WriterConfig<Options, TReadSeqs>                        TWriterConfig;
 //    typedef Writer<TSpec, TWriterConfig>                       TWriter;
