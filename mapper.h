@@ -166,6 +166,7 @@ struct Mapper
     typedef Extender<TContigs, TReadSeq, TExtenderAlgorithm>        TExtender;
 
     typedef Verifier<TContigs, TReadSeq, Myers<> >                  TVerifier;
+//    typedef Verifier<TContigs, TReadSeq, Filter<MultipleShiftAnd> > TVerifier;
 
 //    typedef WriterConfig<Options, TReadSeqs>                        TWriterConfig;
 //    typedef Writer<TSpec, TWriterConfig>                       TWriter;
