@@ -1071,6 +1071,7 @@ void _mapReads(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, AnyBest, N
     typedef Mapper<TSpec, TConfig>          TMapper;
     typedef typename TMapper::TSeedsExt     TSeedsExt;
     typedef typename TMapper::TSeedsApx     TSeedsApx;
+    typedef typename TMapper::THit          THit;
 
     clear(mapper.hits[0]);
     clear(mapper.hits[1]);
@@ -1121,10 +1122,9 @@ void _mapReads(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, AnyBest, N
     std::cout << "Hits count:\t\t\t" << countHits<unsigned long>(mapper.hits[2]) << std::endl;
 //    writeHits(mapper, readSeqs, mapper.hits[2], mapper.seeds[2], mapper.info, "hits_2.csv");
 
-    sortHits(mapper.hits[0]);
-    sortHits(mapper.hits[1]);
-    sortHits(mapper.hits[2]);
-
+    std::stable_sort(begin(mapper.hits[0], Standard()), end(mapper.hits[0], Standard()), HitsSorterByCount<THit>());
+    std::stable_sort(begin(mapper.hits[1], Standard()), end(mapper.hits[1], Standard()), HitsSorterByCount<THit>());
+    std::stable_sort(begin(mapper.hits[2], Standard()), end(mapper.hits[2], Standard()), HitsSorterByCount<THit>());
 
     clear(mapper.anchors);
     reserve(mapper.anchors, countHits<unsigned long>(mapper.hits[0]) + countHits<unsigned long>(mapper.hits[1]) + countHits<unsigned long>(mapper.hits[2]) / 5);
