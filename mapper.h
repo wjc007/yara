@@ -47,9 +47,20 @@ using namespace seqan;
 
 struct Options
 {
+    typedef std::string             TString;
+    typedef std::vector<TString>    TList;
+
+    enum MappingMode
+    {
+        ALL, /* ALL_BEST, */ ANY_BEST
+    };
+
     CharString          genomeFile;
     CharString          genomeIndexFile;
     Pair<CharString>    readsFile;
+
+    TList               mappingModeList;
+    MappingMode         mappingMode;
 
     unsigned            errorRate;
     bool                singleEnd;
@@ -63,6 +74,7 @@ struct Options
     unsigned            hitsThreshold;
 
     Options() :
+        mappingMode(ALL),
         errorRate(5),
         singleEnd(true),
         anchorOne(false),
@@ -72,7 +84,11 @@ struct Options
         noCuda(false),
         threadsCount(1),
         hitsThreshold(300)
-    {}
+    {
+        mappingModeList.push_back("all");
+//        mappingModeList.push_back("all-best");
+        mappingModeList.push_back("any-best");
+    }
 };
 
 // ----------------------------------------------------------------------------
@@ -775,16 +791,26 @@ void mapReads(Mapper<TSpec, TConfig> & mapper)
 {
 //SEQAN_OMP_PRAGMA(critical(_mapper_mapReads_filter))
 //{
-    _mapReads(mapper, getSeqs(mapper.reads), typename TConfig::TAnchoring());
+    _mapReads(mapper, getSeqs(mapper.reads), typename TConfig::TStrategy(), typename TConfig::TAnchoring());
 //}
 }
 
 // ----------------------------------------------------------------------------
-// Function _mapReads()
+// Function _mapReads(); SingleEnd, All
 // ----------------------------------------------------------------------------
 
 template <typename TSpec, typename TConfig, typename TReadSeqs>
-void _mapReads(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, AnchorBoth)
+void _mapReads(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, All, Nothing)
+{
+    _mapReads(mapper, readSeqs, All(), AnchorBoth());
+}
+
+// ----------------------------------------------------------------------------
+// Function _mapReads(); PairedEnd, All, AnchorBoth
+// ----------------------------------------------------------------------------
+
+template <typename TSpec, typename TConfig, typename TReadSeqs>
+void _mapReads(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, All, AnchorBoth)
 {
     typedef Mapper<TSpec, TConfig>          TMapper;
     typedef typename TMapper::TSeedsExt     TSeedsExt;
@@ -854,8 +880,12 @@ void _mapReads(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, AnchorBoth
     std::cout << "Anchored pairs:\t\t\t" << countMatches(readSeqs, mapper.anchors, typename TConfig::TSequencing()) << std::endl;
 }
 
+// ----------------------------------------------------------------------------
+// Function _mapReads(); PairedEnd, All, AnchorOne
+// ----------------------------------------------------------------------------
+
 template <typename TSpec, typename TConfig, typename TReadSeqs>
-void _mapReads(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, AnchorOne)
+void _mapReads(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, All, AnchorOne)
 {
     typedef Mapper<TSpec, TConfig>          TMapper;
     typedef typename TMapper::TSeedsExt     TSeedsExt;
@@ -933,6 +963,81 @@ void _mapReads(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, AnchorOne)
 //    runWriter(mapper.writer, readSeqs);
 //    stop(mapper.timer);
 //    std::cout << "Writing time:\t\t\t" << mapper.timer << std::endl;
+}
+
+// ----------------------------------------------------------------------------
+// Function _mapReads(); SingleEnd, AnyBest
+// ----------------------------------------------------------------------------
+
+template <typename TSpec, typename TConfig, typename TReadSeqs>
+void _mapReads(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, AnyBest, Nothing)
+{
+    typedef Mapper<TSpec, TConfig>          TMapper;
+    typedef typename TMapper::TSeedsExt     TSeedsExt;
+    typedef typename TMapper::TSeedsApx     TSeedsApx;
+
+    clear(mapper.hits[0]);
+    clear(mapper.hits[1]);
+    clear(mapper.hits[2]);
+
+    clear(mapper.info);
+    resize(mapper.info, getReadSeqsCount(readSeqs));
+
+    start(mapper.timer);
+    selectSeeds(mapper, mapper.seeds, readSeqs, mapper.info, Pair<unsigned>(0,0));
+    std::cout << "Seeds count:\t\t\t" << length(mapper.seeds[0]) << std::endl;
+    TSeedsExt seeds0(mapper.seeds[0]);
+    findSeeds(mapper, mapper.hits[0], mapper.seederExt, seeds0);
+    stop(mapper.timer);
+    std::cout << "Seeding time:\t\t\t" << mapper.timer << std::endl;
+
+//#ifdef _OPENMP
+//    sortHits(mapper.hits[0]);
+//#endif
+
+    reSeed(mapper, readSeqs, mapper.hits[0], mapper.seeds[0], mapper.info);
+    std::cout << "Hits count:\t\t\t" << countHits<unsigned long>(mapper.hits[0]) << std::endl;
+//    writeHits(mapper, readSeqs, mapper.hits[0], mapper.seeds[0], mapper.info, "hits_0.csv");
+
+    selectSeeds(mapper, mapper.seeds, readSeqs, mapper.info, Pair<unsigned>(1,2));
+
+    start(mapper.timer);
+    std::cout << "Seeds count:\t\t\t" << length(mapper.seeds[1]) << std::endl;
+    TSeedsApx seeds1(mapper.seeds[1]);
+    setScoreThreshold(mapper.seederApx, 1);
+    findSeeds(mapper, mapper.hits[1], mapper.seederApx, seeds1);
+    stop(mapper.timer);
+    std::cout << "Seeding time:\t\t\t" << mapper.timer << std::endl;
+    std::cout << "Hits count:\t\t\t" << countHits<unsigned long>(mapper.hits[1]) << std::endl;
+//    writeHits(mapper, readSeqs, mapper.hits[1], mapper.seeds[1], mapper.info, "hits_1.csv");
+
+    start(mapper.timer);
+    std::cout << "Seeds count:\t\t\t" << length(mapper.seeds[2]) << std::endl;
+    TSeedsApx seeds2(mapper.seeds[2]);
+    setScoreThreshold(mapper.seederApx, 2);
+    findSeeds(mapper, mapper.hits[2], mapper.seederApx, seeds2);
+    stop(mapper.timer);
+    std::cout << "Seeding time:\t\t\t" << mapper.timer << std::endl;
+    std::cout << "Hits count:\t\t\t" << countHits<unsigned long>(mapper.hits[2]) << std::endl;
+//    writeHits(mapper, readSeqs, mapper.hits[2], mapper.seeds[2], mapper.info, "hits_2.csv");
+
+    clear(mapper.anchors);
+    reserve(mapper.anchors, countHits<unsigned long>(mapper.hits[0]) + countHits<unsigned long>(mapper.hits[1]) + countHits<unsigned long>(mapper.hits[2]) / 5);
+
+    start(mapper.timer);
+    extendHits(mapper, readSeqs, mapper.hits[0], mapper.seeds[0]);
+    extendHits(mapper, readSeqs, mapper.hits[1], mapper.seeds[1]);
+    extendHits(mapper, readSeqs, mapper.hits[2], mapper.seeds[2]);
+    stop(mapper.timer);
+    std::cout << "Extension time:\t\t\t" << mapper.timer << std::endl;
+    std::cout << "Anchors count:\t\t\t" << length(mapper.anchors) << std::endl;
+
+    start(mapper.timer);
+    removeDuplicateMatches(mapper.anchors);
+    stop(mapper.timer);
+    std::cout << "Compaction time:\t\t" << mapper.timer << std::endl;
+    std::cout << "Anchors count:\t\t\t" << length(mapper.anchors) << std::endl;
+    std::cout << "Anchored pairs:\t\t\t" << countMatches(readSeqs, mapper.anchors, typename TConfig::TSequencing()) << std::endl;
 }
 
 // ----------------------------------------------------------------------------

@@ -107,6 +107,10 @@ void setupArgumentParser(ArgumentParser & parser, Options const & options)
     // Setup mapping options.
     addSection(parser, "Mapping Options");
 
+    addOption(parser, ArgParseOption("mm", "mapping-mode", "Select mapping mode.", ArgParseOption::STRING));
+    setValidValues(parser, "mapping-mode", options.mappingModeList);
+    setDefaultValue(parser, "mapping-mode", options.mappingModeList[options.mappingMode]);
+
     addOption(parser, ArgParseOption("e", "error-rate", "Maximum error rate.", ArgParseOption::INTEGER));
     setMinValue(parser, "error-rate", "0");
     setMaxValue(parser, "error-rate", "10");
@@ -178,6 +182,7 @@ parseCommandLine(Options & options, ArgumentParser & parser, int argc, char cons
     }
 
     // Parse mapping options.
+    getOptionValue(options.mappingMode, parser, "mapping-mode", options.mappingModeList);
     getOptionValue(options.errorRate, parser, "error-rate");
     getOptionValue(options.libraryLength, parser, "library-length");
     getOptionValue(options.libraryError, parser, "library-error");
@@ -206,13 +211,36 @@ parseCommandLine(Options & options, ArgumentParser & parser, int argc, char cons
 // Function configureAnchoring()
 // ----------------------------------------------------------------------------
 
-template <typename TExecSpace, typename TSequencing>
-void configureAnchoring(Options const & options, TExecSpace const & execSpace, TSequencing const & sequencing)
+template <typename TExecSpace, typename TSequencing, typename TStrategy>
+void configureAnchoring(Options const & options, TExecSpace const & execSpace, TSequencing const & sequencing, TStrategy const & strategy)
 {
     if (options.anchorOne)
-        spawnMapper(options, execSpace, sequencing, All(), AnchorOne());
+        spawnMapper(options, execSpace, sequencing, strategy, AnchorOne());
     else
-        spawnMapper(options, execSpace, sequencing, All(), AnchorBoth());
+        spawnMapper(options, execSpace, sequencing, strategy, AnchorBoth());
+}
+
+// ----------------------------------------------------------------------------
+// Function configureStrategy()
+// ----------------------------------------------------------------------------
+
+template <typename TExecSpace, typename TSequencing>
+void configureStrategy(Options const & options, TExecSpace const & execSpace, TSequencing const & sequencing)
+{
+    switch (options.mappingMode)
+    {
+    case Options::ANY_BEST:
+        return spawnMapper(options, execSpace, sequencing, AnyBest(), Nothing());
+
+//    case Options::ALL_BEST:
+//        return configureAnchoring(options, execSpace, sequencing, AllBest(), Nothing());
+
+    case Options::ALL:
+        return spawnMapper(options, execSpace, sequencing, All(), Nothing());
+
+    default:
+        return;
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -223,9 +251,9 @@ template <typename TExecSpace>
 void configureSequencing(Options const & options, TExecSpace const & execSpace)
 {
     if (options.singleEnd)
-        configureAnchoring(options, execSpace, SingleEnd());
+        configureStrategy(options, execSpace, SingleEnd());
     else
-        configureAnchoring(options, execSpace, PairedEnd());
+        configureAnchoring(options, execSpace, PairedEnd(), All());
 }
 
 // ----------------------------------------------------------------------------
