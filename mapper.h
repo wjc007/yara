@@ -685,6 +685,96 @@ inline void extendHits(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, TH
 }
 
 // ----------------------------------------------------------------------------
+// Function extendHits(); AnyBest
+// ----------------------------------------------------------------------------
+
+template <typename TSpec, typename TConfig, typename TReadSeqs, typename THits, typename TSeeds>
+inline void extendHits(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, THits & hits, TSeeds & seeds, AnyBest)
+{
+    typedef Mapper<TSpec, TConfig>                      TMapper;
+
+    typedef typename TMapper::TContigs                  TContigs;
+    typedef typename Size<TContigs>::Type               TContigId;
+    typedef typename TMapper::TContigsPos               TContigsPos;
+
+    typedef typename TMapper::TReadSeq                  TReadSeq;
+    typedef typename Id<TReadSeqs>::Type                TReadId;
+    typedef Pair<typename Position<TReadSeq>::Type>     TReadPos;
+    typedef typename Size<TReadSeq>::Type               TReadSeqSize;
+
+    typedef typename TMapper::TSeedsSet                 TSeedsSet;
+    typedef typename Id<TSeedsSet>::Type                TSeedId;
+
+    typedef typename TMapper::THit                      THit;
+    typedef typename Id<THit>::Type                     THitId;
+    typedef typename Position<THit>::Type               THitRange;
+    typedef unsigned char                               THitErrors;
+
+    typedef typename TMapper::TMatches                  TMatches;
+    typedef typename Value<TMatches>::Type              TMatch;
+
+    typedef typename TMapper::TIndex                    TIndex;
+    typedef typename Fibre<TIndex, FibreSA>::Type       TSA;
+    typedef typename Size<TSA>::Type                    TSAPos;
+    typedef typename Value<TSA>::Type                   TSAValue;
+
+    typedef MatchesManager<TMatches, AnyBest>           TManager;
+
+    TSA & sa = indexSA(mapper.index);
+
+    TManager anchorsManager(mapper.anchors, readSeqs);
+
+    String<unsigned char> stratum;
+    resize(stratum, getReadsCount(readSeqs), 0, Exact());
+
+    THitId hitsCount = length(hits);
+
+    for (THitId hitId = 0; hitId < hitsCount; ++hitId)
+    {
+        // Extract hit info.
+        TSeedId seedId = getSeedId(hits, hitId);
+        THitRange hitRange = getRange(hits, hitId);
+        THitErrors hitErrors = getErrors(hits, hitId);
+
+        // Get read.
+        TReadId readSeqId = getReadSeqId(seeds, seedId);
+        TReadId readId = getReadId(readSeqs, readSeqId);
+        TReadSeq readSeq = readSeqs[readSeqId];
+
+        // Skip mapped reads.
+        if (anchorsManager.minErrors[readId] <= stratum[readId]) continue;
+
+        // Fill readSeqId.
+        anchorsManager.prototype.readId = readId;
+
+        // Get position in read.
+        TReadPos readPos = getPosInRead(seeds, seedId);
+        TReadSeqSize seedLength = getValueI2(readPos) - getValueI1(readPos);
+
+        for (TSAPos saPos = getValueI1(hitRange); saPos < getValueI2(hitRange); ++saPos)
+        {
+            // Invert SA value.
+            TSAValue saValue = sa[saPos];
+            setSeqOffset(saValue, suffixLength(saValue, contigs(mapper.genome)) - seedLength);
+
+            // Compute position in contig.
+            TContigsPos contigBegin = saValue;
+            TContigsPos contigEnd = posAdd(contigBegin, seedLength);
+
+            extend(mapper.extender,
+                   readSeq,
+                   contigBegin, contigEnd,
+                   readPos.i1, readPos.i2,
+                   hitErrors, mapper.options.errorRate,
+                   anchorsManager);
+        }
+
+        // Full stratum analyzed.
+        stratum[readId]++;
+    }
+}
+
+// ----------------------------------------------------------------------------
 // Function _getMateContigPos()
 // ----------------------------------------------------------------------------
 
@@ -936,9 +1026,9 @@ void _mapReads(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, All, Ancho
     reserve(mapper.anchors, countHits<unsigned long>(mapper.hits[0]) + countHits<unsigned long>(mapper.hits[1]) + countHits<unsigned long>(mapper.hits[2]) / 5);
 
     start(mapper.timer);
-    extendHits(mapper, readSeqs, mapper.hits[0], mapper.seeds[0]);
-    extendHits(mapper, readSeqs, mapper.hits[1], mapper.seeds[1]);
-    extendHits(mapper, readSeqs, mapper.hits[2], mapper.seeds[2]);
+    extendHits(mapper, readSeqs, mapper.hits[0], mapper.seeds[0], AnyBest());
+    extendHits(mapper, readSeqs, mapper.hits[1], mapper.seeds[1], AnyBest());
+    extendHits(mapper, readSeqs, mapper.hits[2], mapper.seeds[2], AnyBest());
     stop(mapper.timer);
     std::cout << "Extension time:\t\t\t" << mapper.timer << std::endl;
     std::cout << "Anchors count:\t\t\t" << length(mapper.anchors) << std::endl;
@@ -1003,9 +1093,11 @@ void _mapReads(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, AnyBest, N
 
     start(mapper.timer);
     std::cout << "Seeds count:\t\t\t" << length(mapper.seeds[1]) << std::endl;
-    TSeedsApx seeds1(mapper.seeds[1]);
-    setScoreThreshold(mapper.seederApx, 1);
-    findSeeds(mapper, mapper.hits[1], mapper.seederApx, seeds1);
+    TSeedsExt seeds1(mapper.seeds[1]);
+    findSeeds(mapper, mapper.hits[1], mapper.seederExt, seeds1);
+//    TSeedsApx seeds1(mapper.seeds[1]);
+//    setScoreThreshold(mapper.seederApx, 1);
+//    findSeeds(mapper, mapper.hits[1], mapper.seederApx, seeds1);
     stop(mapper.timer);
     std::cout << "Seeding time:\t\t\t" << mapper.timer << std::endl;
     std::cout << "Hits count:\t\t\t" << countHits<unsigned long>(mapper.hits[1]) << std::endl;
@@ -1013,13 +1105,20 @@ void _mapReads(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, AnyBest, N
 
     start(mapper.timer);
     std::cout << "Seeds count:\t\t\t" << length(mapper.seeds[2]) << std::endl;
-    TSeedsApx seeds2(mapper.seeds[2]);
-    setScoreThreshold(mapper.seederApx, 2);
-    findSeeds(mapper, mapper.hits[2], mapper.seederApx, seeds2);
+    TSeedsExt seeds2(mapper.seeds[2]);
+    findSeeds(mapper, mapper.hits[2], mapper.seederExt, seeds2);
+//    TSeedsApx seeds2(mapper.seeds[2]);
+//    setScoreThreshold(mapper.seederApx, 2);
+//    findSeeds(mapper, mapper.hits[2], mapper.seederApx, seeds2);
     stop(mapper.timer);
     std::cout << "Seeding time:\t\t\t" << mapper.timer << std::endl;
     std::cout << "Hits count:\t\t\t" << countHits<unsigned long>(mapper.hits[2]) << std::endl;
 //    writeHits(mapper, readSeqs, mapper.hits[2], mapper.seeds[2], mapper.info, "hits_2.csv");
+
+    sortHits(mapper.hits[0]);
+    sortHits(mapper.hits[1]);
+    sortHits(mapper.hits[2]);
+
 
     clear(mapper.anchors);
     reserve(mapper.anchors, countHits<unsigned long>(mapper.hits[0]) + countHits<unsigned long>(mapper.hits[1]) + countHits<unsigned long>(mapper.hits[2]) / 5);
