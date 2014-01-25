@@ -174,7 +174,9 @@ struct View<HitsManager<THits, TSpec> >
 template <typename TSize, typename TSpec>
 inline bool operator< (Hit<TSize, TSpec> const & a, Hit<TSize, TSpec> const & b)
 {
-    return a.seedId < b.seedId;
+    // TODO(esiragusa): revert operator < and add hit sorters.
+    return getCount(a) < getCount(b);
+//    return a.seedId < b.seedId;
 }
 
 // ----------------------------------------------------------------------------
