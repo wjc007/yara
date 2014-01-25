@@ -674,6 +674,7 @@ inline void extendHits(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, TH
             TContigsPos contigBegin = saValue;
             TContigsPos contigEnd = posAdd(contigBegin, seedLength);
 
+            // TODO(esiragusa): convert errorRate to absolute errors
             extend(mapper.extender,
                    readSeq,
                    contigBegin, contigEnd,
@@ -684,12 +685,14 @@ inline void extendHits(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, TH
     }
 }
 
+bool isMapped (unsigned char errors) { return errors <= 5; }
+
 // ----------------------------------------------------------------------------
 // Function extendHits(); AnyBest
 // ----------------------------------------------------------------------------
 
 template <typename TSpec, typename TConfig, typename TReadSeqs, typename THits, typename TSeeds>
-inline void extendHits(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, THits & hits, TSeeds & seeds, AnyBest)
+inline unsigned long extendHits(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, THits & hits, TSeeds & seeds, AnyBest)
 {
     typedef Mapper<TSpec, TConfig>                      TMapper;
 
@@ -761,6 +764,7 @@ inline void extendHits(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, TH
             TContigsPos contigBegin = saValue;
             TContigsPos contigEnd = posAdd(contigBegin, seedLength);
 
+            // TODO(esiragusa): convert errorRate to absolute errors
             extend(mapper.extender,
                    readSeq,
                    contigBegin, contigEnd,
@@ -772,6 +776,8 @@ inline void extendHits(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, TH
         // Full stratum analyzed.
         stratum[readId]++;
     }
+
+    return std::count_if(begin(anchorsManager.minErrors, Standard()), end(anchorsManager.minErrors, Standard()), isMapped);
 }
 
 // ----------------------------------------------------------------------------
@@ -1026,9 +1032,9 @@ void _mapReads(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, All, Ancho
     reserve(mapper.anchors, countHits<unsigned long>(mapper.hits[0]) + countHits<unsigned long>(mapper.hits[1]) + countHits<unsigned long>(mapper.hits[2]) / 5);
 
     start(mapper.timer);
-    extendHits(mapper, readSeqs, mapper.hits[0], mapper.seeds[0], AnyBest());
-    extendHits(mapper, readSeqs, mapper.hits[1], mapper.seeds[1], AnyBest());
-    extendHits(mapper, readSeqs, mapper.hits[2], mapper.seeds[2], AnyBest());
+    extendHits(mapper, readSeqs, mapper.hits[0], mapper.seeds[0]);
+    extendHits(mapper, readSeqs, mapper.hits[1], mapper.seeds[1]);
+    extendHits(mapper, readSeqs, mapper.hits[2], mapper.seeds[2]);
     stop(mapper.timer);
     std::cout << "Extension time:\t\t\t" << mapper.timer << std::endl;
     std::cout << "Anchors count:\t\t\t" << length(mapper.anchors) << std::endl;
@@ -1124,19 +1130,23 @@ void _mapReads(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, AnyBest, N
     reserve(mapper.anchors, countHits<unsigned long>(mapper.hits[0]) + countHits<unsigned long>(mapper.hits[1]) + countHits<unsigned long>(mapper.hits[2]) / 5);
 
     start(mapper.timer);
-    extendHits(mapper, readSeqs, mapper.hits[0], mapper.seeds[0]);
-    extendHits(mapper, readSeqs, mapper.hits[1], mapper.seeds[1]);
-    extendHits(mapper, readSeqs, mapper.hits[2], mapper.seeds[2]);
+    unsigned long mappedReads;
+    mappedReads = extendHits(mapper, readSeqs, mapper.hits[0], mapper.seeds[0], AnyBest());
+    std::cout << "Mapped reads:\t\t\t" << mappedReads << std::endl;
+    mappedReads = extendHits(mapper, readSeqs, mapper.hits[1], mapper.seeds[1], AnyBest());
+    std::cout << "Mapped reads:\t\t\t" << mappedReads << std::endl;
+    mappedReads = extendHits(mapper, readSeqs, mapper.hits[2], mapper.seeds[2], AnyBest());
+    std::cout << "Mapped reads:\t\t\t" << mappedReads << std::endl;
     stop(mapper.timer);
     std::cout << "Extension time:\t\t\t" << mapper.timer << std::endl;
-    std::cout << "Anchors count:\t\t\t" << length(mapper.anchors) << std::endl;
+//    std::cout << "Anchors count:\t\t\t" << length(mapper.anchors) << std::endl;
 
-    start(mapper.timer);
-    removeDuplicateMatches(mapper.anchors);
-    stop(mapper.timer);
-    std::cout << "Compaction time:\t\t" << mapper.timer << std::endl;
-    std::cout << "Anchors count:\t\t\t" << length(mapper.anchors) << std::endl;
-    std::cout << "Anchored pairs:\t\t\t" << countMatches(readSeqs, mapper.anchors, typename TConfig::TSequencing()) << std::endl;
+//    start(mapper.timer);
+//    removeDuplicateMatches(mapper.anchors);
+//    stop(mapper.timer);
+//    std::cout << "Compaction time:\t\t" << mapper.timer << std::endl;
+//    std::cout << "Anchors count:\t\t\t" << length(mapper.anchors) << std::endl;
+//    std::cout << "Anchored pairs:\t\t\t" << countMatches(readSeqs, mapper.anchors, typename TConfig::TSequencing()) << std::endl;
 }
 
 // ----------------------------------------------------------------------------
