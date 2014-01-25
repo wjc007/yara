@@ -196,6 +196,31 @@ struct MatchesManager
 //    }
 };
 
+// ----------------------------------------------------------------------------
+// Class MatchesManager
+// ----------------------------------------------------------------------------
+
+template <typename TMatches>
+struct MatchesManager<TMatches, AnyBest>
+{
+    typedef typename Value<TMatches>::Type  TMatch;
+
+    String<unsigned char> minErrors;
+    TMatch prototype;
+
+    MatchesManager(TMatches & /* matches */, TReadSeqs & readSeqs) :
+        prototype()
+    {
+        resize(minErrors, getReadsCount(readSeqs), MaxValue<unsigned char>::VALUE, Exact());
+    }
+
+    template <typename THaystackPos, typename TErrors>
+    void operator() (THaystackPos /* matchBegin */, THaystackPos /* matchEnd */, TErrors errors)
+    {
+        minErrors[prototype.readId] = _min(minErrors[prototype.readId], errors);
+    }
+};
+
 // ============================================================================
 // Functions
 // ============================================================================
