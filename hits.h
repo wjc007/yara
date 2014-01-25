@@ -151,6 +151,19 @@ struct HitsManager
     }
 };
 
+// ----------------------------------------------------------------------------
+// Class HitsSorterByXXX
+// ----------------------------------------------------------------------------
+
+template <typename THit>
+struct HitsSorterByCount
+{
+    inline bool operator()(THit const & a, THit const & b) const
+    {
+        return getCount(a) < getCount(b);
+    }
+};
+
 // ============================================================================
 // Metafunctions
 // ============================================================================
@@ -174,9 +187,7 @@ struct View<HitsManager<THits, TSpec> >
 template <typename TSize, typename TSpec>
 inline bool operator< (Hit<TSize, TSpec> const & a, Hit<TSize, TSpec> const & b)
 {
-    // TODO(esiragusa): revert operator < and add hit sorters.
-    return getCount(a) < getCount(b);
-//    return a.seedId < b.seedId;
+    return a.seedId < b.seedId;
 }
 
 // ----------------------------------------------------------------------------
