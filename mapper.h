@@ -685,14 +685,27 @@ inline void extendHits(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, TH
     }
 }
 
-bool isMapped (unsigned char errors) { return errors <= 5; }
+template <typename TSpec = void>
+struct StratumCounter
+{
+    unsigned char stratum;
+
+    StratumCounter(unsigned char stratum = 0) :
+        stratum(stratum)
+    {}
+
+    bool operator() (unsigned char errors)
+    {
+        return errors <= stratum;
+    }
+};
 
 // ----------------------------------------------------------------------------
 // Function extendHits(); AnyBest
 // ----------------------------------------------------------------------------
 
 template <typename TSpec, typename TConfig, typename TReadSeqs, typename THits, typename TSeeds>
-inline unsigned long extendHits(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, THits & hits, TSeeds & seeds, AnyBest)
+inline unsigned long extendHits(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, THits & hits, TSeeds & seeds, unsigned char maxStratum, AnyBest)
 {
     typedef Mapper<TSpec, TConfig>                      TMapper;
 
@@ -777,7 +790,7 @@ inline unsigned long extendHits(Mapper<TSpec, TConfig> & mapper, TReadSeqs & rea
         stratum[readId]++;
     }
 
-    return std::count_if(begin(anchorsManager.minErrors, Standard()), end(anchorsManager.minErrors, Standard()), isMapped);
+    return std::count_if(begin(anchorsManager.minErrors, Standard()), end(anchorsManager.minErrors, Standard()), StratumCounter<>(maxStratum));
 }
 
 // ----------------------------------------------------------------------------
@@ -1131,11 +1144,11 @@ void _mapReads(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, AnyBest, N
 
     start(mapper.timer);
     unsigned long mappedReads;
-    mappedReads = extendHits(mapper, readSeqs, mapper.hits[0], mapper.seeds[0], AnyBest());
+    mappedReads = extendHits(mapper, readSeqs, mapper.hits[0], mapper.seeds[0], 5, AnyBest());
     std::cout << "Mapped reads:\t\t\t" << mappedReads << std::endl;
-    mappedReads = extendHits(mapper, readSeqs, mapper.hits[1], mapper.seeds[1], AnyBest());
+    mappedReads = extendHits(mapper, readSeqs, mapper.hits[1], mapper.seeds[1], 3, AnyBest());
     std::cout << "Mapped reads:\t\t\t" << mappedReads << std::endl;
-    mappedReads = extendHits(mapper, readSeqs, mapper.hits[2], mapper.seeds[2], AnyBest());
+    mappedReads = extendHits(mapper, readSeqs, mapper.hits[2], mapper.seeds[2], 1, AnyBest());
     std::cout << "Mapped reads:\t\t\t" << mappedReads << std::endl;
     stop(mapper.timer);
     std::cout << "Extension time:\t\t\t" << mapper.timer << std::endl;
