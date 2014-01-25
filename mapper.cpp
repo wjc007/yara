@@ -232,8 +232,8 @@ void configureStrategy(Options const & options, TExecSpace const & execSpace, TS
     case Options::ANY_BEST:
         return spawnMapper(options, execSpace, sequencing, AnyBest(), Nothing());
 
-//    case Options::ALL_BEST:
-//        return configureAnchoring(options, execSpace, sequencing, AllBest(), Nothing());
+    case Options::ALL_BEST:
+        return spawnMapper(options, execSpace, sequencing, AllBest(), Nothing());
 
     case Options::ALL:
         return spawnMapper(options, execSpace, sequencing, All(), Nothing());

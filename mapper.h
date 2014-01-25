@@ -52,7 +52,7 @@ struct Options
 
     enum MappingMode
     {
-        ALL, /* ALL_BEST, */ ANY_BEST
+        ALL, ALL_BEST, ANY_BEST
     };
 
     CharString          genomeFile;
@@ -86,7 +86,7 @@ struct Options
         hitsThreshold(300)
     {
         mappingModeList.push_back("all");
-//        mappingModeList.push_back("all-best");
+        mappingModeList.push_back("all-best");
         mappingModeList.push_back("any-best");
     }
 };
