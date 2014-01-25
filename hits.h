@@ -123,7 +123,7 @@ struct HitsCounter
     template <typename THit>
     void operator() (THit const & hit)
     {
-        count += getValueI2(hit.range) - getValueI1(hit.range);
+        count += getCount(hit);
     }
 };
 
@@ -187,6 +187,17 @@ inline THit clearRange(THit hit)
     setValueI1(hit.range, 0);
     setValueI2(hit.range, 0);
     return hit;
+}
+
+// ----------------------------------------------------------------------------
+// Function getCount()
+// ----------------------------------------------------------------------------
+
+template <typename TSize, typename TSpec>
+inline TSize
+getCount(Hit<TSize, TSpec> const & hit)
+{
+    return getValueI2(hit.range) - getValueI1(hit.range);
 }
 
 // ----------------------------------------------------------------------------
