@@ -704,8 +704,8 @@ struct StratumCounter
 // Function extendHits(); AnyBest
 // ----------------------------------------------------------------------------
 
-template <typename TSpec, typename TConfig, typename TReadSeqs, typename THits, typename TSeeds>
-inline unsigned long extendHits(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, THits & hits, TSeeds & seeds, unsigned char maxStratum, AnyBest)
+template <typename TSpec, typename TConfig, typename TReadSeqs, typename THits, typename TSeeds, typename TStrategy>
+inline unsigned long extendHits(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, THits & hits, TSeeds & seeds, unsigned char maxStratum, TStrategy)
 {
     typedef Mapper<TSpec, TConfig>                      TMapper;
 
@@ -758,7 +758,8 @@ inline unsigned long extendHits(Mapper<TSpec, TConfig> & mapper, TReadSeqs & rea
         TReadSeq readSeq = readSeqs[readSeqId];
 
         // Skip mapped reads.
-        if (anchorsManager.minErrors[readId] <= stratum[readId]) continue;
+        if (anchorsManager.minErrors[readId] < stratum[readId]) continue;
+        if (IsSameType<TStrategy, AnyBest>::VALUE && anchorsManager.minErrors[readId] == stratum[readId]) continue;
 
         // Fill readSeqId.
         anchorsManager.prototype.readId = readId;
@@ -787,6 +788,7 @@ inline unsigned long extendHits(Mapper<TSpec, TConfig> & mapper, TReadSeqs & rea
         }
 
         // Full stratum analyzed.
+        // TODO(esiragusa): this holds only for exact seeds: in general one hit != one seed
         stratum[readId]++;
     }
 
@@ -1078,8 +1080,8 @@ void _mapReads(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, All, Ancho
 // Function _mapReads(); SingleEnd, AnyBest
 // ----------------------------------------------------------------------------
 
-template <typename TSpec, typename TConfig, typename TReadSeqs>
-void _mapReads(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, AnyBest, Nothing)
+template <typename TSpec, typename TConfig, typename TReadSeqs, typename TStrategy>
+void _mapReads(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, TStrategy, Nothing)
 {
     typedef Mapper<TSpec, TConfig>          TMapper;
     typedef typename TMapper::TSeedsExt     TSeedsExt;
@@ -1144,11 +1146,11 @@ void _mapReads(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, AnyBest, N
 
     start(mapper.timer);
     unsigned long mappedReads;
-    mappedReads = extendHits(mapper, readSeqs, mapper.hits[0], mapper.seeds[0], 5, AnyBest());
+    mappedReads = extendHits(mapper, readSeqs, mapper.hits[0], mapper.seeds[0], 5, TStrategy());
     std::cout << "Mapped reads:\t\t\t" << mappedReads << std::endl;
-    mappedReads = extendHits(mapper, readSeqs, mapper.hits[1], mapper.seeds[1], 3, AnyBest());
+    mappedReads = extendHits(mapper, readSeqs, mapper.hits[1], mapper.seeds[1], 3, TStrategy());
     std::cout << "Mapped reads:\t\t\t" << mappedReads << std::endl;
-    mappedReads = extendHits(mapper, readSeqs, mapper.hits[2], mapper.seeds[2], 1, AnyBest());
+    mappedReads = extendHits(mapper, readSeqs, mapper.hits[2], mapper.seeds[2], 1, TStrategy());
     std::cout << "Mapped reads:\t\t\t" << mappedReads << std::endl;
     stop(mapper.timer);
     std::cout << "Extension time:\t\t\t" << mapper.timer << std::endl;
