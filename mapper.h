@@ -340,22 +340,6 @@ void loadReads(Mapper<TSpec, TConfig> & mapper)
 // Function selectSeeds()
 // ----------------------------------------------------------------------------
 
-template <typename TSpec, typename TConfig, typename TReadSeqs, typename TReadSeqId, typename TDelegate>
-inline void _selectSeeds(Mapper<TSpec, TConfig> & mapper, TReadSeqs const & readSeqs, TReadSeqId readSeqId, TDelegate & delegate)
-{
-    typedef typename StringSetPosition<TReadSeqs>::Type     TPos;
-    typedef typename Value<TReadSeqs>::Type                 TReadSeq;
-    typedef typename Size<TReadSeq>::Type                   TSize;
-
-    TSize readLength = length(readSeqs[readSeqId]);
-    TSize errorsPerRead = std::ceil(readLength * (mapper.options.errorRate / 100.0));
-    TSize seedsPerRead = errorsPerRead + 1;
-    TSize seedsLength = readLength / seedsPerRead;
-
-    for (TSize seedId = 0; seedId < seedsPerRead; ++seedId)
-        delegate(TPos(readSeqId, seedId * seedsLength), seedsLength);
-}
-
 template <typename TSpec, typename TConfig, typename TReadSeqs, typename TReadSeqId, typename TErrors, typename TDelegate>
 inline void _selectSeeds(Mapper<TSpec, TConfig> & mapper, TReadSeqs const & readSeqs, TReadSeqId readSeqId, TErrors seedErrors, TDelegate & delegate)
 {
