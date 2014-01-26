@@ -352,7 +352,7 @@ getCount(MatchesCounter<TReadSeqs, TSpec> const & counter)
 }
 
 // ----------------------------------------------------------------------------
-// Function countReads()
+// Function countMatches()
 // ----------------------------------------------------------------------------
 
 template <typename TReadSeqs, typename TMatches, typename TSpec>
