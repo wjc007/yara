@@ -292,6 +292,7 @@ void _openReadsImpl(Mapper<TSpec, TConfig> & mapper, SingleEnd const & /* tag */
 // ----------------------------------------------------------------------------
 // Function loadReads()
 // ----------------------------------------------------------------------------
+// Loads one block of reads.
 
 template <typename TSpec, typename TConfig>
 void loadReads(Mapper<TSpec, TConfig> & mapper)
@@ -330,6 +331,7 @@ inline void initReadsContext(Mapper<TSpec, TConfig> & mapper, TReadSeqs const & 
 // ----------------------------------------------------------------------------
 // Function seedReads()
 // ----------------------------------------------------------------------------
+// Samples seeds for all reads.
 
 template <typename TSpec, typename TConfig, typename TReadSeqs, typename TErrors>
 inline void seedReads(Mapper<TSpec, TConfig> & mapper, TReadSeqs const & readSeqs, Pair<TErrors> seedErrors)
@@ -386,6 +388,7 @@ inline void seedReads(Mapper<TSpec, TConfig> & mapper, TReadSeqs const & readSeq
 // ----------------------------------------------------------------------------
 // Function _getSeedsPerRead()
 // ----------------------------------------------------------------------------
+// Enumerates the seeds for a given read sequence.
 
 template <typename TSpec, typename TConfig, typename TReadSeqs, typename TReadSeqId, typename TDelegate>
 inline void _getSeedsPerRead(Mapper<TSpec, TConfig> & mapper, TReadSeqs const & readSeqs, TReadSeqId readSeqId, TDelegate & delegate)
@@ -407,6 +410,7 @@ inline void _getSeedsPerRead(Mapper<TSpec, TConfig> & mapper, TReadSeqs const & 
 // ----------------------------------------------------------------------------
 // Function _getErrorsPerRead()
 // ----------------------------------------------------------------------------
+// Returns the absolute number of errors for a given read sequence.
 
 template <typename TSpec, typename TConfig, typename TReadSeqs, typename TReadSeqId>
 inline typename Size<typename Value<TReadSeqs>::Type>::Type
@@ -505,6 +509,7 @@ inline void findSeeds(Mapper<TSpec, TConfig> & /* mapper */, THitsString & hits,
 // ----------------------------------------------------------------------------
 // Function classifyReads()
 // ----------------------------------------------------------------------------
+// Classifies the reads by hardness.
 
 template <typename TSpec, typename TConfig, typename TReadSeqs>
 inline void classifyReads(Mapper<TSpec, TConfig> & mapper, TReadSeqs const & readSeqs)
@@ -522,6 +527,7 @@ inline void classifyReads(Mapper<TSpec, TConfig> & mapper, TReadSeqs const & rea
 // ----------------------------------------------------------------------------
 // Function _classifyReadsImpl(); Default
 // ----------------------------------------------------------------------------
+// Raises the seeds errors, mark for reseeding and clears the hits of hard reads.
 
 template <typename TSpec, typename TConfig, typename TReadSeqs, typename THitsString, typename TSeedsSet, typename TStrategy, typename TAnchoring>
 inline void _classifyReadsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs const & readSeqs, THitsString & hits, TSeedsSet const & seeds, TStrategy, TAnchoring)
@@ -560,6 +566,7 @@ inline void _classifyReadsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs const 
 // ----------------------------------------------------------------------------
 // Function _classifyReadsImpl(); AnchorOne
 // ----------------------------------------------------------------------------
+// Selects the mate to anchor; raises the seeds errors, mark for reseeding and clears the hits of hard anchors.
 
 template <typename TSpec, typename TConfig, typename TReadSeqs, typename THitsString, typename TSeedsSet, typename TStrategy>
 inline void _classifyReadsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs const & readSeqs, THitsString & hits, TSeedsSet const & seeds, TStrategy, AnchorOne)
@@ -635,6 +642,7 @@ inline void _classifyReadsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs const 
 // ----------------------------------------------------------------------------
 // Function clearHits()
 // ----------------------------------------------------------------------------
+// Clears the hits in all buckets.
 
 template <typename TSpec, typename TConfig>
 inline void clearHits(Mapper<TSpec, TConfig> & mapper)
@@ -646,6 +654,7 @@ inline void clearHits(Mapper<TSpec, TConfig> & mapper)
 // ----------------------------------------------------------------------------
 // Function countHits()
 // ----------------------------------------------------------------------------
+// Counts the hits in all buckets.
 
 template <typename TSpec, typename TConfig>
 inline unsigned long countHits(Mapper<TSpec, TConfig> & mapper)
@@ -661,6 +670,7 @@ inline unsigned long countHits(Mapper<TSpec, TConfig> & mapper)
 // ----------------------------------------------------------------------------
 // Function extendHits()
 // ----------------------------------------------------------------------------
+// Extends the hits in all buckets.
 
 template <typename TSpec, typename TConfig, typename TReadSeqs>
 inline void extendHits(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs)
@@ -680,6 +690,7 @@ inline void extendHits(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs)
 // ----------------------------------------------------------------------------
 // Function _extendHitsImpl()
 // ----------------------------------------------------------------------------
+// Extends one bucket of hits.
 
 template <typename TSpec, typename TConfig, typename TReadSeqs, typename THitsString, typename TSeedsSet>
 inline void _extendHitsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, THitsString const & hits, TSeedsSet const & seeds)
@@ -776,6 +787,7 @@ inline void _extendHitsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeq
 // ----------------------------------------------------------------------------
 // Function _writeHitsImpl()
 // ----------------------------------------------------------------------------
+// Debug stuff.
 
 template <typename TSpec, typename TConfig, typename TReadSeqs, typename THits, typename TSeedsSet, typename TFilename>
 inline void _writeHitsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, THits const & hits, TSeedsSet const & seeds, TFilename const & filename)
@@ -817,6 +829,7 @@ inline void _writeHitsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs
 // ----------------------------------------------------------------------------
 // Function verifyMates()
 // ----------------------------------------------------------------------------
+// Verifies all mates in within the insert window of their anchors.
 
 template <typename TSpec, typename TConfig, typename TReadSeqs>
 void verifyMates(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs)
@@ -888,6 +901,7 @@ void _verifyMatesImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, Anc
 // ----------------------------------------------------------------------------
 // Function _getMateContigPos()
 // ----------------------------------------------------------------------------
+// Computes the insert window.
 
 template <typename TSpec, typename TConfig, typename TContigPos, typename TMatch>
 inline void _getMateContigPos(Mapper<TSpec, TConfig> const & mapper,
@@ -973,8 +987,8 @@ void mapReads(Mapper<TSpec, TConfig> & mapper)
 template <typename TSpec, typename TConfig, typename TReadSeqs, typename TSequencing>
 void _mapReadsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, TSequencing, All)
 {
-    clearHits(mapper);
     initReadsContext(mapper, readSeqs);
+    clearHits(mapper);
     seedReads(mapper, readSeqs, Pair<unsigned>(0,0));
     findSeedsExt(mapper);
     classifyReads(mapper, readSeqs);
@@ -1009,8 +1023,8 @@ void _mapReadsByStrata(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs)
     typedef typename TMapper::TSeedsApx     TSeedsApx;
     typedef typename TMapper::THit          THit;
 
-    clearHits(mapper);
     initReadsContext(mapper, readSeqs);
+    clearHits(mapper);
 
     start(mapper.timer);
     seedReads(mapper, readSeqs, Pair<unsigned>(0,0));
