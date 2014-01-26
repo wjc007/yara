@@ -63,6 +63,7 @@
 #include "types.h"
 #include "hits.h"
 #include "matches.h"
+#include "context.h"
 #include "index.h"
 #include "seeds.h"
 #include "verifier.h"

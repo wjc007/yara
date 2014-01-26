@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2013 NVIDIA Corporation
+// Copyright (c) 2006-2013, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -12,14 +12,14 @@
 //     * Redistributions in binary form must reproduce the above copyright
 //       notice, this list of conditions and the following disclaimer in the
 //       documentation and/or other materials provided with the distribution.
-//     * Neither the name of NVIDIA Corporation nor the names of
+//     * Neither the name of Knut Reinert or the FU Berlin nor the names of
 //       its contributors may be used to endorse or promote products derived
 //       from this software without specific prior written permission.
 //
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 // AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 // IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-// ARE DISCLAIMED. IN NO EVENT SHALL NVIDIA CORPORATION BE LIABLE
+// ARE DISCLAIMED. IN NO EVENT SHALL KNUT REINERT OR THE FU BERLIN BE LIABLE
 // FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
 // DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
 // SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
@@ -32,71 +32,87 @@
 // Author: Enrico Siragusa <enrico.siragusa@fu-berlin.de>
 // ==========================================================================
 
-// ============================================================================
-// Prerequisites
-// ============================================================================
-
-// ----------------------------------------------------------------------------
-// SeqAn headers
-// ----------------------------------------------------------------------------
-
-#include <seqan/basic.h>
-#include <seqan/sequence.h>
-#include <seqan/index.h>
-#include <seqan/store.h>
-#include <seqan/misc/misc_cuda.h>
-
-// ----------------------------------------------------------------------------
-// I/O and options
-// ----------------------------------------------------------------------------
-
-#include "tags.h"
-#include "reads.h"
-#include "genome.h"
-
-// ----------------------------------------------------------------------------
-// App headers
-// ----------------------------------------------------------------------------
-
-#include "misc.h"
-//#include "options.h"
-#include "types.h"
-#include "hits.h"
-#include "matches.h"
-#include "context.h"
-#include "index.h"
-#include "seeds.h"
-#include "extender.h"
-#include "verifier.h"
-#include "writer.h"
-#include "mapper.h"
+#ifndef APP_CUDAMAPPER_CONTEXT_H_
+#define APP_CUDAMAPPER_CONTEXT_H_
 
 using namespace seqan;
+
+// ============================================================================
+// Classes, Enums
+// ============================================================================
+
+// ----------------------------------------------------------------------------
+// Enum ReadStatus
+// ----------------------------------------------------------------------------
+
+enum ReadStatus { STATUS_UNSEEDED, STATUS_SEEDED, STATUS_MAPPED, STATUS_UNMAPPABLE };
+//enum ReadAnchor { ANCHOR_FIRST, ANCHOR_SECOND };
+
+// ----------------------------------------------------------------------------
+// Class ReadContext
+// ----------------------------------------------------------------------------
+
+template <typename TSpec = void, typename TConfig = void>
+struct ReadContext
+{
+    unsigned char stratum       : 4;
+    unsigned char seedErrors    : 2;
+    ReadStatus    status        : 2;
+//    ReadAnchor    anchor        : 1;
+
+    ReadContext() :
+        stratum(0),
+        seedErrors(0),
+        status(STATUS_UNSEEDED)
+    {};
+};
 
 // ============================================================================
 // Functions
 // ============================================================================
 
-// --------------------------------------------------------------------------
-// Function mapReads()
-// --------------------------------------------------------------------------
-
-void mapReads(Mapper<ExecDevice> & mapper)
+template <typename TReadsContext, typename TReadSeqId>
+inline unsigned char getStratum(TReadsContext const & ctx, TReadSeqId readSeqId)
 {
-    // Copy read seqs to device.
-    typename Mapper<ExecDevice>::TReadSeqs deviceReadSeqs;
-    assign(deviceReadSeqs, getSeqs(mapper.reads));
-
-    // Map reads.
-    _mapReads(mapper, deviceReadSeqs);
+    return ctx[readSeqId].stratum;
 }
 
-// --------------------------------------------------------------------------
-// Function spawnMapper()
-// --------------------------------------------------------------------------
-
-void spawnMapper(Options const & options, ExecDevice const & /* tag */)
+template <typename TReadsContext, typename TReadSeqId>
+inline void incStratum(TReadsContext & ctx, TReadSeqId readSeqId)
 {
-    Mapper<ExecDevice> mapper(options);
-    runMapper(mapper);
+    ctx[readSeqId].stratum++;
 }
+
+template <typename TReadsContext, typename TReadSeqId>
+inline unsigned char getSeedErrors(TReadsContext const & ctx, TReadSeqId readSeqId)
+{
+    return ctx[readSeqId].seedErrors;
+}
+
+template <typename TReadsContext, typename TReadSeqId, typename TErrors>
+inline void setSeedErrors(TReadsContext & ctx, TReadSeqId readSeqId, TErrors errors)
+{
+    ctx[readSeqId].seedErrors = errors;
+}
+
+template <typename TReadsContext, typename TReadSeqId>
+inline ReadStatus getStatus(TReadsContext const & ctx, TReadSeqId readSeqId)
+{
+    return ctx[readSeqId].status;
+}
+
+template <typename TReadsContext, typename TReadSeqId>
+inline void setStatus(TReadsContext & ctx, TReadSeqId readSeqId, ReadStatus status)
+{
+    ctx[readSeqId].status = status;
+}
+
+template <typename TReadsContext, typename TReadSeqId>
+inline bool isMapped(TReadsContext const & ctx, TReadSeqId readSeqId)
+{
+    // TODO get readId
+    // TODO let manager set read status to mapped
+    return ctx[readSeqId].status == STATUS_MAPPED;
+}
+
+#endif  // #ifndef APP_CUDAMAPPER_CONTEXT_H_

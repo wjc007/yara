@@ -106,7 +106,8 @@ if (SEQAN_HAS_CUDA)
                                   options.h
                                   types.h
                                   hits.h
-				  matches.h
+                                  matches.h
+                                  context.h
                                   index.h
                                   seeds.h
                                   extender.h
@@ -122,7 +123,8 @@ else ()
                                   options.h
                                   types.h
                                   hits.h
-				  matches.h
+                                  matches.h
+                                  context.h
                                   index.h
                                   seeds.h
                                   extender.h

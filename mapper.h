@@ -91,77 +91,6 @@ struct Options
     }
 };
 
-
-// ----------------------------------------------------------------------------
-// Enum ReadStatus
-// ----------------------------------------------------------------------------
-
-enum ReadStatus { STATUS_UNSEEDED, STATUS_SEEDED, STATUS_MAPPED, STATUS_UNMAPPABLE };
-//enum ReadAnchor { ANCHOR_FIRST, ANCHOR_SECOND };
-
-// ----------------------------------------------------------------------------
-// Class ReadContext
-// ----------------------------------------------------------------------------
-
-template <typename TSpec = void, typename TConfig = void>
-struct ReadContext
-{
-    unsigned char stratum       : 4;
-    unsigned char seedErrors    : 2;
-    ReadStatus    status        : 2;
-//    ReadAnchor    anchor        : 1;
-
-    ReadContext() :
-        stratum(0),
-        seedErrors(0),
-        status(STATUS_UNSEEDED)
-    {};
-};
-
-template <typename TReadsContext, typename TReadSeqId>
-inline unsigned char getStratum(TReadsContext const & ctx, TReadSeqId readSeqId)
-{
-    return ctx[readSeqId].stratum;
-}
-
-template <typename TReadsContext, typename TReadSeqId>
-inline void incStratum(TReadsContext & ctx, TReadSeqId readSeqId)
-{
-    ctx[readSeqId].stratum++;
-}
-
-template <typename TReadsContext, typename TReadSeqId>
-inline unsigned char getSeedErrors(TReadsContext const & ctx, TReadSeqId readSeqId)
-{
-    return ctx[readSeqId].seedErrors;
-}
-
-template <typename TReadsContext, typename TReadSeqId, typename TErrors>
-inline void setSeedErrors(TReadsContext & ctx, TReadSeqId readSeqId, TErrors errors)
-{
-    ctx[readSeqId].seedErrors = errors;
-}
-
-template <typename TReadsContext, typename TReadSeqId>
-inline ReadStatus getStatus(TReadsContext const & ctx, TReadSeqId readSeqId)
-{
-    return ctx[readSeqId].status;
-}
-
-template <typename TReadsContext, typename TReadSeqId>
-inline void setStatus(TReadsContext & ctx, TReadSeqId readSeqId, ReadStatus status)
-{
-    ctx[readSeqId].status = status;
-}
-
-template <typename TReadsContext, typename TReadSeqId>
-inline bool isMapped(TReadsContext const & ctx, TReadSeqId readSeqId)
-{
-    // TODO get readId
-    // TODO let manager set read status to mapped
-    return ctx[readSeqId].status == STATUS_MAPPED;
-}
-
 // ----------------------------------------------------------------------------
 // Mapper Configuration
 // ----------------------------------------------------------------------------
@@ -269,7 +198,7 @@ struct Mapper
         reads(store),
         readsLoader(reads),
         ctx(),
-//        seeds(getSeqs(reads)),
+        seeds(),
         hits(),
         anchors(),
         mates(),
