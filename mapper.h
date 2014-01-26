@@ -169,13 +169,16 @@ inline bool isMapped(TReadsContext const & ctx, TReadSeqId readSeqId)
 template <typename TExecSpace_  = ExecHost,
           typename TSequencing_ = SingleEnd,
           typename TStrategy_   = AnyBest,
-          typename TAnchoring_  = Nothing>
+          typename TAnchoring_  = Nothing,
+          unsigned BUCKETS_     = 3>
 struct ReadMapperConfig : public CUDAStoreConfig
 {
     typedef TExecSpace_     TExecSpace;
     typedef TSequencing_    TSequencing;
     typedef TStrategy_      TStrategy;
     typedef TAnchoring_     TAnchoring;
+
+    static const unsigned BUCKETS = BUCKETS_;
 };
 
 // ----------------------------------------------------------------------------
@@ -208,12 +211,12 @@ struct Mapper
     typedef String<TReadContext>                                    TReadsContext;
 
     typedef StringSet<TReadSeqs, Segment<TReadSeqs> >               TSeedsSet;
-    typedef Tuple<TSeedsSet, 3>                                     TSeeds;
+    typedef Tuple<TSeedsSet, TConfig::BUCKETS>                      TSeeds;
 
     typedef typename Size<TIndex>::Type                             TIndexSize;
     typedef Hit<TIndexSize, HammingDistance>                        THit;
     typedef String<THit>                                            THitsString;
-    typedef Tuple<THitsString, 3>                                   THits;
+    typedef Tuple<THitsString, TConfig::BUCKETS>                    THits;
 
     typedef Match<void>                                             TMatch;
     typedef String<TMatch>                                          TMatches;
@@ -276,9 +279,8 @@ struct Mapper
         verifier(contigs(genome))
 //        writer(options, genome)
     {
-        setHost(seeds[0], getSeqs(reads));
-        setHost(seeds[1], getSeqs(reads));
-        setHost(seeds[2], getSeqs(reads));
+        for (unsigned i = 0; i < TConfig::BUCKETS; i++)
+            setHost(seeds[i], getSeqs(reads));
     };
 };
 
@@ -422,8 +424,8 @@ inline void seedReads(Mapper<TSpec, TConfig> & mapper, TReadSeqs const & readSeq
     typedef typename Value<TSeeds>::Type                TSeedsSet;
     typedef SeedsCounter<TSize>                         TCounter;
     typedef SeedsManager<TSeedsSet, String<TSize> >     TManager;
-    typedef Tuple<TCounter, 3>                          TCounters;
-    typedef Tuple<TManager, 3>                          TManagers;
+    typedef Tuple<TCounter, TConfig::BUCKETS>           TCounters;
+    typedef Tuple<TManager, TConfig::BUCKETS>           TManagers;
 
     TId readsCount = getReadSeqsCount(readSeqs);
 
@@ -517,7 +519,7 @@ inline void findSeeds(Mapper<TSpec, TConfig> & mapper)
 //    typedef typename TMapper::TSeedsExt     TSeedsExt;
     typedef typename TMapper::TSeedsApx     TSeedsApx;
 
-    for (unsigned i = 1; i < 3; i++)
+    for (unsigned i = 1; i < TConfig::BUCKETS; i++)
     {
         start(mapper.timer);
         std::cout << "Seeds count:\t\t\t" << length(mapper.seeds[i]) << std::endl;
@@ -704,7 +706,7 @@ inline void _classifyReadsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs const 
 template <typename TSpec, typename TConfig>
 inline void clearHits(Mapper<TSpec, TConfig> & mapper)
 {
-    for (unsigned i = 0; i < 3; i++)
+    for (unsigned i = 0; i < TConfig::BUCKETS; i++)
         clear(mapper.hits[i]);
 }
 
@@ -717,7 +719,7 @@ inline unsigned long countHits(Mapper<TSpec, TConfig> & mapper)
 {
     unsigned long hitsCount = 0;
 
-    for (unsigned i = 0; i < 3; i++)
+    for (unsigned i = 0; i < TConfig::BUCKETS; i++)
         hitsCount += countHits<unsigned long>(mapper.hits[i]);
 
     return hitsCount;
@@ -734,7 +736,7 @@ inline void extendHits(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs)
     reserve(mapper.anchors, countHits(mapper) / 5);
 
     start(mapper.timer);
-    for (unsigned i = 0; i < 3; i++)
+    for (unsigned i = 0; i < TConfig::BUCKETS; i++)
         _extendHitsImpl(mapper, readSeqs, mapper.hits[i], mapper.seeds[i]);
     stop(mapper.timer);
 
