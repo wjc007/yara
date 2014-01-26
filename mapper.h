@@ -610,11 +610,10 @@ inline void _classifyReadsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & read
 // Function reSeed()
 // ----------------------------------------------------------------------------
 
-template <typename TSpec, typename TConfig, typename TReadSeqs, typename THits, typename TSeeds>
-inline void reSeed(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, THits & hits, TSeeds & seeds)
+template <typename TSpec, typename TConfig, typename TReadSeqs, typename THitsString, typename TSeedsSet>
+inline void reSeed(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, THitsString & hits, TSeedsSet & seeds)
 {
     typedef Mapper<TSpec, TConfig>                      TMapper;
-    typedef typename TMapper::TSeedsSet                 TSeedsSet;
     typedef typename Id<TSeedsSet>::Type                TSeedId;
     typedef Pair<TSeedId>                               TSeedIds;
     typedef typename TMapper::THit                      THit;
@@ -649,11 +648,10 @@ inline void reSeed(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, THits 
 // Function selectAnchors()
 // ----------------------------------------------------------------------------
 
-template <typename TSpec, typename TConfig, typename TReadSeqs, typename THits, typename TSeeds>
-inline void selectAnchors(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, THits & hits, TSeeds & seeds)
+template <typename TSpec, typename TConfig, typename TReadSeqs, typename THitsString, typename TSeedsSet>
+inline void selectAnchors(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, THitsString & hits, TSeedsSet & seeds)
 {
     typedef Mapper<TSpec, TConfig>                      TMapper;
-    typedef typename TMapper::TSeedsSet                 TSeedsSet;
     typedef typename Id<TSeedsSet>::Type                TSeedId;
     typedef Pair<TSeedId>                               TSeedIds;
     typedef typename TMapper::THit                      THit;
@@ -759,7 +757,7 @@ inline void extendHits(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs)
 
     start(mapper.timer);
     for (unsigned i = 0; i < 3; i++)
-        extendHits(mapper, readSeqs, mapper.hits[i], mapper.seeds[i], mapper.ctx);
+        extendHits(mapper, readSeqs, mapper.hits[i], mapper.seeds[i]);
     stop(mapper.timer);
 
     std::cout << "Extension time:\t\t\t" << mapper.timer << std::endl;
@@ -770,8 +768,8 @@ inline void extendHits(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs)
 // Function extendHits()
 // ----------------------------------------------------------------------------
 
-template <typename TSpec, typename TConfig, typename TReadSeqs, typename THits, typename TSeeds, typename TReadsCtx>
-inline void extendHits(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, THits & hits, TSeeds & seeds, TReadsCtx & ctx)
+template <typename TSpec, typename TConfig, typename TReadSeqs, typename THitsString, typename TSeedsSet>
+inline void extendHits(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, THitsString & hits, TSeedsSet & seeds)
 {
     typedef Mapper<TSpec, TConfig>                      TMapper;
 
@@ -784,7 +782,6 @@ inline void extendHits(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, TH
     typedef Pair<typename Position<TReadSeq>::Type>     TReadPos;
     typedef typename Size<TReadSeq>::Type               TReadSeqSize;
 
-    typedef typename TMapper::TSeedsSet                 TSeedsSet;
     typedef typename Id<TSeedsSet>::Type                TSeedId;
 
     typedef typename TMapper::THit                      THit;
@@ -820,7 +817,7 @@ inline void extendHits(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, TH
         TReadSeq readSeq = readSeqs[readSeqId];
 
         // Skip mapped reads.
-        if (isMapped(ctx, readSeqId)) continue;
+        if (isMapped(mapper.ctx, readSeqId)) continue;
 
         // Fill readSeqId.
         anchorsManager.prototype.readId = readSeqId;
@@ -850,7 +847,7 @@ inline void extendHits(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, TH
 
         // Full stratum analyzed.
         // TODO(esiragusa): this holds only for exact seeds: in general one hit != one seed
-        incStratum(ctx, readSeqId);
+        incStratum(mapper.ctx, readSeqId);
     }
 }
 
@@ -858,11 +855,10 @@ inline void extendHits(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, TH
 // Function writeHits()
 // ----------------------------------------------------------------------------
 
-template <typename TSpec, typename TConfig, typename TReadSeqs, typename THits, typename TSeedsSet, typename TReadsCtx, typename TFilename>
-inline void writeHits(Mapper<TSpec, TConfig> & /* mapper */, TReadSeqs & readSeqs, THits & hits, TSeedsSet & seeds, TReadsCtx & ctx, TFilename const & filename)
+template <typename TSpec, typename TConfig, typename TReadSeqs, typename THits, typename TSeedsSet, typename TFilename>
+inline void writeHits(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, THits & hits, TSeedsSet & seeds, TFilename const & filename)
 {
     typedef Mapper<TSpec, TConfig>                      TMapper;
-//    typedef typename TMapper::TSeedsSet                 TSeedsSet;
     typedef typename Id<TSeedsSet>::Type                TSeedId;
     typedef Pair<TSeedId>                               TSeedIds;
     typedef typename TMapper::THit                      THit;
@@ -882,7 +878,7 @@ inline void writeHits(Mapper<TSpec, TConfig> & /* mapper */, TReadSeqs & readSeq
     {
         TSeedIds readSeedIds = getSeedIds(seeds, readSeqId);
 
-        if (getStatus(ctx, readSeqId) == STATUS_UNSEEDED) continue;
+        if (getStatus(mapper.ctx, readSeqId) == STATUS_UNSEEDED) continue;
         if (getValueI2(readSeedIds) <= getValueI1(readSeedIds)) continue;
 
         for (TSeedId seedId = getValueI1(readSeedIds); seedId < getValueI2(readSeedIds); ++seedId)
