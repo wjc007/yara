@@ -224,9 +224,9 @@ void configureThreads(Mapper<TSpec, TConfig> & mapper)
 // ----------------------------------------------------------------------------
 
 template <typename TSpec, typename TConfig>
-void loadGenome(Mapper<TSpec, TConfig> & mapper)
+inline void loadGenome(Mapper<TSpec, TConfig> & mapper)
 {
-    std::cout << "Loading genome:\t\t\t" << std::flush;
+    std::cout << "Loading genome:\t\t\t" << std::flush);
     start(mapper.timer);
 
     CharString genomeFile = mapper.options.genomeIndexFile;
@@ -244,7 +244,7 @@ void loadGenome(Mapper<TSpec, TConfig> & mapper)
 // ----------------------------------------------------------------------------
 
 template <typename TSpec, typename TConfig>
-void loadGenomeIndex(Mapper<TSpec, TConfig> & mapper)
+inline void loadGenomeIndex(Mapper<TSpec, TConfig> & mapper)
 {
 #ifdef PLATFORM_CUDA
     cudaPrintFreeMemory();
@@ -269,19 +269,19 @@ void loadGenomeIndex(Mapper<TSpec, TConfig> & mapper)
 // ----------------------------------------------------------------------------
 
 template <typename TSpec, typename TConfig>
-void openReads(Mapper<TSpec, TConfig> & mapper)
+inline void openReads(Mapper<TSpec, TConfig> & mapper)
 {
     _openReadsImpl(mapper, typename TConfig::TSequencing());
 }
 
 template <typename TSpec, typename TConfig, typename TSequencing>
-void _openReadsImpl(Mapper<TSpec, TConfig> & mapper, TSequencing const & /*tag */)
+inline void _openReadsImpl(Mapper<TSpec, TConfig> & mapper, TSequencing const & /*tag */)
 {
     open(mapper.readsLoader, mapper.options.readsFile);
 }
 
 template <typename TSpec, typename TConfig>
-void _openReadsImpl(Mapper<TSpec, TConfig> & mapper, SingleEnd const & /* tag */)
+inline void _openReadsImpl(Mapper<TSpec, TConfig> & mapper, SingleEnd const & /* tag */)
 {
     open(mapper.readsLoader, mapper.options.readsFile.i1);
 }
@@ -292,7 +292,7 @@ void _openReadsImpl(Mapper<TSpec, TConfig> & mapper, SingleEnd const & /* tag */
 // Loads one block of reads.
 
 template <typename TSpec, typename TConfig>
-void loadReads(Mapper<TSpec, TConfig> & mapper)
+inline void loadReads(Mapper<TSpec, TConfig> & mapper)
 {
     std::cout << "Loading reads:\t\t\t" << std::flush;
     start(mapper.timer);
@@ -309,7 +309,7 @@ void loadReads(Mapper<TSpec, TConfig> & mapper)
 // ----------------------------------------------------------------------------
 
 template <typename TSpec, typename TConfig>
-void clearReads(Mapper<TSpec, TConfig> & mapper)
+inline void clearReads(Mapper<TSpec, TConfig> & mapper)
 {
     clear(mapper.reads);
 }
@@ -480,6 +480,11 @@ inline void _findSeedsImpl(Mapper<TSpec, TConfig> & /* mapper */, THitsString & 
 #ifdef PLATFORM_CUDA
     cudaPrintFreeMemory();
 #endif
+
+#ifdef _OPENMP
+    // Sort the hits by seedId.
+    sortHits(hits);
+#endif
 }
 
 // ----------------------------------------------------------------------------
@@ -490,10 +495,6 @@ inline void _findSeedsImpl(Mapper<TSpec, TConfig> & /* mapper */, THitsString & 
 template <typename TSpec, typename TConfig, typename TReadSeqs>
 inline void classifyReads(Mapper<TSpec, TConfig> & mapper, TReadSeqs const & readSeqs)
 {
-//#ifdef _OPENMP
-//    sortHits(mapper.hits[0]);
-//#endif
-
     _classifyReadsImpl(mapper, readSeqs, mapper.hits[0], mapper.seeds[0], typename TConfig::TStrategy(), typename TConfig::TAnchoring());
 
     std::cout << "Hits count:\t\t\t" << countHits<unsigned long>(mapper.hits[0]) << std::endl;
@@ -808,7 +809,7 @@ inline void _writeHitsImpl(Mapper<TSpec, TConfig> const & mapper, TReadSeqs cons
 // Verifies all mates in within the insert window of their anchors.
 
 template <typename TSpec, typename TConfig, typename TReadSeqs>
-void verifyMates(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs)
+inline void verifyMates(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs)
 {
     start(mapper.timer);
     _verifyMatesImpl(mapper, readSeqs, typename TConfig::TAnchoring());
@@ -819,11 +820,11 @@ void verifyMates(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs)
 }
 
 template <typename TSpec, typename TConfig, typename TReadSeqs, typename TAnchoring>
-void _verifyMatesImpl(Mapper<TSpec, TConfig> & /* mapper */, TReadSeqs & /* readSeqs */, TAnchoring)
+inline void _verifyMatesImpl(Mapper<TSpec, TConfig> & /* mapper */, TReadSeqs & /* readSeqs */, TAnchoring)
 {}
 
 template <typename TSpec, typename TConfig, typename TReadSeqs>
-void _verifyMatesImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, AnchorOne)
+inline void _verifyMatesImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, AnchorOne)
 {
     typedef Mapper<TSpec, TConfig>                      TMapper;
 
@@ -933,7 +934,7 @@ inline void _getMateContigPos(Mapper<TSpec, TConfig> const & mapper,
 // ----------------------------------------------------------------------------
 
 template <typename TSpec, typename TConfig, typename TReadSeqs>
-void removeDuplicates(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs)
+inline void removeDuplicates(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs)
 {
     start(mapper.timer);
     removeDuplicateMatches(mapper.anchors);
@@ -948,7 +949,7 @@ void removeDuplicates(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs)
 // ----------------------------------------------------------------------------
 
 template <typename TSpec, typename TConfig>
-void mapReads(Mapper<TSpec, TConfig> & mapper)
+inline void mapReads(Mapper<TSpec, TConfig> & mapper)
 {
 //SEQAN_OMP_PRAGMA(critical(_mapper_mapReads_filter))
 //{
@@ -961,7 +962,7 @@ void mapReads(Mapper<TSpec, TConfig> & mapper)
 // ----------------------------------------------------------------------------
 
 template <typename TSpec, typename TConfig, typename TReadSeqs, typename TSequencing>
-void _mapReadsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, TSequencing, All)
+inline void _mapReadsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, TSequencing, All)
 {
     initReadsContext(mapper, readSeqs);
     initSeeds(mapper, readSeqs);
@@ -983,19 +984,19 @@ void _mapReadsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, TSeque
 // ----------------------------------------------------------------------------
 
 template <typename TSpec, typename TConfig, typename TReadSeqs>
-void _mapReadsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, SingleEnd, AnyBest)
+inline void _mapReadsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, SingleEnd, AnyBest)
 {
     _mapReadsByStrata(mapper, readSeqs);
 }
 
 template <typename TSpec, typename TConfig, typename TReadSeqs>
-void _mapReadsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, SingleEnd, AllBest)
+inline void _mapReadsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, SingleEnd, AllBest)
 {
     _mapReadsByStrata(mapper, readSeqs);
 }
 
 template <typename TSpec, typename TConfig, typename TReadSeqs>
-void _mapReadsByStrata(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs)
+inline void _mapReadsByStrata(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs)
 {
     typedef Mapper<TSpec, TConfig>          TMapper;
     typedef typename TMapper::THit          THit;
@@ -1012,7 +1013,6 @@ void _mapReadsByStrata(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs)
 
     findSeeds<0>(mapper, 1);
     findSeeds<0>(mapper, 2);
-//    sortHits(mapper);
     for (unsigned bucketId = 0; bucketId < TConfig::BUCKETS; ++bucketId)
         std::stable_sort(begin(mapper.hits[bucketId], Standard()), end(mapper.hits[bucketId], Standard()), HitsSorterByCount<THit>());
     extendHits(mapper, readSeqs);
@@ -1039,7 +1039,7 @@ void _mapReadsByStrata(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs)
 // ----------------------------------------------------------------------------
 
 template <typename TSpec, typename TConfig>
-void runMapper(Mapper<TSpec, TConfig> & mapper)
+inline void runMapper(Mapper<TSpec, TConfig> & mapper)
 {
     configureThreads(mapper);
 
@@ -1071,7 +1071,7 @@ void runMapper(Mapper<TSpec, TConfig> & mapper)
 
 /*
 template <typename TSpec, typename TConfig>
-void runMapper(Mapper<TSpec, TConfig> & mapper, Parallel)
+inline void runMapper(Mapper<TSpec, TConfig> & mapper, Parallel)
 {
     typedef Mapper<TSpec, TConfig>                      TMapper;
     typedef Reads<void, typename TMapper::TReadsConfig> TReads;
@@ -1178,11 +1178,11 @@ void runMapper(Mapper<TSpec, TConfig> & mapper, Parallel)
 // ----------------------------------------------------------------------------
 
 template <typename TExecSpace, typename TSequencing, typename TStrategy, typename TAnchoring>
-void spawnMapper(Options const & options,
-                 TExecSpace const & /* tag */,
-                 TSequencing const & /* tag */,
-                 TStrategy const & /* tag */,
-                 TAnchoring const & /* tag */)
+inline void spawnMapper(Options const & options,
+                        TExecSpace const & /* tag */,
+                        TSequencing const & /* tag */,
+                        TStrategy const & /* tag */,
+                        TAnchoring const & /* tag */)
 {
     typedef ReadMapperConfig<TExecSpace, TSequencing, TStrategy, TAnchoring> TConfig;
 
