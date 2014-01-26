@@ -424,11 +424,7 @@ template <typename TSpec, typename TConfig, typename TReadSeqs, typename TReadSe
 inline typename Size<typename Value<TReadSeqs>::Type>::Type
 _getErrorsPerRead(Mapper<TSpec, TConfig> & mapper, TReadSeqs const & readSeqs, TReadSeqId readSeqId)
 {
-    typedef typename Value<TReadSeqs>::Type                 TReadSeq;
-    typedef typename Size<TReadSeq>::Type                   TSize;
-
-    TSize readLength = length(readSeqs[readSeqId]);
-    return std::ceil(readLength * (mapper.options.errorRate / 100.0));
+    return std::ceil(length(readSeqs[readSeqId]) * (mapper.options.errorRate / 100.0));
 }
 
 // ----------------------------------------------------------------------------
