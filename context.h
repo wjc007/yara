@@ -46,7 +46,12 @@ using namespace seqan;
 // ----------------------------------------------------------------------------
 
 enum ReadStatus { STATUS_UNSEEDED, STATUS_SEEDED, STATUS_MAPPED, STATUS_UNMAPPABLE };
-//enum ReadAnchor { ANCHOR_FIRST, ANCHOR_SECOND };
+
+// ----------------------------------------------------------------------------
+// Enum ReadAnchor
+// ----------------------------------------------------------------------------
+
+enum ReadAnchor { ANCHOR_FIRST, ANCHOR_SECOND };
 
 // ----------------------------------------------------------------------------
 // Class ReadContext
@@ -71,11 +76,19 @@ struct ReadContext
 // Functions
 // ============================================================================
 
+// ----------------------------------------------------------------------------
+// Function getStratum()
+// ----------------------------------------------------------------------------
+
 template <typename TReadsContext, typename TReadSeqId>
 inline unsigned char getStratum(TReadsContext const & ctx, TReadSeqId readSeqId)
 {
     return ctx[readSeqId].stratum;
 }
+
+// ----------------------------------------------------------------------------
+// Function incStratum()
+// ----------------------------------------------------------------------------
 
 template <typename TReadsContext, typename TReadSeqId>
 inline void incStratum(TReadsContext & ctx, TReadSeqId readSeqId)
@@ -83,11 +96,19 @@ inline void incStratum(TReadsContext & ctx, TReadSeqId readSeqId)
     ctx[readSeqId].stratum++;
 }
 
+// ----------------------------------------------------------------------------
+// Function getSeedErrors()
+// ----------------------------------------------------------------------------
+
 template <typename TReadsContext, typename TReadSeqId>
 inline unsigned char getSeedErrors(TReadsContext const & ctx, TReadSeqId readSeqId)
 {
     return ctx[readSeqId].seedErrors;
 }
+
+// ----------------------------------------------------------------------------
+// Function setSeedErrors()
+// ----------------------------------------------------------------------------
 
 template <typename TReadsContext, typename TReadSeqId, typename TErrors>
 inline void setSeedErrors(TReadsContext & ctx, TReadSeqId readSeqId, TErrors errors)
@@ -95,17 +116,29 @@ inline void setSeedErrors(TReadsContext & ctx, TReadSeqId readSeqId, TErrors err
     ctx[readSeqId].seedErrors = errors;
 }
 
+// ----------------------------------------------------------------------------
+// Function getStatus()
+// ----------------------------------------------------------------------------
+
 template <typename TReadsContext, typename TReadSeqId>
 inline ReadStatus getStatus(TReadsContext const & ctx, TReadSeqId readSeqId)
 {
     return ctx[readSeqId].status;
 }
 
+// ----------------------------------------------------------------------------
+// Function setStatus()
+// ----------------------------------------------------------------------------
+
 template <typename TReadsContext, typename TReadSeqId>
 inline void setStatus(TReadsContext & ctx, TReadSeqId readSeqId, ReadStatus status)
 {
     ctx[readSeqId].status = status;
 }
+
+// ----------------------------------------------------------------------------
+// Function isMapped()
+// ----------------------------------------------------------------------------
 
 template <typename TReadsContext, typename TReadSeqId>
 inline bool isMapped(TReadsContext const & ctx, TReadSeqId readSeqId)
