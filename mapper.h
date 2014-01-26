@@ -332,7 +332,7 @@ void clearReads(Mapper<TSpec, TConfig> & mapper)
 // ----------------------------------------------------------------------------
 
 template <typename TSpec, typename TConfig, typename TReadSeqs>
-inline void initReadsContext(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs)
+inline void initReadsContext(Mapper<TSpec, TConfig> & mapper, TReadSeqs const & readSeqs)
 {
     clear(mapper.ctx);
     resize(mapper.ctx, getReadSeqsCount(readSeqs));
@@ -371,7 +371,7 @@ inline void seedReads(Mapper<TSpec, TConfig> & mapper, TReadSeqs const & readSeq
             unsigned char errors = getSeedErrors(mapper.ctx, readSeqId);
             SEQAN_ASSERT_GEQ(errors, getValueI1(seedErrors));
             SEQAN_ASSERT_LEQ(errors, getValueI2(seedErrors));
-            _enumerateSeeds(mapper, readSeqs, readSeqId, counters[errors]);
+            _getSeedsPerRead(mapper, readSeqs, readSeqId, counters[errors]);
         }
     }
 
@@ -388,31 +388,46 @@ inline void seedReads(Mapper<TSpec, TConfig> & mapper, TReadSeqs const & readSeq
             unsigned char errors = getSeedErrors(mapper.ctx, readSeqId);
             SEQAN_ASSERT_GEQ(errors, getValueI1(seedErrors));
             SEQAN_ASSERT_LEQ(errors, getValueI2(seedErrors));
-            _enumerateSeeds(mapper, readSeqs, readSeqId, managers[errors]);
+            _getSeedsPerRead(mapper, readSeqs, readSeqId, managers[errors]);
             setStatus(mapper.ctx, readSeqId, STATUS_SEEDED);
         }
     }
 }
 
 // ----------------------------------------------------------------------------
-// Function _enumerateSeeds()
+// Function _getSeedsPerRead()
 // ----------------------------------------------------------------------------
 
 template <typename TSpec, typename TConfig, typename TReadSeqs, typename TReadSeqId, typename TDelegate>
-inline void _enumerateSeeds(Mapper<TSpec, TConfig> & mapper, TReadSeqs const & readSeqs, TReadSeqId readSeqId, TDelegate & delegate)
+inline void _getSeedsPerRead(Mapper<TSpec, TConfig> & mapper, TReadSeqs const & readSeqs, TReadSeqId readSeqId, TDelegate & delegate)
 {
     typedef typename StringSetPosition<TReadSeqs>::Type     TPos;
     typedef typename Value<TReadSeqs>::Type                 TReadSeq;
     typedef typename Size<TReadSeq>::Type                   TSize;
 
-    TSize readLength = length(readSeqs[readSeqId]);
-    unsigned char seedErrors = getSeedErrors(mapper.ctx, readSeqId);
-    TSize errorsPerRead = std::ceil(readLength * (mapper.options.errorRate / 100.0));
+    TSize seedErrors = getSeedErrors(mapper.ctx, readSeqId);
+    TSize errorsPerRead = _getErrorsPerRead(mapper, readSeqs, readSeqId);
     TSize seedsPerRead = std::ceil((errorsPerRead + 1) / (seedErrors + 1.0));
+    TSize readLength = length(readSeqs[readSeqId]);
     TSize seedsLength = readLength / seedsPerRead;
 
     for (TSize seedId = 0; seedId < seedsPerRead; ++seedId)
         delegate(TPos(readSeqId, seedId * seedsLength), seedsLength);
+}
+
+// ----------------------------------------------------------------------------
+// Function _getErrorsPerRead()
+// ----------------------------------------------------------------------------
+
+template <typename TSpec, typename TConfig, typename TReadSeqs, typename TReadSeqId>
+inline typename Size<typename Value<TReadSeqs>::Type>::Type
+_getErrorsPerRead(Mapper<TSpec, TConfig> & mapper, TReadSeqs const & readSeqs, TReadSeqId readSeqId)
+{
+    typedef typename Value<TReadSeqs>::Type                 TReadSeq;
+    typedef typename Size<TReadSeq>::Type                   TSize;
+
+    TSize readLength = length(readSeqs[readSeqId]);
+    return std::ceil(readLength * (mapper.options.errorRate / 100.0));
 }
 
 // ----------------------------------------------------------------------------
@@ -520,7 +535,7 @@ inline void classifyReads(Mapper<TSpec, TConfig> & mapper, TReadSeqs const & rea
 // ----------------------------------------------------------------------------
 
 template <typename TSpec, typename TConfig, typename TReadSeqs, typename THitsString, typename TSeedsSet, typename TStrategy, typename TAnchoring>
-inline void _classifyReadsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs const & readSeqs, THitsString & hits, TSeedsSet & seeds, TStrategy, TAnchoring)
+inline void _classifyReadsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs const & readSeqs, THitsString & hits, TSeedsSet const & seeds, TStrategy, TAnchoring)
 {
     typedef Mapper<TSpec, TConfig>                      TMapper;
     typedef typename Id<TSeedsSet>::Type                TSeedId;
@@ -558,7 +573,7 @@ inline void _classifyReadsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs const 
 // ----------------------------------------------------------------------------
 
 template <typename TSpec, typename TConfig, typename TReadSeqs, typename THitsString, typename TSeedsSet, typename TStrategy>
-inline void _classifyReadsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs const & readSeqs, THitsString & hits, TSeedsSet & seeds, TStrategy, AnchorOne)
+inline void _classifyReadsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs const & readSeqs, THitsString & hits, TSeedsSet const & seeds, TStrategy, AnchorOne)
 {
     typedef Mapper<TSpec, TConfig>                      TMapper;
     typedef typename Id<TSeedsSet>::Type                TSeedId;
@@ -678,7 +693,7 @@ inline void extendHits(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs)
 // ----------------------------------------------------------------------------
 
 template <typename TSpec, typename TConfig, typename TReadSeqs, typename THitsString, typename TSeedsSet>
-inline void _extendHitsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, THitsString & hits, TSeedsSet & seeds)
+inline void _extendHitsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, THitsString const & hits, TSeedsSet const & seeds)
 {
     typedef Mapper<TSpec, TConfig>                      TMapper;
 
@@ -690,6 +705,7 @@ inline void _extendHitsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeq
     typedef typename Id<TReadSeqs>::Type                TReadId;
     typedef Pair<typename Position<TReadSeq>::Type>     TReadPos;
     typedef typename Size<TReadSeq>::Type               TReadSeqSize;
+    typedef typename Size<TReadSeq>::Type               TErrors;
 
     typedef typename Id<TSeedsSet>::Type                TSeedId;
 
@@ -745,12 +761,14 @@ inline void _extendHitsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeq
             TContigsPos contigBegin = saValue;
             TContigsPos contigEnd = posAdd(contigBegin, seedLength);
 
-            // TODO(esiragusa): convert errorRate to absolute errors
+            // Get absolute number of errors.
+            TErrors maxErrors = _getErrorsPerRead(mapper, readSeqs, readSeqId);
+
             extend(mapper.extender,
                    readSeq,
                    contigBegin, contigEnd,
                    readPos.i1, readPos.i2,
-                   hitErrors, mapper.options.errorRate,
+                   hitErrors, maxErrors,
                    anchorsManager);
         }
 
@@ -765,7 +783,7 @@ inline void _extendHitsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeq
 // ----------------------------------------------------------------------------
 
 template <typename TSpec, typename TConfig, typename TReadSeqs, typename THits, typename TSeedsSet, typename TFilename>
-inline void _writeHitsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, THits & hits, TSeedsSet & seeds, TFilename const & filename)
+inline void _writeHitsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, THits const & hits, TSeedsSet const & seeds, TFilename const & filename)
 {
     typedef Mapper<TSpec, TConfig>                      TMapper;
     typedef typename Id<TSeedsSet>::Type                TSeedId;
@@ -817,7 +835,8 @@ void verifyMates(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs)
 }
 
 template <typename TSpec, typename TConfig, typename TReadSeqs, typename TAnchoring>
-void _verifyMatesImpl(Mapper<TSpec, TConfig> & /* mapper */, TReadSeqs & /* readSeqs */, TAnchoring) {}
+void _verifyMatesImpl(Mapper<TSpec, TConfig> & /* mapper */, TReadSeqs & /* readSeqs */, TAnchoring)
+{}
 
 template <typename TSpec, typename TConfig, typename TReadSeqs>
 void _verifyMatesImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, AnchorOne)
@@ -832,6 +851,7 @@ void _verifyMatesImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, Anc
 
     typedef typename Size<TReadSeqs>::Type              TReadId;
     typedef typename Value<TReadSeqs>::Type             TReadSeq;
+    typedef typename Size<TReadSeq>::Type               TErrors;
 
     TManager matesManager(mapper.mates);
     clear(mapper.mates);
@@ -855,8 +875,10 @@ void _verifyMatesImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, Anc
         // Fill readId.
         matesManager.prototype.readId = mateId;
 
-        // TODO(esiragusa): convert this to errorsPerRead.
-        verify(mapper.verifier, mateSeq, contigBegin, contigEnd, mapper.options.errorRate, matesManager);
+        // Get absolute number of errors.
+        TErrors maxErrors = _getErrorsPerRead(mapper, readSeqs, mateId);
+
+        verify(mapper.verifier, mateSeq, contigBegin, contigEnd, maxErrors, matesManager);
     }
 }
 
@@ -865,7 +887,7 @@ void _verifyMatesImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, Anc
 // ----------------------------------------------------------------------------
 
 template <typename TSpec, typename TConfig, typename TContigPos, typename TMatch>
-inline void _getMateContigPos(Mapper<TSpec, TConfig> & mapper,
+inline void _getMateContigPos(Mapper<TSpec, TConfig> const & mapper,
                               TContigPos & contigBegin,
                               TContigPos & contigEnd,
                               TMatch const & anchor,
@@ -892,7 +914,7 @@ inline void _getMateContigPos(Mapper<TSpec, TConfig> & mapper,
 }
 
 template <typename TSpec, typename TConfig, typename TContigPos, typename TMatch>
-inline void _getMateContigPos(Mapper<TSpec, TConfig> & mapper,
+inline void _getMateContigPos(Mapper<TSpec, TConfig> const & mapper,
                               TContigPos & contigBegin,
                               TContigPos & contigEnd,
                               TMatch const & anchor,
