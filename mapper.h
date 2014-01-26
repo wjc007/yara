@@ -408,27 +408,6 @@ inline void initReadsContext(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSe
 }
 
 // ----------------------------------------------------------------------------
-// Function _enumerateSeeds()
-// ----------------------------------------------------------------------------
-
-template <typename TSpec, typename TConfig, typename TReadSeqs, typename TReadSeqId, typename TDelegate>
-inline void _enumerateSeeds(Mapper<TSpec, TConfig> & mapper, TReadSeqs const & readSeqs, TReadSeqId readSeqId, TDelegate & delegate)
-{
-    typedef typename StringSetPosition<TReadSeqs>::Type     TPos;
-    typedef typename Value<TReadSeqs>::Type                 TReadSeq;
-    typedef typename Size<TReadSeq>::Type                   TSize;
-
-    TSize readLength = length(readSeqs[readSeqId]);
-    unsigned char seedErrors = getSeedErrors(mapper.ctx, readSeqId);
-    TSize errorsPerRead = std::ceil(readLength * (mapper.options.errorRate / 100.0));
-    TSize seedsPerRead = std::ceil((errorsPerRead + 1) / (seedErrors + 1.0));
-    TSize seedsLength = readLength / seedsPerRead;
-
-    for (TSize seedId = 0; seedId < seedsPerRead; ++seedId)
-        delegate(TPos(readSeqId, seedId * seedsLength), seedsLength);
-}
-
-// ----------------------------------------------------------------------------
 // Function seedReads()
 // ----------------------------------------------------------------------------
 
@@ -482,6 +461,27 @@ inline void seedReads(Mapper<TSpec, TConfig> & mapper, TReadSeqs const & readSeq
             setStatus(mapper.ctx, readSeqId, STATUS_SEEDED);
         }
     }
+}
+
+// ----------------------------------------------------------------------------
+// Function _enumerateSeeds()
+// ----------------------------------------------------------------------------
+
+template <typename TSpec, typename TConfig, typename TReadSeqs, typename TReadSeqId, typename TDelegate>
+inline void _enumerateSeeds(Mapper<TSpec, TConfig> & mapper, TReadSeqs const & readSeqs, TReadSeqId readSeqId, TDelegate & delegate)
+{
+    typedef typename StringSetPosition<TReadSeqs>::Type     TPos;
+    typedef typename Value<TReadSeqs>::Type                 TReadSeq;
+    typedef typename Size<TReadSeq>::Type                   TSize;
+
+    TSize readLength = length(readSeqs[readSeqId]);
+    unsigned char seedErrors = getSeedErrors(mapper.ctx, readSeqId);
+    TSize errorsPerRead = std::ceil(readLength * (mapper.options.errorRate / 100.0));
+    TSize seedsPerRead = std::ceil((errorsPerRead + 1) / (seedErrors + 1.0));
+    TSize seedsLength = readLength / seedsPerRead;
+
+    for (TSize seedId = 0; seedId < seedsPerRead; ++seedId)
+        delegate(TPos(readSeqId, seedId * seedsLength), seedsLength);
 }
 
 // ----------------------------------------------------------------------------
@@ -735,7 +735,7 @@ inline void extendHits(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs)
 
     start(mapper.timer);
     for (unsigned i = 0; i < 3; i++)
-        extendHits(mapper, readSeqs, mapper.hits[i], mapper.seeds[i]);
+        _extendHitsImpl(mapper, readSeqs, mapper.hits[i], mapper.seeds[i]);
     stop(mapper.timer);
 
     std::cout << "Extension time:\t\t\t" << mapper.timer << std::endl;
@@ -743,11 +743,11 @@ inline void extendHits(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs)
 }
 
 // ----------------------------------------------------------------------------
-// Function extendHits()
+// Function _extendHitsImpl()
 // ----------------------------------------------------------------------------
 
 template <typename TSpec, typename TConfig, typename TReadSeqs, typename THitsString, typename TSeedsSet>
-inline void extendHits(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, THitsString & hits, TSeedsSet & seeds)
+inline void _extendHitsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, THitsString & hits, TSeedsSet & seeds)
 {
     typedef Mapper<TSpec, TConfig>                      TMapper;
 
@@ -830,11 +830,11 @@ inline void extendHits(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, TH
 }
 
 // ----------------------------------------------------------------------------
-// Function writeHits()
+// Function _writeHitsImpl()
 // ----------------------------------------------------------------------------
 
 template <typename TSpec, typename TConfig, typename TReadSeqs, typename THits, typename TSeedsSet, typename TFilename>
-inline void writeHits(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, THits & hits, TSeedsSet & seeds, TFilename const & filename)
+inline void _writeHitsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, THits & hits, TSeedsSet & seeds, TFilename const & filename)
 {
     typedef Mapper<TSpec, TConfig>                      TMapper;
     typedef typename Id<TSeedsSet>::Type                TSeedId;
@@ -868,59 +868,6 @@ inline void writeHits(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, THi
     }
 
     file.close();
-}
-
-// ----------------------------------------------------------------------------
-// Function _getMateContigPos()
-// ----------------------------------------------------------------------------
-
-template <typename TSpec, typename TConfig, typename TContigPos, typename TMatch>
-inline void _getMateContigPos(Mapper<TSpec, TConfig> & mapper,
-                              TContigPos & contigBegin,
-                              TContigPos & contigEnd,
-                              TMatch const & anchor,
-                              RightMate)
-{
-    typedef Mapper<TSpec, TConfig>                  TMapper;
-    typedef typename TMapper::TContig               TContig;
-    typedef typename Size<TContig>::Type            TContigSize;
-
-    TContigSize contigLength = length(contigs(mapper.genome)[anchor.contigId]);
-
-    setValueI1(contigBegin, anchor.contigId);
-    setValueI1(contigEnd, anchor.contigId);
-
-    contigBegin.i2 = 0;
-    if (anchor.contigBegin + mapper.options.libraryLength > mapper.options.libraryError)
-        contigBegin.i2 = anchor.contigBegin + mapper.options.libraryLength - mapper.options.libraryError;
-    contigBegin.i2 = _min(contigBegin.i2, contigLength);
-
-    contigEnd.i2 = _min(anchor.contigBegin + mapper.options.libraryLength + mapper.options.libraryError, contigLength);
-
-    SEQAN_ASSERT_LEQ(getValueI2(contigBegin), getValueI2(contigEnd));
-    SEQAN_ASSERT_LEQ(getValueI2(contigEnd) - getValueI2(contigBegin), 2 * mapper.options.libraryError);
-}
-
-template <typename TSpec, typename TConfig, typename TContigPos, typename TMatch>
-inline void _getMateContigPos(Mapper<TSpec, TConfig> & mapper,
-                              TContigPos & contigBegin,
-                              TContigPos & contigEnd,
-                              TMatch const & anchor,
-                              LeftMate)
-{
-    setValueI1(contigBegin, anchor.contigId);
-    setValueI1(contigEnd, anchor.contigId);
-
-    contigBegin.i2 = 0;
-    if (anchor.contigEnd > mapper.options.libraryLength + mapper.options.libraryError)
-        contigBegin.i2 = anchor.contigEnd - mapper.options.libraryLength - mapper.options.libraryError;
-
-    contigEnd.i2 = 0;
-    if (anchor.contigEnd + mapper.options.libraryError > mapper.options.libraryLength)
-        contigEnd.i2 = anchor.contigEnd - mapper.options.libraryLength + mapper.options.libraryError;
-
-    SEQAN_ASSERT_LEQ(getValueI2(contigBegin), getValueI2(contigEnd));
-    SEQAN_ASSERT_LEQ(getValueI2(contigEnd) - getValueI2(contigBegin), 2 * mapper.options.libraryError);
 }
 
 // ----------------------------------------------------------------------------
@@ -980,6 +927,59 @@ void _verifyMatesImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, Anc
         // TODO(esiragusa): convert this to errorsPerRead.
         verify(mapper.verifier, mateSeq, contigBegin, contigEnd, mapper.options.errorRate, matesManager);
     }
+}
+
+// ----------------------------------------------------------------------------
+// Function _getMateContigPos()
+// ----------------------------------------------------------------------------
+
+template <typename TSpec, typename TConfig, typename TContigPos, typename TMatch>
+inline void _getMateContigPos(Mapper<TSpec, TConfig> & mapper,
+                              TContigPos & contigBegin,
+                              TContigPos & contigEnd,
+                              TMatch const & anchor,
+                              RightMate)
+{
+    typedef Mapper<TSpec, TConfig>                  TMapper;
+    typedef typename TMapper::TContig               TContig;
+    typedef typename Size<TContig>::Type            TContigSize;
+
+    TContigSize contigLength = length(contigs(mapper.genome)[anchor.contigId]);
+
+    setValueI1(contigBegin, anchor.contigId);
+    setValueI1(contigEnd, anchor.contigId);
+
+    contigBegin.i2 = 0;
+    if (anchor.contigBegin + mapper.options.libraryLength > mapper.options.libraryError)
+        contigBegin.i2 = anchor.contigBegin + mapper.options.libraryLength - mapper.options.libraryError;
+    contigBegin.i2 = _min(contigBegin.i2, contigLength);
+
+    contigEnd.i2 = _min(anchor.contigBegin + mapper.options.libraryLength + mapper.options.libraryError, contigLength);
+
+    SEQAN_ASSERT_LEQ(getValueI2(contigBegin), getValueI2(contigEnd));
+    SEQAN_ASSERT_LEQ(getValueI2(contigEnd) - getValueI2(contigBegin), 2 * mapper.options.libraryError);
+}
+
+template <typename TSpec, typename TConfig, typename TContigPos, typename TMatch>
+inline void _getMateContigPos(Mapper<TSpec, TConfig> & mapper,
+                              TContigPos & contigBegin,
+                              TContigPos & contigEnd,
+                              TMatch const & anchor,
+                              LeftMate)
+{
+    setValueI1(contigBegin, anchor.contigId);
+    setValueI1(contigEnd, anchor.contigId);
+
+    contigBegin.i2 = 0;
+    if (anchor.contigEnd > mapper.options.libraryLength + mapper.options.libraryError)
+        contigBegin.i2 = anchor.contigEnd - mapper.options.libraryLength - mapper.options.libraryError;
+
+    contigEnd.i2 = 0;
+    if (anchor.contigEnd + mapper.options.libraryError > mapper.options.libraryLength)
+        contigEnd.i2 = anchor.contigEnd - mapper.options.libraryLength + mapper.options.libraryError;
+
+    SEQAN_ASSERT_LEQ(getValueI2(contigBegin), getValueI2(contigEnd));
+    SEQAN_ASSERT_LEQ(getValueI2(contigEnd) - getValueI2(contigBegin), 2 * mapper.options.libraryError);
 }
 
 // ----------------------------------------------------------------------------
