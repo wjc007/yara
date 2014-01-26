@@ -967,10 +967,10 @@ void _mapReadsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, TSeque
     initSeeds(mapper, readSeqs);
     clearHits(mapper);
 
-    seedReads(mapper, readSeqs, Pair<unsigned>(0,0));
+    seedReads(mapper, readSeqs, Pair<unsigned>(0, 0));
     findSeeds<0>(mapper, 0);
     classifyReads(mapper, readSeqs);
-    seedReads(mapper, readSeqs, Pair<unsigned>(1,2));
+    seedReads(mapper, readSeqs, Pair<unsigned>(1, 2));
     findSeeds<1>(mapper, 1);
     findSeeds<2>(mapper, 2);
     extendHits(mapper, readSeqs);
@@ -1008,7 +1008,7 @@ void _mapReadsByStrata(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs)
     seedReads(mapper, readSeqs, Pair<unsigned>(0, 0));
     findSeeds<0>(mapper, 0);
     classifyReads(mapper, readSeqs);
-    seedReads(mapper, readSeqs, Pair<unsigned>(1,2));
+    seedReads(mapper, readSeqs, Pair<unsigned>(1, 2));
 
     findSeeds<0>(mapper, 1);
     findSeeds<0>(mapper, 2);
