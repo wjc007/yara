@@ -408,11 +408,11 @@ inline void initReadsContext(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSe
 }
 
 // ----------------------------------------------------------------------------
-// Function _selectSeeds()
+// Function _enumerateSeeds()
 // ----------------------------------------------------------------------------
 
 template <typename TSpec, typename TConfig, typename TReadSeqs, typename TReadSeqId, typename TErrors, typename TDelegate>
-inline void _selectSeeds(Mapper<TSpec, TConfig> & mapper, TReadSeqs const & readSeqs, TReadSeqId readSeqId, TErrors seedErrors, TDelegate & delegate)
+inline void _enumerateSeeds(Mapper<TSpec, TConfig> & mapper, TReadSeqs const & readSeqs, TReadSeqId readSeqId, TErrors seedErrors, TDelegate & delegate)
 {
     typedef typename StringSetPosition<TReadSeqs>::Type     TPos;
     typedef typename Value<TReadSeqs>::Type                 TReadSeq;
@@ -431,8 +431,8 @@ inline void _selectSeeds(Mapper<TSpec, TConfig> & mapper, TReadSeqs const & read
 // Function selectSeeds()
 // ----------------------------------------------------------------------------
 
-template <typename TSpec, typename TConfig, typename TSeeds, typename TReadSeqs, typename TReadsCtx, typename TErrors>
-inline void selectSeeds(Mapper<TSpec, TConfig> & mapper, TSeeds & seeds, TReadSeqs & readSeqs, TReadsCtx & ctx, Pair<TErrors> seedErrors)
+template <typename TSpec, typename TConfig, typename TSeeds, typename TReadSeqs, typename TErrors>
+inline void selectSeeds(Mapper<TSpec, TConfig> & mapper, TSeeds & seeds, TReadSeqs & readSeqs, Pair<TErrors> seedErrors)
 {
     typedef typename Value<TReadSeqs>::Type             TReadSeq;
     typedef typename Id<TReadSeqs>::Type                TId;
@@ -453,11 +453,12 @@ inline void selectSeeds(Mapper<TSpec, TConfig> & mapper, TSeeds & seeds, TReadSe
     // Count seeds.
     for (TId readSeqId = 0; readSeqId < readsCount; ++readSeqId)
     {
-        if (getStatus(ctx, readSeqId) == STATUS_UNSEEDED)
+        if (getStatus(mapper.ctx, readSeqId) == STATUS_UNSEEDED)
         {
-            SEQAN_ASSERT_GEQ(ctx[readSeqId].seedErrors, getValueI1(seedErrors));
-            SEQAN_ASSERT_LEQ(ctx[readSeqId].seedErrors, getValueI2(seedErrors));
-            _selectSeeds(mapper, readSeqs, readSeqId, ctx[readSeqId].seedErrors, counters[ctx[readSeqId].seedErrors]);
+            unsigned char errors = getSeedErrors(mapper.ctx, readSeqId);
+            SEQAN_ASSERT_GEQ(errors, getValueI1(seedErrors));
+            SEQAN_ASSERT_LEQ(errors, getValueI2(seedErrors));
+            _enumerateSeeds(mapper, readSeqs, readSeqId, errors, counters[errors]);
         }
     }
 
@@ -469,12 +470,13 @@ inline void selectSeeds(Mapper<TSpec, TConfig> & mapper, TSeeds & seeds, TReadSe
     // Select seeds.
     for (TId readSeqId = 0; readSeqId < readsCount; ++readSeqId)
     {
-        if (getStatus(ctx, readSeqId) == STATUS_UNSEEDED)
+        if (getStatus(mapper.ctx, readSeqId) == STATUS_UNSEEDED)
         {
-            SEQAN_ASSERT_GEQ(ctx[readSeqId].seedErrors, getValueI1(seedErrors));
-            SEQAN_ASSERT_LEQ(ctx[readSeqId].seedErrors, getValueI2(seedErrors));
-            _selectSeeds(mapper, readSeqs, readSeqId, ctx[readSeqId].seedErrors, managers[ctx[readSeqId].seedErrors]);
-            setStatus(ctx, readSeqId, STATUS_SEEDED);
+            unsigned char errors = getSeedErrors(mapper.ctx, readSeqId);
+            SEQAN_ASSERT_GEQ(errors, getValueI1(seedErrors));
+            SEQAN_ASSERT_LEQ(errors, getValueI2(seedErrors));
+            _enumerateSeeds(mapper, readSeqs, readSeqId, errors, managers[errors]);
+            setStatus(mapper.ctx, readSeqId, STATUS_SEEDED);
         }
     }
 }
@@ -1054,10 +1056,10 @@ void _mapReadsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, TSeque
 {
     clearHits(mapper);
     initReadsContext(mapper, readSeqs);
-    selectSeeds(mapper, mapper.seeds, readSeqs, mapper.ctx, Pair<unsigned>(0,0));
+    selectSeeds(mapper, mapper.seeds, readSeqs, Pair<unsigned>(0,0));
     findSeedsExt(mapper);
     classifyReads(mapper, readSeqs);
-    selectSeeds(mapper, mapper.seeds, readSeqs, mapper.ctx, Pair<unsigned>(1,2));
+    selectSeeds(mapper, mapper.seeds, readSeqs, Pair<unsigned>(1,2));
     findSeeds(mapper);
     extendHits(mapper, readSeqs);
     removeDuplicates(mapper, readSeqs);
@@ -1092,10 +1094,10 @@ void _mapReadsImplByStrata(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs
     initReadsContext(mapper, readSeqs);
 
     start(mapper.timer);
-    selectSeeds(mapper, mapper.seeds, readSeqs, mapper.ctx, Pair<unsigned>(0,0));
+    selectSeeds(mapper, mapper.seeds, readSeqs, Pair<unsigned>(0,0));
     findSeedsExt(mapper);
     classifyReads(mapper, readSeqs);
-    selectSeeds(mapper, mapper.seeds, readSeqs, mapper.ctx, Pair<unsigned>(1,2));
+    selectSeeds(mapper, mapper.seeds, readSeqs, Pair<unsigned>(1,2));
 
     start(mapper.timer);
     std::cout << "Seeds count:\t\t\t" << length(mapper.seeds[1]) << std::endl;
