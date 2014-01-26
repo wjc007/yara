@@ -226,7 +226,7 @@ void configureThreads(Mapper<TSpec, TConfig> & mapper)
 template <typename TSpec, typename TConfig>
 inline void loadGenome(Mapper<TSpec, TConfig> & mapper)
 {
-    std::cout << "Loading genome:\t\t\t" << std::flush);
+    std::cout << "Loading genome:\t\t\t" << std::flush;
     start(mapper.timer);
 
     CharString genomeFile = mapper.options.genomeIndexFile;
