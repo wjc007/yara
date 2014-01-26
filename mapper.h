@@ -118,7 +118,7 @@ template <typename TSpec, typename TConfig = void>
 struct Mapper
 {
     typedef Genome<void, TConfig>                                   TGenome;
-    typedef GenomeLoader<void, TConfig>                             TGenomeLoader;
+//    typedef GenomeLoader<void, TConfig>                             TGenomeLoader;
     typedef typename Contigs<TGenome>::Type                         TContigs;
     typedef typename Value<TContigs>::Type                          TContig;
     typedef typename StringSetPosition<TContigs>::Type              TContigsPos;
@@ -164,7 +164,7 @@ struct Mapper
     Options const &     options;
 
     TGenome             genome;
-    TGenomeLoader       genomeLoader;
+//    TGenomeLoader       genomeLoader;
     TIndex              index;
     TStore              store;
     TReads              reads;
@@ -183,7 +183,7 @@ struct Mapper
     Mapper(Options const & options) :
         options(options),
         genome(),
-        genomeLoader(genome),
+//        genomeLoader(genome),
         index(),
         store(),
         reads(store),
