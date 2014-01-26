@@ -227,8 +227,8 @@ void getIndexType(TOptions & options, ArgumentParser const & parser)
 
 void setIndexPrefix(ArgumentParser & parser)
 {
-    addOption(parser, ArgParseOption("xp", "index-prefix", "Specify an genome index prefix name. \
-                                     Default: use the genome filename prefix.", ArgParseOption::STRING));
+    addOption(parser, ArgParseOption("xp", "index-prefix", "Specify a filename prefix for the reference genome index. \
+                                     Default: use the filename prefix of the reference genome.", ArgParseOption::STRING));
 }
 
 // ----------------------------------------------------------------------------

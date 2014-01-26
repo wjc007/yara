@@ -118,12 +118,13 @@ void setupArgumentParser(ArgumentParser & parser, Options const & /* options */)
     setDateAndVersion(parser);
     setDescription(parser);
 
-    addUsageLine(parser, "[\\fIOPTIONS\\fP] <\\fIGENOME FILE\\fP>");
+    addUsageLine(parser, "[\\fIOPTIONS\\fP] <\\fIREFERENCE FILE\\fP>");
 
     addArgument(parser, ArgParseArgument(ArgParseArgument::INPUTFILE));
     setValidValues(parser, 0, "fasta fa");
+    setHelpText(parser, 0, "A reference genome file.");
 
-    addSection(parser, "Genome Index Options");
+    addSection(parser, "Indexing Options");
 
     setIndexPrefix(parser);
     

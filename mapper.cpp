@@ -94,8 +94,8 @@ void setupArgumentParser(ArgumentParser & parser, Options const & options)
     setDescription(parser);
 
     // Setup mandatory arguments.
-    addUsageLine(parser, "[\\fIOPTIONS\\fP] <\\fIGENOME FILE\\fP> <\\fISE-READS FILE\\fP>");
-    addUsageLine(parser, "[\\fIOPTIONS\\fP] <\\fIGENOME FILE\\fP> <\\fIPE-READS FILE 1\\fP> <\\fIPE-READS FILE 2\\fP>");
+    addUsageLine(parser, "[\\fIOPTIONS\\fP] <\\fIREFERENCE FILE\\fP> <\\fISE-READS FILE\\fP>");
+    addUsageLine(parser, "[\\fIOPTIONS\\fP] <\\fIREFERENCE FILE\\fP> <\\fIPE-READS FILE 1\\fP> <\\fIPE-READS FILE 2\\fP>");
 
     addArgument(parser, ArgParseArgument(ArgParseArgument::INPUTFILE));
     setValidValues(parser, 0, "fasta fa");
@@ -105,14 +105,16 @@ void setupArgumentParser(ArgumentParser & parser, Options const & options)
     setValidValues(parser, 1, "fastq fasta fa");
     setHelpText(parser, 1, "Either one single-end or two paired-end read files.");
 
+    addOption(parser, ArgParseOption("v", "verbose", "Displays verbose output."));
+
     // Setup mapping options.
     addSection(parser, "Mapping Options");
 
-    addOption(parser, ArgParseOption("mm", "mapping-mode", "Select mapping mode.", ArgParseOption::STRING));
+    addOption(parser, ArgParseOption("mm", "mapping-mode", "Selects a mapping strategy.", ArgParseOption::STRING));
     setValidValues(parser, "mapping-mode", options.mappingModeList);
     setDefaultValue(parser, "mapping-mode", options.mappingModeList[options.mappingMode]);
 
-    addOption(parser, ArgParseOption("e", "error-rate", "Maximum error rate.", ArgParseOption::INTEGER));
+    addOption(parser, ArgParseOption("e", "error-rate", "Considers mapping locations up to this specified error rate.", ArgParseOption::INTEGER));
     setMinValue(parser, "error-rate", "0");
     setMaxValue(parser, "error-rate", "10");
     setDefaultValue(parser, "error-rate", options.errorRate);
@@ -125,10 +127,10 @@ void setupArgumentParser(ArgumentParser & parser, Options const & options)
     setMinValue(parser, "library-error", "0");
     setDefaultValue(parser, "library-error", options.libraryError);
 
-    addOption(parser, ArgParseOption("a", "anchor", "Anchor one read and verify the mate."));
+    addOption(parser, ArgParseOption("a", "anchor", "Anchor one read and verify its mate."));
 
     // Setup index options.
-    addSection(parser, "Index Options");
+    addSection(parser, "Indexing Options");
 
     setIndexPrefix(parser);
 
@@ -149,11 +151,6 @@ void setupArgumentParser(ArgumentParser & parser, Options const & options)
     addOption(parser, ArgParseOption("mb", "mapping-block", "Maximum number of reads to be mapped at once.", ArgParseOption::INTEGER));
     setMinValue(parser, "mapping-block", "1000");
     setDefaultValue(parser, "mapping-block", options.mappingBlock);
-
-    // Setup debug options.
-    addSection(parser, "Debug Options");
-
-    addOption(parser, ArgParseOption("v", "verbose", "Verbose output."));
 }
 
 // ----------------------------------------------------------------------------
