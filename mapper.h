@@ -72,6 +72,7 @@ struct Options
     bool                noCuda;
     unsigned            threadsCount;
     unsigned            hitsThreshold;
+    bool                verbose;
 
     Options() :
         mappingMode(ALL),
@@ -83,7 +84,8 @@ struct Options
         mappingBlock(200000),
         noCuda(false),
         threadsCount(1),
-        hitsThreshold(300)
+        hitsThreshold(300),
+        verbose(true)
     {
         mappingModeList.push_back("all");
         mappingModeList.push_back("all-best");
@@ -652,6 +654,7 @@ inline unsigned long countHits(Mapper<TSpec, TConfig> const & mapper)
 template <typename TSpec, typename TConfig, typename TReadSeqs>
 inline void extendHits(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs)
 {
+    // TODO(esiragusa): guess the number of matches.
     clear(mapper.anchors);
     reserve(mapper.anchors, countHits(mapper) / 5);
 

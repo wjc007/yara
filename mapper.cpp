@@ -149,6 +149,11 @@ void setupArgumentParser(ArgumentParser & parser, Options const & options)
     addOption(parser, ArgParseOption("mb", "mapping-block", "Maximum number of reads to be mapped at once.", ArgParseOption::INTEGER));
     setMinValue(parser, "mapping-block", "1000");
     setDefaultValue(parser, "mapping-block", options.mappingBlock);
+
+    // Setup debug options.
+    addSection(parser, "Debug Options");
+
+    addOption(parser, ArgParseOption("v", "verbose", "Verbose output."));
 }
 
 // ----------------------------------------------------------------------------
@@ -204,6 +209,9 @@ parseCommandLine(Options & options, ArgumentParser & parser, int argc, char cons
 
     // Parse mapping block option.
     getOptionValue(options.mappingBlock, parser, "mapping-block");
+
+    // Parse verbose output option.
+    getOptionValue(options.verbose, parser, "verbose");
 
     return seqan::ArgumentParser::PARSE_OK;
 }
