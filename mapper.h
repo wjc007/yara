@@ -568,8 +568,8 @@ inline void findSeeds(Mapper<TSpec, TConfig> & mapper)
 // Function reSeed()
 // ----------------------------------------------------------------------------
 
-template <typename TSpec, typename TConfig, typename TReadSeqs, typename THits, typename TSeeds, typename TReadsCtx>
-inline void reSeed(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, THits & hits, TSeeds & seeds, TReadsCtx & ctx)
+template <typename TSpec, typename TConfig, typename TReadSeqs, typename THits, typename TSeeds>
+inline void reSeed(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, THits & hits, TSeeds & seeds)
 {
     typedef Mapper<TSpec, TConfig>                      TMapper;
     typedef typename TMapper::TSeedsSet                 TSeedsSet;
@@ -594,8 +594,8 @@ inline void reSeed(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, THits 
         if (readHits > mapper.options.hitsThreshold)
         {
             // Guess a good seeding stragegy.
-            ctx[readSeqId].seedErrors = (readHits < 200 * mapper.options.hitsThreshold) ? 1 : 2;
-            setStatus(ctx, readSeqId, STATUS_UNSEEDED);
+            setSeedErrors(mapper.ctx, readSeqId, (readHits < 200 * mapper.options.hitsThreshold) ? 1 : 2);
+            setStatus(mapper.ctx, readSeqId, STATUS_UNSEEDED);
 
             // Clear the hits of the read.
             clearHits(hits, readHitIds);
@@ -607,8 +607,8 @@ inline void reSeed(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, THits 
 // Function selectAnchors()
 // ----------------------------------------------------------------------------
 
-template <typename TSpec, typename TConfig, typename TReadSeqs, typename THits, typename TSeeds, typename TReadsCtx>
-inline void selectAnchors(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, THits & hits, TSeeds & seeds, TReadsCtx & ctx)
+template <typename TSpec, typename TConfig, typename TReadSeqs, typename THits, typename TSeeds>
+inline void selectAnchors(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, THits & hits, TSeeds & seeds)
 {
     typedef Mapper<TSpec, TConfig>                      TMapper;
     typedef typename TMapper::TSeedsSet                 TSeedsSet;
@@ -664,14 +664,14 @@ inline void selectAnchors(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs,
 
         // Clear the hits of the other read.
         clearHits(hits, otherHitIds);
-        ctx[otherSeqId].status = STATUS_UNMAPPABLE;
+        setStatus(mapper.ctx, otherSeqId, STATUS_UNMAPPABLE);
 
         // Re-seed hard anchors.
         if (anchorHits > mapper.options.hitsThreshold)
         {
             // Guess a good seeding stragegy.
-            ctx[anchorSeqId].seedErrors = (anchorHits < 200 * mapper.options.hitsThreshold) ? 1 : 2;
-            ctx[anchorSeqId].status = STATUS_UNSEEDED;
+            setSeedErrors(mapper.ctx, anchorSeqId, (anchorHits < 200 * mapper.options.hitsThreshold) ? 1 : 2);
+            setStatus(mapper.ctx, anchorSeqId, STATUS_UNSEEDED);
 
             // Clear the hits of the anchor.
             clearHits(hits, anchorHitIds);
@@ -700,7 +700,7 @@ inline void _classifyReadsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & read
 //    sortHits(mapper.hits[0]);
 //#endif
 
-    reSeed(mapper, readSeqs, mapper.hits[0], mapper.seeds[0], mapper.ctx);
+    reSeed(mapper, readSeqs, mapper.hits[0], mapper.seeds[0]);
     std::cout << "Hits count:\t\t\t" << countHits<unsigned long>(mapper.hits[0]) << std::endl;
 //    writeHits(mapper, readSeqs, mapper.hits[0], mapper.seeds[0], mapper.ctx, "hits_0.csv");
 }
@@ -716,7 +716,7 @@ inline void _classifyReadsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & read
 //    sortHits(mapper.hits[0]);
 //#endif
 
-    selectAnchors(mapper, readSeqs, mapper.hits[0], mapper.seeds[0], mapper.ctx);
+    selectAnchors(mapper, readSeqs, mapper.hits[0], mapper.seeds[0]);
     std::cout << "Hits count:\t\t\t" << countHits<unsigned long>(mapper.hits[0]) << std::endl;
 }
 
