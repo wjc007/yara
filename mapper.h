@@ -196,10 +196,7 @@ struct Mapper
         seederExt(index),
         seederApx(index)
 //        writer(options, genome)
-    {
-        for (unsigned i = 0; i < TConfig::BUCKETS; i++)
-            setHost(seeds[i], getSeqs(reads));
-    };
+    {};
 };
 
 // ============================================================================
@@ -315,6 +312,17 @@ template <typename TSpec, typename TConfig>
 void clearReads(Mapper<TSpec, TConfig> & mapper)
 {
     clear(mapper.reads);
+}
+
+// ----------------------------------------------------------------------------
+// Function initSeeds()
+// ----------------------------------------------------------------------------
+
+template <typename TSpec, typename TConfig, typename TReadSeqs>
+inline void initSeeds(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs)
+{
+    for (unsigned i = 0; i < TConfig::BUCKETS; i++)
+        setHost(mapper.seeds[i], readSeqs);
 }
 
 // ----------------------------------------------------------------------------
@@ -988,7 +996,9 @@ template <typename TSpec, typename TConfig, typename TReadSeqs, typename TSequen
 void _mapReadsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, TSequencing, All)
 {
     initReadsContext(mapper, readSeqs);
+    initSeeds(mapper, readSeqs);
     clearHits(mapper);
+
     seedReads(mapper, readSeqs, Pair<unsigned>(0,0));
     findSeedsExt(mapper);
     classifyReads(mapper, readSeqs);
@@ -1024,6 +1034,7 @@ void _mapReadsByStrata(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs)
     typedef typename TMapper::THit          THit;
 
     initReadsContext(mapper, readSeqs);
+    initSeeds(mapper, readSeqs);
     clearHits(mapper);
 
     start(mapper.timer);
