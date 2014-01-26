@@ -157,15 +157,8 @@ struct Mapper
     typedef Finder2<TIndex, TSeedsExt, TSeedingExt>                 TSeederExt;
     typedef Finder2<TIndex, TSeedsApx, TSeedingApx>                 TSeederApx;
 
-    typedef AlignTextBanded<FindPrefix, NMatchesNone_, NMatchesNone_> TMyersSpec;
-    typedef Myers<TMyersSpec, True, void>                           TExtenderAlgorithm;
-    typedef Extender<TContigs, TReadSeq, TExtenderAlgorithm>        TExtender;
-
-    typedef Verifier<TContigs, TReadSeq, Myers<> >                  TVerifier;
-//    typedef Verifier<TContigs, TReadSeq, Filter<MultipleShiftAnd> > TVerifier;
-
 //    typedef WriterConfig<Options, TReadSeqs>                        TWriterConfig;
-//    typedef Writer<TSpec, TWriterConfig>                       TWriter;
+//    typedef Writer<TSpec, TWriterConfig>                            TWriter;
 
     Timer<double>       timer;
     Options const &     options;
@@ -185,8 +178,6 @@ struct Mapper
 
     TSeederExt          seederExt;
     TSeederApx          seederApx;
-    TExtender           extender;
-    TVerifier           verifier;
 //    TWriter             writer;
 
     Mapper(Options const & options) :
@@ -203,9 +194,7 @@ struct Mapper
         anchors(),
         mates(),
         seederExt(index),
-        seederApx(index),
-        extender(contigs(genome)),
-        verifier(contigs(genome))
+        seederApx(index)
 //        writer(options, genome)
     {
         for (unsigned i = 0; i < TConfig::BUCKETS; i++)
@@ -722,11 +711,17 @@ inline void _extendHitsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeq
     typedef typename Size<TSA>::Type                    TSAPos;
     typedef typename Value<TSA>::Type                   TSAValue;
 
+    typedef AlignTextBanded<FindPrefix, NMatchesNone_, NMatchesNone_> TMyersSpec;
+    typedef Myers<TMyersSpec, True, void>               TAlgorithm;
+    typedef Extender<TContigs, TReadSeq, TAlgorithm>    TExtender;
+
     typedef MatchesManager<TMatches>                    TManager;
 
     TSA & sa = indexSA(mapper.index);
 
     TManager anchorsManager(mapper.anchors);
+
+    TExtender extender(contigs(mapper.genome));
 
     THitId hitsCount = length(hits);
 
@@ -764,7 +759,7 @@ inline void _extendHitsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeq
             // Get absolute number of errors.
             TErrors maxErrors = _getErrorsPerRead(mapper, readSeqs, readSeqId);
 
-            extend(mapper.extender,
+            extend(extender,
                    readSeq,
                    contigBegin, contigEnd,
                    readPos.i1, readPos.i2,
@@ -842,16 +837,24 @@ template <typename TSpec, typename TConfig, typename TReadSeqs>
 void _verifyMatesImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, AnchorOne)
 {
     typedef Mapper<TSpec, TConfig>                      TMapper;
+
+    typedef typename TMapper::TContigs                  TContigs;
     typedef typename TMapper::TContigsPos               TContigsPos;
+
+    typedef typename Size<TReadSeqs>::Type              TReadId;
+    typedef typename Value<TReadSeqs>::Type             TReadSeq;
+    typedef typename Size<TReadSeq>::Type               TErrors;
 
     typedef typename TMapper::TMatches                  TMatches;
     typedef typename Size<TMatches>::Type               TMatchId;
     typedef typename Value<TMatches>::Type              TMatch;
     typedef MatchesManager<TMatches>                    TManager;
 
-    typedef typename Size<TReadSeqs>::Type              TReadId;
-    typedef typename Value<TReadSeqs>::Type             TReadSeq;
-    typedef typename Size<TReadSeq>::Type               TErrors;
+    typedef Myers<>                                     TAlgorithm;
+//    typedef Filter<MultipleShiftAnd>                    TAlgorithm;
+    typedef Verifier<TContigs, TReadSeq, TAlgorithm>    TVerifier;
+
+    TVerifier verifier(contigs(mapper.genome));
 
     TManager matesManager(mapper.mates);
     clear(mapper.mates);
@@ -878,7 +881,7 @@ void _verifyMatesImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, Anc
         // Get absolute number of errors.
         TErrors maxErrors = _getErrorsPerRead(mapper, readSeqs, mateId);
 
-        verify(mapper.verifier, mateSeq, contigBegin, contigEnd, maxErrors, matesManager);
+        verify(verifier, mateSeq, contigBegin, contigEnd, maxErrors, matesManager);
     }
 }
 
