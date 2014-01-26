@@ -91,6 +91,7 @@ struct Options
     }
 };
 
+
 // ----------------------------------------------------------------------------
 // Enum ReadStatus
 // ----------------------------------------------------------------------------
@@ -99,21 +100,67 @@ enum ReadStatus { STATUS_UNSEEDED, STATUS_SEEDED, STATUS_MAPPED, STATUS_UNMAPPAB
 //enum ReadAnchor { ANCHOR_FIRST, ANCHOR_SECOND };
 
 // ----------------------------------------------------------------------------
-// Class ReadInfo
+// Class ReadContext
 // ----------------------------------------------------------------------------
 
-template <typename TConfig = void>
-struct ReadInfo
+template <typename TSpec = void, typename TConfig = void>
+struct ReadContext
 {
+    unsigned char stratum       : 4;
     unsigned char seedErrors    : 2;
     ReadStatus    status        : 2;
 //    ReadAnchor    anchor        : 1;
 
-    ReadInfo() :
+    ReadContext() :
+        stratum(0),
         seedErrors(0),
         status(STATUS_UNSEEDED)
     {};
 };
+
+template <typename TReadsContext, typename TReadSeqId>
+inline unsigned char getStratum(TReadsContext const & ctx, TReadSeqId readSeqId)
+{
+    return ctx[readSeqId].stratum;
+}
+
+template <typename TReadsContext, typename TReadSeqId>
+inline void incStratum(TReadsContext & ctx, TReadSeqId readSeqId)
+{
+    ctx[readSeqId].stratum++;
+}
+
+template <typename TReadsContext, typename TReadSeqId>
+inline unsigned char getSeedErrors(TReadsContext const & ctx, TReadSeqId readSeqId)
+{
+    return ctx[readSeqId].seedErrors;
+}
+
+template <typename TReadsContext, typename TReadSeqId, typename TErrors>
+inline void setSeedErrors(TReadsContext & ctx, TReadSeqId readSeqId, TErrors errors)
+{
+    ctx[readSeqId].seedErrors = errors;
+}
+
+template <typename TReadsContext, typename TReadSeqId>
+inline ReadStatus getStatus(TReadsContext const & ctx, TReadSeqId readSeqId)
+{
+    return ctx[readSeqId].status;
+}
+
+template <typename TReadsContext, typename TReadSeqId>
+inline void setStatus(TReadsContext & ctx, TReadSeqId readSeqId, ReadStatus status)
+{
+    ctx[readSeqId].status = status;
+}
+
+template <typename TReadsContext, typename TReadSeqId>
+inline bool isMapped(TReadsContext const & ctx, TReadSeqId readSeqId)
+{
+    // TODO get readId
+    // TODO let manager set read status to mapped
+    return ctx[readSeqId].status == STATUS_MAPPED;
+}
 
 // ----------------------------------------------------------------------------
 // Mapper Configuration
@@ -157,7 +204,8 @@ struct Mapper
     typedef typename Space<THostReadSeqs, TExecSpace>::Type         TReadSeqs;
     typedef typename Value<TReadSeqs>::Type                         TReadSeq;
 
-    typedef String<ReadInfo<TConfig> >                              TReadInfoString;
+    typedef ReadContext<TSpec, TConfig>                             TReadContext;
+    typedef String<TReadContext>                                    TReadsContext;
 
     typedef StringSet<TReadSeqs, Segment<TReadSeqs> >               TSeedsSet;
     typedef Tuple<TSeedsSet, 3>                                     TSeeds;
@@ -197,7 +245,7 @@ struct Mapper
     TReads              reads;
     TReadsLoader        readsLoader;
 
-    TReadInfoString     info;
+    TReadsContext       ctx;
     TSeeds              seeds;
     THits               hits;
     TMatches            anchors;
@@ -217,6 +265,7 @@ struct Mapper
         store(),
         reads(store),
         readsLoader(reads),
+        ctx(),
 //        seeds(getSeqs(reads)),
         hits(),
         anchors(),
@@ -329,6 +378,7 @@ void loadReads(Mapper<TSpec, TConfig> & mapper)
 {
     std::cout << "Loading reads:\t\t\t" << std::flush;
     start(mapper.timer);
+    clear(mapper.reads);
     load(mapper.readsLoader, mapper.options.mappingBlock);
     stop(mapper.timer);
     std::cout << mapper.timer << std::endl;
@@ -337,7 +387,28 @@ void loadReads(Mapper<TSpec, TConfig> & mapper)
 }
 
 // ----------------------------------------------------------------------------
-// Function selectSeeds()
+// Function clearReads()
+// ----------------------------------------------------------------------------
+
+template <typename TSpec, typename TConfig>
+void clearReads(Mapper<TSpec, TConfig> & mapper)
+{
+    clear(mapper.reads);
+}
+
+// ----------------------------------------------------------------------------
+// Function initReadsContext()
+// ----------------------------------------------------------------------------
+
+template <typename TSpec, typename TConfig, typename TReadSeqs>
+inline void initReadsContext(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs)
+{
+    clear(mapper.ctx);
+    resize(mapper.ctx, getReadSeqsCount(readSeqs));
+}
+
+// ----------------------------------------------------------------------------
+// Function _selectSeeds()
 // ----------------------------------------------------------------------------
 
 template <typename TSpec, typename TConfig, typename TReadSeqs, typename TReadSeqId, typename TErrors, typename TDelegate>
@@ -360,8 +431,8 @@ inline void _selectSeeds(Mapper<TSpec, TConfig> & mapper, TReadSeqs const & read
 // Function selectSeeds()
 // ----------------------------------------------------------------------------
 
-template <typename TSpec, typename TConfig, typename TSeeds, typename TReadSeqs, typename TReadsInfo, typename TErrors>
-inline void selectSeeds(Mapper<TSpec, TConfig> & mapper, TSeeds & seeds, TReadSeqs & readSeqs, TReadsInfo & info, Pair<TErrors> seedErrors)
+template <typename TSpec, typename TConfig, typename TSeeds, typename TReadSeqs, typename TReadsCtx, typename TErrors>
+inline void selectSeeds(Mapper<TSpec, TConfig> & mapper, TSeeds & seeds, TReadSeqs & readSeqs, TReadsCtx & ctx, Pair<TErrors> seedErrors)
 {
     typedef typename Value<TReadSeqs>::Type             TReadSeq;
     typedef typename Id<TReadSeqs>::Type                TId;
@@ -374,32 +445,36 @@ inline void selectSeeds(Mapper<TSpec, TConfig> & mapper, TSeeds & seeds, TReadSe
 
     TId readsCount = getReadSeqsCount(readSeqs);
 
+    // Initialize counters.
     TCounters counters;
     for (TErrors errors = getValueI1(seedErrors); errors <= getValueI2(seedErrors); ++errors)
         resize(counters[errors], readsCount);
 
+    // Count seeds.
     for (TId readSeqId = 0; readSeqId < readsCount; ++readSeqId)
     {
-        if (info[readSeqId].status == STATUS_UNSEEDED)
+        if (getStatus(ctx, readSeqId) == STATUS_UNSEEDED)
         {
-            SEQAN_ASSERT_GEQ(info[readSeqId].seedErrors, getValueI1(seedErrors));
-            SEQAN_ASSERT_LEQ(info[readSeqId].seedErrors, getValueI2(seedErrors));
-            _selectSeeds(mapper, readSeqs, readSeqId, info[readSeqId].seedErrors, counters[info[readSeqId].seedErrors]);
+            SEQAN_ASSERT_GEQ(ctx[readSeqId].seedErrors, getValueI1(seedErrors));
+            SEQAN_ASSERT_LEQ(ctx[readSeqId].seedErrors, getValueI2(seedErrors));
+            _selectSeeds(mapper, readSeqs, readSeqId, ctx[readSeqId].seedErrors, counters[ctx[readSeqId].seedErrors]);
         }
     }
 
+    // Initialize managers.
     TManagers managers;
     for (TErrors errors = getValueI1(seedErrors); errors <= getValueI2(seedErrors); ++errors)
         init(managers[errors], seeds[errors], counters[errors].seedsPerRead);
 
+    // Select seeds.
     for (TId readSeqId = 0; readSeqId < readsCount; ++readSeqId)
     {
-        if (info[readSeqId].status == STATUS_UNSEEDED)
+        if (getStatus(ctx, readSeqId) == STATUS_UNSEEDED)
         {
-            SEQAN_ASSERT_GEQ(info[readSeqId].seedErrors, getValueI1(seedErrors));
-            SEQAN_ASSERT_LEQ(info[readSeqId].seedErrors, getValueI2(seedErrors));
-            _selectSeeds(mapper, readSeqs, readSeqId, info[readSeqId].seedErrors, managers[info[readSeqId].seedErrors]);
-            info[readSeqId].status = STATUS_SEEDED;
+            SEQAN_ASSERT_GEQ(ctx[readSeqId].seedErrors, getValueI1(seedErrors));
+            SEQAN_ASSERT_LEQ(ctx[readSeqId].seedErrors, getValueI2(seedErrors));
+            _selectSeeds(mapper, readSeqs, readSeqId, ctx[readSeqId].seedErrors, managers[ctx[readSeqId].seedErrors]);
+            setStatus(ctx, readSeqId, STATUS_SEEDED);
         }
     }
 }
@@ -432,53 +507,67 @@ inline void findSeeds(Mapper<TSpec, TConfig> & /* mapper */, THitsString & hits,
 }
 
 // ----------------------------------------------------------------------------
-// Function writeHits()
+// Function findSeedsExt()
 // ----------------------------------------------------------------------------
 
-template <typename TSpec, typename TConfig, typename TReadSeqs, typename THits, typename TSeedsSet, typename TReadsInfo, typename TFilename>
-inline void writeHits(Mapper<TSpec, TConfig> & /* mapper */, TReadSeqs & readSeqs, THits & hits, TSeedsSet & seeds, TReadsInfo & info, TFilename const & filename)
+template <typename TSpec, typename TConfig>
+inline void findSeedsExt(Mapper<TSpec, TConfig> & mapper)
 {
-    typedef Mapper<TSpec, TConfig>                      TMapper;
-//    typedef typename TMapper::TSeedsSet                 TSeedsSet;
-    typedef typename Id<TSeedsSet>::Type                TSeedId;
-    typedef Pair<TSeedId>                               TSeedIds;
-    typedef typename TMapper::THit                      THit;
-    typedef typename Id<THit>::Type                     THitId;
-    typedef typename Id<THit>::Type                     THitId;
-    typedef Pair<THitId>                                THitIds;
-    typedef typename Position<THit>::Type               THitRange;
-    typedef typename Size<THit>::Type                   THitSize;
-    typedef typename Size<TReadSeqs>::Type              TReadId;
+    typedef Mapper<TSpec, TConfig>          TMapper;
+    typedef typename TMapper::TSeedsExt     TSeedsExt;
+//    typedef typename TMapper::TSeedsApx     TSeedsApx;
 
-    std::ofstream file;
-    file.open(filename);
-
-    TReadId readSeqsCount = getReadSeqsCount(readSeqs);
-
-    for (TReadId readSeqId = 0; readSeqId < readSeqsCount; ++readSeqId)
-    {
-        TSeedIds readSeedIds = getSeedIds(seeds, readSeqId);
-
-        if (info[readSeqId].status == STATUS_UNSEEDED) continue;
-        if (getValueI2(readSeedIds) <= getValueI1(readSeedIds)) continue;
-
-        for (TSeedId seedId = getValueI1(readSeedIds); seedId < getValueI2(readSeedIds); ++seedId)
-        {
-            THitIds seedHitIds = getHitIds(hits, seedId);
-            file << countHits<THitSize>(hits, seedHitIds) << "\t";
-        }
-        file << "\n";
-    }
-
-    file.close();
+    start(mapper.timer);
+    std::cout << "Seeds count:\t\t\t" << length(mapper.seeds[0]) << std::endl;
+    TSeedsExt seeds(mapper.seeds[0]);
+    findSeeds(mapper, mapper.hits[0], mapper.seederExt, seeds);
+    stop(mapper.timer);
+    std::cout << "Seeding time:\t\t\t" << mapper.timer << std::endl;
 }
+
+// ----------------------------------------------------------------------------
+// Function findSeeds()
+// ----------------------------------------------------------------------------
+
+//template <typename TSpec, typename TConfig, typename TSeedSetId, typename TErrors>
+//inline void findSeeds(Mapper<TSpec, TConfig> & mapper, TSeedSetId seedSetId, TErrors seedErrors)
+//{
+template <typename TSpec, typename TConfig>
+inline void findSeeds(Mapper<TSpec, TConfig> & mapper)
+{
+    typedef Mapper<TSpec, TConfig>          TMapper;
+//    typedef typename TMapper::TSeedsExt     TSeedsExt;
+    typedef typename TMapper::TSeedsApx     TSeedsApx;
+
+    for (unsigned i = 1; i < 3; i++)
+    {
+        start(mapper.timer);
+        std::cout << "Seeds count:\t\t\t" << length(mapper.seeds[i]) << std::endl;
+        TSeedsApx seeds(mapper.seeds[i]);
+        setScoreThreshold(mapper.seederApx, i);
+        findSeeds(mapper, mapper.hits[i], mapper.seederApx, seeds);
+        stop(mapper.timer);
+        std::cout << "Seeding time:\t\t\t" << mapper.timer << std::endl;
+        std::cout << "Hits count:\t\t\t" << countHits<unsigned long>(mapper.hits[i]) << std::endl;
+//        writeHits(mapper, readSeqs, mapper.hits[i], mapper.seeds[i], mapper.ctx, "hits_i.csv");
+    }
+}
+
+//template <typename TSpec, typename TConfig, typename TSeedSetId, typename TErrors>
+//inline void findSeeds(Mapper<TSpec, TConfig> & mapper, TSeedSetId seedSetId, TErrors seedErrors)
+//{
+//    if (seedErrors == 0)
+//        findSeeds(mapper, mapper.seederExt, seedSetId, Exact());
+//    else
+//        findSeeds(mapper, mapper.seederApx, seedSetId, seedErrors);
+//}
 
 // ----------------------------------------------------------------------------
 // Function reSeed()
 // ----------------------------------------------------------------------------
 
-template <typename TSpec, typename TConfig, typename TReadSeqs, typename THits, typename TSeeds, typename TReadsInfo>
-inline void reSeed(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, THits & hits, TSeeds & seeds, TReadsInfo & info)
+template <typename TSpec, typename TConfig, typename TReadSeqs, typename THits, typename TSeeds, typename TReadsCtx>
+inline void reSeed(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, THits & hits, TSeeds & seeds, TReadsCtx & ctx)
 {
     typedef Mapper<TSpec, TConfig>                      TMapper;
     typedef typename TMapper::TSeedsSet                 TSeedsSet;
@@ -503,8 +592,8 @@ inline void reSeed(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, THits 
         if (readHits > mapper.options.hitsThreshold)
         {
             // Guess a good seeding stragegy.
-            info[readSeqId].seedErrors = (readHits < 200 * mapper.options.hitsThreshold) ? 1 : 2;
-            info[readSeqId].status = STATUS_UNSEEDED;
+            ctx[readSeqId].seedErrors = (readHits < 200 * mapper.options.hitsThreshold) ? 1 : 2;
+            setStatus(ctx, readSeqId, STATUS_UNSEEDED);
 
             // Clear the hits of the read.
             clearHits(hits, readHitIds);
@@ -516,8 +605,8 @@ inline void reSeed(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, THits 
 // Function selectAnchors()
 // ----------------------------------------------------------------------------
 
-template <typename TSpec, typename TConfig, typename TReadSeqs, typename THits, typename TSeeds, typename TReadsInfo>
-inline void selectAnchors(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, THits & hits, TSeeds & seeds, TReadsInfo & info)
+template <typename TSpec, typename TConfig, typename TReadSeqs, typename THits, typename TSeeds, typename TReadsCtx>
+inline void selectAnchors(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, THits & hits, TSeeds & seeds, TReadsCtx & ctx)
 {
     typedef Mapper<TSpec, TConfig>                      TMapper;
     typedef typename TMapper::TSeedsSet                 TSeedsSet;
@@ -573,14 +662,14 @@ inline void selectAnchors(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs,
 
         // Clear the hits of the other read.
         clearHits(hits, otherHitIds);
-        info[otherSeqId].status = STATUS_UNMAPPABLE;
+        ctx[otherSeqId].status = STATUS_UNMAPPABLE;
 
         // Re-seed hard anchors.
         if (anchorHits > mapper.options.hitsThreshold)
         {
             // Guess a good seeding stragegy.
-            info[anchorSeqId].seedErrors = (anchorHits < 200 * mapper.options.hitsThreshold) ? 1 : 2;
-            info[anchorSeqId].status = STATUS_UNSEEDED;
+            ctx[anchorSeqId].seedErrors = (anchorHits < 200 * mapper.options.hitsThreshold) ? 1 : 2;
+            ctx[anchorSeqId].status = STATUS_UNSEEDED;
 
             // Clear the hits of the anchor.
             clearHits(hits, anchorHitIds);
@@ -589,11 +678,97 @@ inline void selectAnchors(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs,
 }
 
 // ----------------------------------------------------------------------------
+// Function classifyReads()
+// ----------------------------------------------------------------------------
+
+template <typename TSpec, typename TConfig, typename TReadSeqs>
+inline void classifyReads(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs)
+{
+    _classifyReadsImpl(mapper, readSeqs, typename TConfig::TSequencing(), typename TConfig::TStrategy(), typename TConfig::TAnchoring());
+}
+
+// ----------------------------------------------------------------------------
+// Function _classifyReadsImpl()
+// ----------------------------------------------------------------------------
+
+template <typename TSpec, typename TConfig, typename TReadSeqs, typename TSequencing, typename TStrategy, typename TAnchoring>
+inline void _classifyReadsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, TSequencing, TStrategy, TAnchoring)
+{
+//#ifdef _OPENMP
+//    sortHits(mapper.hits[0]);
+//#endif
+
+    reSeed(mapper, readSeqs, mapper.hits[0], mapper.seeds[0], mapper.ctx);
+    std::cout << "Hits count:\t\t\t" << countHits<unsigned long>(mapper.hits[0]) << std::endl;
+//    writeHits(mapper, readSeqs, mapper.hits[0], mapper.seeds[0], mapper.ctx, "hits_0.csv");
+}
+
+// ----------------------------------------------------------------------------
+// Function _classifyReadsImpl(), AnchorOne
+// ----------------------------------------------------------------------------
+
+template <typename TSpec, typename TConfig, typename TReadSeqs, typename TSequencing, typename TStrategy, typename TAnchoring>
+inline void _classifyReadsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, TSequencing, TStrategy, AnchorOne)
+{
+//#ifdef _OPENMP
+//    sortHits(mapper.hits[0]);
+//#endif
+
+    selectAnchors(mapper, readSeqs, mapper.hits[0], mapper.seeds[0], mapper.ctx);
+    std::cout << "Hits count:\t\t\t" << countHits<unsigned long>(mapper.hits[0]) << std::endl;
+}
+
+// ----------------------------------------------------------------------------
+// Function clearHits()
+// ----------------------------------------------------------------------------
+
+template <typename TSpec, typename TConfig>
+inline void clearHits(Mapper<TSpec, TConfig> & mapper)
+{
+    for (unsigned i = 0; i < 3; i++)
+        clear(mapper.hits[i]);
+}
+
+// ----------------------------------------------------------------------------
+// Function countHits()
+// ----------------------------------------------------------------------------
+
+template <typename TSpec, typename TConfig>
+inline unsigned long countHits(Mapper<TSpec, TConfig> & mapper)
+{
+    unsigned long hitsCount = 0;
+
+    for (unsigned i = 0; i < 3; i++)
+        hitsCount += countHits<unsigned long>(mapper.hits[i]);
+
+    return hitsCount;
+}
+
+// ----------------------------------------------------------------------------
 // Function extendHits()
 // ----------------------------------------------------------------------------
 
-template <typename TSpec, typename TConfig, typename TReadSeqs, typename THits, typename TSeeds>
-inline void extendHits(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, THits & hits, TSeeds & seeds)
+template <typename TSpec, typename TConfig, typename TReadSeqs>
+inline void extendHits(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs)
+{
+    clear(mapper.anchors);
+    reserve(mapper.anchors, countHits(mapper) / 5);
+
+    start(mapper.timer);
+    for (unsigned i = 0; i < 3; i++)
+        extendHits(mapper, readSeqs, mapper.hits[i], mapper.seeds[i], mapper.ctx);
+    stop(mapper.timer);
+
+    std::cout << "Extension time:\t\t\t" << mapper.timer << std::endl;
+    std::cout << "Anchors count:\t\t\t" << length(mapper.anchors) << std::endl;
+}
+
+// ----------------------------------------------------------------------------
+// Function extendHits()
+// ----------------------------------------------------------------------------
+
+template <typename TSpec, typename TConfig, typename TReadSeqs, typename THits, typename TSeeds, typename TReadsCtx>
+inline void extendHits(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, THits & hits, TSeeds & seeds, TReadsCtx & ctx)
 {
     typedef Mapper<TSpec, TConfig>                      TMapper;
 
@@ -632,7 +807,7 @@ inline void extendHits(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, TH
 
     for (THitId hitId = 0; hitId < hitsCount; ++hitId)
     {
-        // Extract hit info.
+        // Extract hit ctx.
         TSeedId seedId = getSeedId(hits, hitId);
         THitRange hitRange = getRange(hits, hitId);
         THitErrors hitErrors = getErrors(hits, hitId);
@@ -640,6 +815,9 @@ inline void extendHits(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, TH
         // Get read.
         TReadId readSeqId = getReadSeqId(seeds, seedId);
         TReadSeq readSeq = readSeqs[readSeqId];
+
+        // Skip mapped reads.
+        if (isMapped(ctx, readSeqId)) continue;
 
         // Fill readSeqId.
         anchorsManager.prototype.readId = readSeqId;
@@ -666,117 +844,53 @@ inline void extendHits(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, TH
                    hitErrors, mapper.options.errorRate,
                    anchorsManager);
         }
-    }
-}
-
-template <typename TSpec = void>
-struct StratumCounter
-{
-    unsigned char stratum;
-
-    StratumCounter(unsigned char stratum = 0) :
-        stratum(stratum)
-    {}
-
-    bool operator() (unsigned char errors)
-    {
-        return errors <= stratum;
-    }
-};
-
-// ----------------------------------------------------------------------------
-// Function extendHits(); AnyBest
-// ----------------------------------------------------------------------------
-
-template <typename TSpec, typename TConfig, typename TReadSeqs, typename THits, typename TSeeds, typename TStrategy>
-inline unsigned long extendHits(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, THits & hits, TSeeds & seeds, unsigned char maxStratum, TStrategy)
-{
-    typedef Mapper<TSpec, TConfig>                      TMapper;
-
-    typedef typename TMapper::TContigs                  TContigs;
-    typedef typename Size<TContigs>::Type               TContigId;
-    typedef typename TMapper::TContigsPos               TContigsPos;
-
-    typedef typename TMapper::TReadSeq                  TReadSeq;
-    typedef typename Id<TReadSeqs>::Type                TReadId;
-    typedef Pair<typename Position<TReadSeq>::Type>     TReadPos;
-    typedef typename Size<TReadSeq>::Type               TReadSeqSize;
-
-    typedef typename TMapper::TSeedsSet                 TSeedsSet;
-    typedef typename Id<TSeedsSet>::Type                TSeedId;
-
-    typedef typename TMapper::THit                      THit;
-    typedef typename Id<THit>::Type                     THitId;
-    typedef typename Position<THit>::Type               THitRange;
-    typedef unsigned char                               THitErrors;
-
-    typedef typename TMapper::TMatches                  TMatches;
-    typedef typename Value<TMatches>::Type              TMatch;
-
-    typedef typename TMapper::TIndex                    TIndex;
-    typedef typename Fibre<TIndex, FibreSA>::Type       TSA;
-    typedef typename Size<TSA>::Type                    TSAPos;
-    typedef typename Value<TSA>::Type                   TSAValue;
-
-    typedef MatchesManager<TMatches, AnyBest>           TManager;
-
-    TSA & sa = indexSA(mapper.index);
-
-    TManager anchorsManager(mapper.anchors, readSeqs);
-
-    String<unsigned char> stratum;
-    resize(stratum, getReadsCount(readSeqs), 0, Exact());
-
-    THitId hitsCount = length(hits);
-
-    for (THitId hitId = 0; hitId < hitsCount; ++hitId)
-    {
-        // Extract hit info.
-        TSeedId seedId = getSeedId(hits, hitId);
-        THitRange hitRange = getRange(hits, hitId);
-        THitErrors hitErrors = getErrors(hits, hitId);
-
-        // Get read.
-        TReadId readSeqId = getReadSeqId(seeds, seedId);
-        TReadId readId = getReadId(readSeqs, readSeqId);
-        TReadSeq readSeq = readSeqs[readSeqId];
-
-        // Skip mapped reads.
-        if (anchorsManager.minErrors[readId] < stratum[readId]) continue;
-        if (IsSameType<TStrategy, AnyBest>::VALUE && anchorsManager.minErrors[readId] == stratum[readId]) continue;
-
-        // Fill readSeqId.
-        anchorsManager.prototype.readId = readId;
-
-        // Get position in read.
-        TReadPos readPos = getPosInRead(seeds, seedId);
-        TReadSeqSize seedLength = getValueI2(readPos) - getValueI1(readPos);
-
-        for (TSAPos saPos = getValueI1(hitRange); saPos < getValueI2(hitRange); ++saPos)
-        {
-            // Invert SA value.
-            TSAValue saValue = sa[saPos];
-            setSeqOffset(saValue, suffixLength(saValue, contigs(mapper.genome)) - seedLength);
-
-            // Compute position in contig.
-            TContigsPos contigBegin = saValue;
-            TContigsPos contigEnd = posAdd(contigBegin, seedLength);
-
-            // TODO(esiragusa): convert errorRate to absolute errors
-            extend(mapper.extender,
-                   readSeq,
-                   contigBegin, contigEnd,
-                   readPos.i1, readPos.i2,
-                   hitErrors, mapper.options.errorRate,
-                   anchorsManager);
-        }
 
         // Full stratum analyzed.
         // TODO(esiragusa): this holds only for exact seeds: in general one hit != one seed
-        stratum[readId]++;
+        incStratum(ctx, readSeqId);
+    }
+}
+
+// ----------------------------------------------------------------------------
+// Function writeHits()
+// ----------------------------------------------------------------------------
+
+template <typename TSpec, typename TConfig, typename TReadSeqs, typename THits, typename TSeedsSet, typename TReadsCtx, typename TFilename>
+inline void writeHits(Mapper<TSpec, TConfig> & /* mapper */, TReadSeqs & readSeqs, THits & hits, TSeedsSet & seeds, TReadsCtx & ctx, TFilename const & filename)
+{
+    typedef Mapper<TSpec, TConfig>                      TMapper;
+//    typedef typename TMapper::TSeedsSet                 TSeedsSet;
+    typedef typename Id<TSeedsSet>::Type                TSeedId;
+    typedef Pair<TSeedId>                               TSeedIds;
+    typedef typename TMapper::THit                      THit;
+    typedef typename Id<THit>::Type                     THitId;
+    typedef typename Id<THit>::Type                     THitId;
+    typedef Pair<THitId>                                THitIds;
+    typedef typename Position<THit>::Type               THitRange;
+    typedef typename Size<THit>::Type                   THitSize;
+    typedef typename Size<TReadSeqs>::Type              TReadId;
+
+    std::ofstream file;
+    file.open(filename);
+
+    TReadId readSeqsCount = getReadSeqsCount(readSeqs);
+
+    for (TReadId readSeqId = 0; readSeqId < readSeqsCount; ++readSeqId)
+    {
+        TSeedIds readSeedIds = getSeedIds(seeds, readSeqId);
+
+        if (getStatus(ctx, readSeqId) == STATUS_UNSEEDED) continue;
+        if (getValueI2(readSeedIds) <= getValueI1(readSeedIds)) continue;
+
+        for (TSeedId seedId = getValueI1(readSeedIds); seedId < getValueI2(readSeedIds); ++seedId)
+        {
+            THitIds seedHitIds = getHitIds(hits, seedId);
+            file << countHits<THitSize>(hits, seedHitIds) << "\t";
+        }
+        file << "\n";
     }
 
-    return std::count_if(begin(anchorsManager.minErrors, Standard()), end(anchorsManager.minErrors, Standard()), StratumCounter<>(maxStratum));
+    file.close();
 }
 
 // ----------------------------------------------------------------------------
@@ -836,6 +950,32 @@ inline void _getMateContigPos(Mapper<TSpec, TConfig> & mapper,
 // Function findMates()
 // ----------------------------------------------------------------------------
 
+template <typename TSpec, typename TConfig, typename TReadSeqs>
+void findMates(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs)
+{
+    _findMatesImpl(mapper, readSeqs, typename TConfig::TAnchoring());
+}
+
+template <typename TSpec, typename TConfig, typename TReadSeqs, typename TAnchoring>
+void _findMatesImpl(Mapper<TSpec, TConfig> & /* mapper */, TReadSeqs & /* readSeqs */, TAnchoring) {}
+
+template <typename TSpec, typename TConfig, typename TReadSeqs>
+void _findMatesImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, AnchorOne)
+{
+    start(mapper.timer);
+    clear(mapper.mates);
+    reserve(mapper.mates, length(mapper.anchors), Exact());
+    findMates(mapper, readSeqs, mapper.anchors, mapper.mates);
+    stop(mapper.timer);
+    std::cout << "Verification time:\t\t" << mapper.timer << std::endl;
+    std::cout << "Mates count:\t\t\t" << length(mapper.mates) << std::endl;
+    std::cout << "Mapped pairs:\t\t\t" << countMatches(readSeqs, mapper.mates, typename TConfig::TSequencing()) << std::endl;
+}
+
+// ----------------------------------------------------------------------------
+// Function findMates()
+// ----------------------------------------------------------------------------
+
 template <typename TSpec, typename TConfig, typename TReadSeqs, typename TMatches>
 inline void findMates(Mapper<TSpec, TConfig> & mapper,
                       TReadSeqs & readSeqs,
@@ -878,6 +1018,21 @@ inline void findMates(Mapper<TSpec, TConfig> & mapper,
 }
 
 // ----------------------------------------------------------------------------
+// Function removeDuplicates()
+// ----------------------------------------------------------------------------
+
+template <typename TSpec, typename TConfig, typename TReadSeqs>
+void removeDuplicates(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs)
+{
+    start(mapper.timer);
+    removeDuplicateMatches(mapper.anchors);
+    stop(mapper.timer);
+    std::cout << "Compaction time:\t\t" << mapper.timer << std::endl;
+    std::cout << "Anchors count:\t\t\t" << length(mapper.anchors) << std::endl;
+    std::cout << "Anchored pairs:\t\t\t" << countMatches(readSeqs, mapper.anchors, typename TConfig::TSequencing()) << std::endl;
+}
+
+// ----------------------------------------------------------------------------
 // Function mapReads()
 // ----------------------------------------------------------------------------
 
@@ -886,266 +1041,84 @@ void mapReads(Mapper<TSpec, TConfig> & mapper)
 {
 //SEQAN_OMP_PRAGMA(critical(_mapper_mapReads_filter))
 //{
-    _mapReads(mapper, getSeqs(mapper.reads), typename TConfig::TStrategy(), typename TConfig::TAnchoring());
+    _mapReadsImpl(mapper, getSeqs(mapper.reads), typename TConfig::TSequencing(), typename TConfig::TStrategy());
 //}
 }
 
 // ----------------------------------------------------------------------------
-// Function _mapReads(); SingleEnd, All
+// Function _mapReadsImpl(); SingleEnd or PairedEnd, All
 // ----------------------------------------------------------------------------
 
-template <typename TSpec, typename TConfig, typename TReadSeqs>
-void _mapReads(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, All, Nothing)
+template <typename TSpec, typename TConfig, typename TReadSeqs, typename TSequencing>
+void _mapReadsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, TSequencing, All)
 {
-    _mapReads(mapper, readSeqs, All(), AnchorBoth());
+    clearHits(mapper);
+    initReadsContext(mapper, readSeqs);
+    selectSeeds(mapper, mapper.seeds, readSeqs, mapper.ctx, Pair<unsigned>(0,0));
+    findSeedsExt(mapper);
+    classifyReads(mapper, readSeqs);
+    selectSeeds(mapper, mapper.seeds, readSeqs, mapper.ctx, Pair<unsigned>(1,2));
+    findSeeds(mapper);
+    extendHits(mapper, readSeqs);
+    removeDuplicates(mapper, readSeqs);
+    findMates(mapper, readSeqs);
 }
 
 // ----------------------------------------------------------------------------
-// Function _mapReads(); PairedEnd, All, AnchorBoth
+// Function _mapReadsImpl(); SingleEnd, AnyBest or AllBest
 // ----------------------------------------------------------------------------
 
 template <typename TSpec, typename TConfig, typename TReadSeqs>
-void _mapReads(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, All, AnchorBoth)
+void _mapReadsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, SingleEnd, AnyBest)
 {
-    typedef Mapper<TSpec, TConfig>          TMapper;
-    typedef typename TMapper::TSeedsExt     TSeedsExt;
-    typedef typename TMapper::TSeedsApx     TSeedsApx;
-
-    clear(mapper.hits[0]);
-    clear(mapper.hits[1]);
-    clear(mapper.hits[2]);
-
-    clear(mapper.info);
-    resize(mapper.info, getReadSeqsCount(readSeqs));
-
-    start(mapper.timer);
-    selectSeeds(mapper, mapper.seeds, readSeqs, mapper.info, Pair<unsigned>(0,0));
-    std::cout << "Seeds count:\t\t\t" << length(mapper.seeds[0]) << std::endl;
-    TSeedsExt seeds0(mapper.seeds[0]);
-    findSeeds(mapper, mapper.hits[0], mapper.seederExt, seeds0);
-    stop(mapper.timer);
-    std::cout << "Seeding time:\t\t\t" << mapper.timer << std::endl;
-
-//#ifdef _OPENMP
-//    sortHits(mapper.hits[0]);
-//#endif
-
-    reSeed(mapper, readSeqs, mapper.hits[0], mapper.seeds[0], mapper.info);
-    std::cout << "Hits count:\t\t\t" << countHits<unsigned long>(mapper.hits[0]) << std::endl;
-//    writeHits(mapper, readSeqs, mapper.hits[0], mapper.seeds[0], mapper.info, "hits_0.csv");
-
-    selectSeeds(mapper, mapper.seeds, readSeqs, mapper.info, Pair<unsigned>(1,2));
-
-    start(mapper.timer);
-    std::cout << "Seeds count:\t\t\t" << length(mapper.seeds[1]) << std::endl;
-    TSeedsApx seeds1(mapper.seeds[1]);
-    setScoreThreshold(mapper.seederApx, 1);
-    findSeeds(mapper, mapper.hits[1], mapper.seederApx, seeds1);
-    stop(mapper.timer);
-    std::cout << "Seeding time:\t\t\t" << mapper.timer << std::endl;
-    std::cout << "Hits count:\t\t\t" << countHits<unsigned long>(mapper.hits[1]) << std::endl;
-//    writeHits(mapper, readSeqs, mapper.hits[1], mapper.seeds[1], mapper.info, "hits_1.csv");
-
-    start(mapper.timer);
-    std::cout << "Seeds count:\t\t\t" << length(mapper.seeds[2]) << std::endl;
-    TSeedsApx seeds2(mapper.seeds[2]);
-    setScoreThreshold(mapper.seederApx, 2);
-    findSeeds(mapper, mapper.hits[2], mapper.seederApx, seeds2);
-    stop(mapper.timer);
-    std::cout << "Seeding time:\t\t\t" << mapper.timer << std::endl;
-    std::cout << "Hits count:\t\t\t" << countHits<unsigned long>(mapper.hits[2]) << std::endl;
-//    writeHits(mapper, readSeqs, mapper.hits[2], mapper.seeds[2], mapper.info, "hits_2.csv");
-
-    clear(mapper.anchors);
-    reserve(mapper.anchors, countHits<unsigned long>(mapper.hits[0]) + countHits<unsigned long>(mapper.hits[1]) + countHits<unsigned long>(mapper.hits[2]) / 5);
-
-    start(mapper.timer);
-    extendHits(mapper, readSeqs, mapper.hits[0], mapper.seeds[0]);
-    extendHits(mapper, readSeqs, mapper.hits[1], mapper.seeds[1]);
-    extendHits(mapper, readSeqs, mapper.hits[2], mapper.seeds[2]);
-    stop(mapper.timer);
-    std::cout << "Extension time:\t\t\t" << mapper.timer << std::endl;
-    std::cout << "Anchors count:\t\t\t" << length(mapper.anchors) << std::endl;
-
-    start(mapper.timer);
-    removeDuplicateMatches(mapper.anchors);
-    stop(mapper.timer);
-    std::cout << "Compaction time:\t\t" << mapper.timer << std::endl;
-    std::cout << "Anchors count:\t\t\t" << length(mapper.anchors) << std::endl;
-    std::cout << "Anchored pairs:\t\t\t" << countMatches(readSeqs, mapper.anchors, typename TConfig::TSequencing()) << std::endl;
+    _mapReadsImplByStrata(mapper, readSeqs);
 }
-
-// ----------------------------------------------------------------------------
-// Function _mapReads(); PairedEnd, All, AnchorOne
-// ----------------------------------------------------------------------------
 
 template <typename TSpec, typename TConfig, typename TReadSeqs>
-void _mapReads(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, All, AnchorOne)
+void _mapReadsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, SingleEnd, AllBest)
 {
-    typedef Mapper<TSpec, TConfig>          TMapper;
-    typedef typename TMapper::TSeedsExt     TSeedsExt;
-    typedef typename TMapper::TSeedsApx     TSeedsApx;
-
-    clear(mapper.hits[0]);
-    clear(mapper.hits[1]);
-    clear(mapper.hits[2]);
-
-    clear(mapper.info);
-    resize(mapper.info, getReadSeqsCount(readSeqs));
-
-    start(mapper.timer);
-    selectSeeds(mapper, mapper.seeds, readSeqs, mapper.info, Pair<unsigned>(0,0));
-    std::cout << "Seeds count:\t\t\t" << length(mapper.seeds[0]) << std::endl;
-    TSeedsExt seeds0(mapper.seeds[0]);
-    findSeeds(mapper, mapper.hits[0], mapper.seederExt, seeds0);
-    stop(mapper.timer);
-    std::cout << "Seeding time:\t\t\t" << mapper.timer << std::endl;
-
-//#ifdef _OPENMP
-//    sortHits(mapper.hits[0]);
-//#endif
-
-    selectAnchors(mapper, readSeqs, mapper.hits[0], mapper.seeds[0], mapper.info);
-    selectSeeds(mapper, mapper.seeds, readSeqs, mapper.info, Pair<unsigned>(1,2));
-    std::cout << "Hits count:\t\t\t" << countHits<unsigned long>(mapper.hits[0]) << std::endl;
-
-    start(mapper.timer);
-    std::cout << "Seeds count:\t\t\t" << length(mapper.seeds[1]) << std::endl;
-    TSeedsApx seeds1(mapper.seeds[1]);
-    setScoreThreshold(mapper.seederApx, 1);
-    findSeeds(mapper, mapper.hits[1], mapper.seederApx, seeds1);
-    stop(mapper.timer);
-    std::cout << "Seeding time:\t\t\t" << mapper.timer << std::endl;
-    std::cout << "Hits count:\t\t\t" << countHits<unsigned long>(mapper.hits[1]) << std::endl;
-
-    start(mapper.timer);
-    std::cout << "Seeds count:\t\t\t" << length(mapper.seeds[2]) << std::endl;
-    TSeedsApx seeds2(mapper.seeds[2]);
-    setScoreThreshold(mapper.seederApx, 2);
-    findSeeds(mapper, mapper.hits[2], mapper.seederApx, seeds2);
-    stop(mapper.timer);
-    std::cout << "Seeding time:\t\t\t" << mapper.timer << std::endl;
-    std::cout << "Hits count:\t\t\t" << countHits<unsigned long>(mapper.hits[2]) << std::endl;
-
-    clear(mapper.anchors);
-    reserve(mapper.anchors, countHits<unsigned long>(mapper.hits[0]) + countHits<unsigned long>(mapper.hits[1]) + countHits<unsigned long>(mapper.hits[2]) / 5);
-
-    start(mapper.timer);
-    extendHits(mapper, readSeqs, mapper.hits[0], mapper.seeds[0]);
-    extendHits(mapper, readSeqs, mapper.hits[1], mapper.seeds[1]);
-    extendHits(mapper, readSeqs, mapper.hits[2], mapper.seeds[2]);
-    stop(mapper.timer);
-    std::cout << "Extension time:\t\t\t" << mapper.timer << std::endl;
-    std::cout << "Anchors count:\t\t\t" << length(mapper.anchors) << std::endl;
-
-    start(mapper.timer);
-    removeDuplicateMatches(mapper.anchors);
-    stop(mapper.timer);
-    std::cout << "Compaction time:\t\t" << mapper.timer << std::endl;
-    std::cout << "Anchors count:\t\t\t" << length(mapper.anchors) << std::endl;
-    std::cout << "Anchored pairs:\t\t\t" << countMatches(readSeqs, mapper.anchors, typename TConfig::TSequencing()) << std::endl;
-
-    start(mapper.timer);
-    clear(mapper.mates);
-    reserve(mapper.mates, length(mapper.anchors), Exact());
-    findMates(mapper, readSeqs, mapper.anchors, mapper.mates);
-    stop(mapper.timer);
-    std::cout << "Verification time:\t\t" << mapper.timer << std::endl;
-    std::cout << "Mates count:\t\t\t" << length(mapper.mates) << std::endl;
-    std::cout << "Mapped pairs:\t\t\t" << countMatches(readSeqs, mapper.mates, typename TConfig::TSequencing()) << std::endl;
-
-//    start(mapper.timer);
-//    runWriter(mapper.writer, readSeqs);
-//    stop(mapper.timer);
-//    std::cout << "Writing time:\t\t\t" << mapper.timer << std::endl;
+    _mapReadsImplByStrata(mapper, readSeqs);
 }
 
-// ----------------------------------------------------------------------------
-// Function _mapReads(); SingleEnd, AnyBest
-// ----------------------------------------------------------------------------
-
-template <typename TSpec, typename TConfig, typename TReadSeqs, typename TStrategy>
-void _mapReads(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, TStrategy, Nothing)
+template <typename TSpec, typename TConfig, typename TReadSeqs>
+void _mapReadsImplByStrata(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs)
 {
     typedef Mapper<TSpec, TConfig>          TMapper;
     typedef typename TMapper::TSeedsExt     TSeedsExt;
     typedef typename TMapper::TSeedsApx     TSeedsApx;
     typedef typename TMapper::THit          THit;
 
-    clear(mapper.hits[0]);
-    clear(mapper.hits[1]);
-    clear(mapper.hits[2]);
-
-    clear(mapper.info);
-    resize(mapper.info, getReadSeqsCount(readSeqs));
+    clearHits(mapper);
+    initReadsContext(mapper, readSeqs);
 
     start(mapper.timer);
-    selectSeeds(mapper, mapper.seeds, readSeqs, mapper.info, Pair<unsigned>(0,0));
-    std::cout << "Seeds count:\t\t\t" << length(mapper.seeds[0]) << std::endl;
-    TSeedsExt seeds0(mapper.seeds[0]);
-    findSeeds(mapper, mapper.hits[0], mapper.seederExt, seeds0);
-    stop(mapper.timer);
-    std::cout << "Seeding time:\t\t\t" << mapper.timer << std::endl;
-
-//#ifdef _OPENMP
-//    sortHits(mapper.hits[0]);
-//#endif
-
-    reSeed(mapper, readSeqs, mapper.hits[0], mapper.seeds[0], mapper.info);
-    std::cout << "Hits count:\t\t\t" << countHits<unsigned long>(mapper.hits[0]) << std::endl;
-//    writeHits(mapper, readSeqs, mapper.hits[0], mapper.seeds[0], mapper.info, "hits_0.csv");
-
-    selectSeeds(mapper, mapper.seeds, readSeqs, mapper.info, Pair<unsigned>(1,2));
+    selectSeeds(mapper, mapper.seeds, readSeqs, mapper.ctx, Pair<unsigned>(0,0));
+    findSeedsExt(mapper);
+    classifyReads(mapper, readSeqs);
+    selectSeeds(mapper, mapper.seeds, readSeqs, mapper.ctx, Pair<unsigned>(1,2));
 
     start(mapper.timer);
     std::cout << "Seeds count:\t\t\t" << length(mapper.seeds[1]) << std::endl;
     TSeedsExt seeds1(mapper.seeds[1]);
     findSeeds(mapper, mapper.hits[1], mapper.seederExt, seeds1);
-//    TSeedsApx seeds1(mapper.seeds[1]);
-//    setScoreThreshold(mapper.seederApx, 1);
-//    findSeeds(mapper, mapper.hits[1], mapper.seederApx, seeds1);
     stop(mapper.timer);
     std::cout << "Seeding time:\t\t\t" << mapper.timer << std::endl;
     std::cout << "Hits count:\t\t\t" << countHits<unsigned long>(mapper.hits[1]) << std::endl;
-//    writeHits(mapper, readSeqs, mapper.hits[1], mapper.seeds[1], mapper.info, "hits_1.csv");
 
     start(mapper.timer);
     std::cout << "Seeds count:\t\t\t" << length(mapper.seeds[2]) << std::endl;
     TSeedsExt seeds2(mapper.seeds[2]);
     findSeeds(mapper, mapper.hits[2], mapper.seederExt, seeds2);
-//    TSeedsApx seeds2(mapper.seeds[2]);
-//    setScoreThreshold(mapper.seederApx, 2);
-//    findSeeds(mapper, mapper.hits[2], mapper.seederApx, seeds2);
     stop(mapper.timer);
     std::cout << "Seeding time:\t\t\t" << mapper.timer << std::endl;
     std::cout << "Hits count:\t\t\t" << countHits<unsigned long>(mapper.hits[2]) << std::endl;
-//    writeHits(mapper, readSeqs, mapper.hits[2], mapper.seeds[2], mapper.info, "hits_2.csv");
 
     std::stable_sort(begin(mapper.hits[0], Standard()), end(mapper.hits[0], Standard()), HitsSorterByCount<THit>());
     std::stable_sort(begin(mapper.hits[1], Standard()), end(mapper.hits[1], Standard()), HitsSorterByCount<THit>());
     std::stable_sort(begin(mapper.hits[2], Standard()), end(mapper.hits[2], Standard()), HitsSorterByCount<THit>());
 
-    clear(mapper.anchors);
-    reserve(mapper.anchors, countHits<unsigned long>(mapper.hits[0]) + countHits<unsigned long>(mapper.hits[1]) + countHits<unsigned long>(mapper.hits[2]) / 5);
-
-    start(mapper.timer);
-    unsigned long mappedReads;
-    mappedReads = extendHits(mapper, readSeqs, mapper.hits[0], mapper.seeds[0], 5, TStrategy());
-    std::cout << "Mapped reads:\t\t\t" << mappedReads << std::endl;
-    mappedReads = extendHits(mapper, readSeqs, mapper.hits[1], mapper.seeds[1], 3, TStrategy());
-    std::cout << "Mapped reads:\t\t\t" << mappedReads << std::endl;
-    mappedReads = extendHits(mapper, readSeqs, mapper.hits[2], mapper.seeds[2], 1, TStrategy());
-    std::cout << "Mapped reads:\t\t\t" << mappedReads << std::endl;
-    stop(mapper.timer);
-    std::cout << "Extension time:\t\t\t" << mapper.timer << std::endl;
-//    std::cout << "Anchors count:\t\t\t" << length(mapper.anchors) << std::endl;
-
-//    start(mapper.timer);
-//    removeDuplicateMatches(mapper.anchors);
-//    stop(mapper.timer);
-//    std::cout << "Compaction time:\t\t" << mapper.timer << std::endl;
-//    std::cout << "Anchors count:\t\t\t" << length(mapper.anchors) << std::endl;
-//    std::cout << "Anchored pairs:\t\t\t" << countMatches(readSeqs, mapper.anchors, typename TConfig::TSequencing()) << std::endl;
+    extendHits(mapper, readSeqs);
+    removeDuplicates(mapper, readSeqs);
 }
 
 // ----------------------------------------------------------------------------
@@ -1170,14 +1143,9 @@ void runMapper(Mapper<TSpec, TConfig> & mapper)
     {
         printRuler();
 
-        // Load one block of reads.
         loadReads(mapper);
-
-        // Map this block of reads.
         mapReads(mapper);
-
-        // Clear mapped reads.
-        clear(mapper.reads);
+        clearReads(mapper);
     }
 
     // Close reads file.
@@ -1188,6 +1156,7 @@ void runMapper(Mapper<TSpec, TConfig> & mapper)
 // Function runMapper()
 // ----------------------------------------------------------------------------
 
+/*
 template <typename TSpec, typename TConfig>
 void runMapper(Mapper<TSpec, TConfig> & mapper, Parallel)
 {
@@ -1289,6 +1258,7 @@ void runMapper(Mapper<TSpec, TConfig> & mapper, Parallel)
     // Close reads file.
     close(mapper.readsLoader);
 }
+*/
 
 // ----------------------------------------------------------------------------
 // Function spawnMapper()
