@@ -657,7 +657,7 @@ inline void clearHits(Mapper<TSpec, TConfig> & mapper)
 // Counts the hits in all buckets.
 
 template <typename TSpec, typename TConfig>
-inline unsigned long countHits(Mapper<TSpec, TConfig> & mapper)
+inline unsigned long countHits(Mapper<TSpec, TConfig> const & mapper)
 {
     unsigned long hitsCount = 0;
 
@@ -790,7 +790,7 @@ inline void _extendHitsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeq
 // Debug stuff.
 
 template <typename TSpec, typename TConfig, typename TReadSeqs, typename THits, typename TSeedsSet, typename TFilename>
-inline void _writeHitsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, THits const & hits, TSeedsSet const & seeds, TFilename const & filename)
+inline void _writeHitsImpl(Mapper<TSpec, TConfig> const & mapper, TReadSeqs const & readSeqs, THits const & hits, TSeedsSet const & seeds, TFilename const & filename)
 {
     typedef Mapper<TSpec, TConfig>                      TMapper;
     typedef typename Id<TSeedsSet>::Type                TSeedId;
