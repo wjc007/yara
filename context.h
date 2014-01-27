@@ -77,6 +77,16 @@ struct ReadContext
 // ============================================================================
 
 // ----------------------------------------------------------------------------
+// Function ctxIsMapped()
+// ----------------------------------------------------------------------------
+
+template <typename TReadContext>
+inline bool ctxIsMapped(TReadContext const & readCtx)
+{
+    return readCtx.status == STATUS_MAPPED;
+}
+
+// ----------------------------------------------------------------------------
 // Function getStratum()
 // ----------------------------------------------------------------------------
 
@@ -144,6 +154,18 @@ template <typename TReadsContext, typename TReadSeqId>
 inline bool isMapped(TReadsContext const & ctx, TReadSeqId readSeqId)
 {
     return ctx[readSeqId].status == STATUS_MAPPED;
+}
+
+// ----------------------------------------------------------------------------
+// Function countMapped()
+// ----------------------------------------------------------------------------
+
+template <typename TReadsContext>
+inline unsigned long countMapped(TReadsContext const & ctx)
+{
+    typedef typename Value<TReadsContext>::Type     TReadContext;
+
+    return std::count_if(begin(ctx, Standard()), end(ctx, Standard()), ctxIsMapped<TReadContext>) / 2;
 }
 
 #endif  // #ifndef APP_CUDAMAPPER_CONTEXT_H_
