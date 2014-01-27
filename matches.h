@@ -239,8 +239,8 @@ struct MatchesManager<TReadSeqs, TReadsContext, TMatches, AnyBest>
         if (minErrors[readId] == getStratum(ctx, prototype.readId))
         {
             // Mark both forward and reverse sequence as mapped.
-            setStatus(ctx, getFirstMateFwdSeqId(readId), STATUS_MAPPED);
-            setStatus(ctx, getFirstMateRevSeqId(readId), STATUS_MAPPED);
+            setStatus(ctx, getFirstMateFwdSeqId(readSeqs, readId), STATUS_MAPPED);
+            setStatus(ctx, getFirstMateRevSeqId(readSeqs, readId), STATUS_MAPPED);
         }
     }
 };

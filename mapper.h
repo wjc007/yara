@@ -707,7 +707,7 @@ inline void _extendHitsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeq
     typedef Extender<TContigs, TReadSeq, TAlgorithm>    TExtender;
 
     typedef typename TMapper::TReadsContext             TReadsContext;
-    typedef MatchesManager<TReadSeqs, TReadsContext, TMatches>  TManager;
+    typedef MatchesManager<TReadSeqs, TReadsContext, TMatches, typename TConfig::TStrategy>  TManager;
 
     TSA & sa = indexSA(mapper.index);
 
