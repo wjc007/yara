@@ -236,7 +236,7 @@ struct MatchesManager<TReadSeqs, TReadsContext, TMatches, AnyBest>
         minErrors[readId] = _min(minErrors[readId], errors);
 
         // One optimal match has been reported.
-        if (minErrors[readId] == getStratum(ctx, prototype.readId))
+        if (minErrors[readId] <= getStratum(ctx, prototype.readId))
         {
             // Mark both forward and reverse sequence as mapped.
             setStatus(ctx, getFirstMateFwdSeqId(readSeqs, readId), STATUS_MAPPED);
