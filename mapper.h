@@ -765,6 +765,7 @@ inline void _extendHitsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeq
 
         // Full stratum analyzed.
         // TODO(esiragusa): generalize stratum for approximate seeds, where one seed can have multiple hits.
+        // TODO(esiragusa): extend any fwd + any rev seed consecutively, then increase the stratum of both fwd & rev read.
         incStratum(mapper.ctx, readSeqId);
     }
 }
