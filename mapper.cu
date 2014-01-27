@@ -62,6 +62,7 @@
 //#include "options.h"
 #include "types.h"
 #include "hits.h"
+#include "context.h"
 #include "matches.h"
 #include "index.h"
 #include "seeds.h"

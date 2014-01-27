@@ -73,6 +73,14 @@ struct Timer
     Timer() : _begin(0), _end(0) {};
 };
 
+// ============================================================================
+// Functions
+// ============================================================================
+
+// ----------------------------------------------------------------------------
+// Function start()
+// ----------------------------------------------------------------------------
+
 template <typename TValue, typename TSpec>
 inline void start(Timer<TValue, TSpec> & timer)
 {
@@ -82,6 +90,10 @@ inline void start(Timer<TValue, TSpec> & timer)
 
     timer._begin = sysTime();
 }
+
+// ----------------------------------------------------------------------------
+// Function stop()
+// ----------------------------------------------------------------------------
 
 template <typename TValue, typename TSpec>
 inline void stop(Timer<TValue, TSpec> & timer)
@@ -93,11 +105,19 @@ inline void stop(Timer<TValue, TSpec> & timer)
     timer._end = sysTime();
 }
 
+// ----------------------------------------------------------------------------
+// Function getValue()
+// ----------------------------------------------------------------------------
+
 template <typename TValue, typename TSpec>
 inline TValue getValue(Timer<TValue, TSpec> & timer)
 {
     return timer._end - timer._begin;
 }
+
+// ----------------------------------------------------------------------------
+// Function operator<<
+// ----------------------------------------------------------------------------
 
 template <typename TValue, typename TSpec>
 std::ostream & operator<<(std::ostream & os, Timer<TValue, TSpec> & timer)
@@ -107,43 +127,8 @@ std::ostream & operator<<(std::ostream & os, Timer<TValue, TSpec> & timer)
 }
 
 // ----------------------------------------------------------------------------
-// Class Logger
+// Function printRuler()
 // ----------------------------------------------------------------------------
-
-template <typename TStream, typename TSpec = void>
-struct Logger
-{
-    TStream &   stream;
-    bool        quiet;
-
-    Logger(TStream & stream) :
-        stream(stream),
-        quiet(false)
-    {};
-};
-
-template <typename TStream, typename TSpec, typename TStream2>
-void write(Logger<TStream, TSpec> & logger, TStream2 const & stream)
-{
-    if (logger.quiet) return;
-
-    // TODO(esiragusa): use a scoped lock per logger instance.
-    SEQAN_OMP_PRAGMA(critical(_logger))
-    logger.stream << stream;
-}
-
-template <typename TStream, typename TSpec, typename TStream2>
-void write(Logger<TStream, TSpec> & logger, TStream2 & stream)
-{
-    write(logger, reinterpret_cast<TStream2 const &>(stream));
-}
-
-template <typename TStream, typename TSpec, typename TStream2>
-TStream & operator<<(Logger<TStream, TSpec> & logger, TStream2 & stream)
-{
-    write(logger, stream);
-    return logger.stream;
-}
 
 void printRuler()
 {
