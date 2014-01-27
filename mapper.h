@@ -758,7 +758,7 @@ inline void _extendHitsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeq
                    hitErrors, maxErrors,
                    anchorsManager);
 
-            // Mapped reads.
+            // Stop when the read has been mapped.
             if (getStatus(mapper.ctx, readSeqId) == STATUS_MAPPED) break;
 
         }
