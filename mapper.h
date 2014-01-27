@@ -730,7 +730,6 @@ inline void _extendHitsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeq
 
         // Skip unseeded and mapped reads.
         if (getStatus(mapper.ctx, readSeqId) != STATUS_SEEDED) continue;
-//        if (getStatus(mapper.ctx, readSeqId) == STATUS_MAPPED) continue;
 
         // Fill readSeqId.
         anchorsManager.prototype.readId = readSeqId;
@@ -758,6 +757,10 @@ inline void _extendHitsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeq
                    readPos.i1, readPos.i2,
                    hitErrors, maxErrors,
                    anchorsManager);
+
+            // Mapped reads.
+            if (getStatus(mapper.ctx, readSeqId) == STATUS_MAPPED) break;
+
         }
 
         // Full stratum analyzed.
