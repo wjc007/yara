@@ -153,15 +153,19 @@ struct MatchesCounter<TReadSeqs, PairedEnd>
 // Class MatchesManager
 // ----------------------------------------------------------------------------
 
-template <typename TMatches, typename TConfig = void>
+template <typename TReadSeqs, typename TReadsContext, typename TMatches, typename TConfig = void>
 struct MatchesManager
 {
     typedef typename Value<TMatches>::Type  TMatch;
 
-    TMatches & matches;
-    TMatch prototype;
+    TReadSeqs const &   readSeqs;
+    TReadsContext &     ctx;
+    TMatches &          matches;
+    TMatch              prototype;
 
-    MatchesManager(TMatches & matches) :
+    MatchesManager(TReadSeqs const & readSeqs, TReadsContext & ctx, TMatches & matches) :
+        readSeqs(readSeqs),
+        ctx(ctx),
         matches(matches),
         prototype()
     {}
@@ -200,15 +204,22 @@ struct MatchesManager
 // Class MatchesManager
 // ----------------------------------------------------------------------------
 
-template <typename TMatches>
-struct MatchesManager<TMatches, AnyBest>
+template <typename TReadSeqs, typename TReadsContext, typename TMatches>
+struct MatchesManager<TReadSeqs, TReadsContext, TMatches, AnyBest>
 {
     typedef typename Value<TMatches>::Type  TMatch;
+    typedef String<unsigned char>           TErrors;
 
-    String<unsigned char> minErrors;
-    TMatch prototype;
+    TReadSeqs const &   readSeqs;
+    TReadsContext &     ctx;
+    TMatches &          matches;
+    TMatch              prototype;
+    TErrors             minErrors;
 
-    MatchesManager(TMatches & /* matches */, TReadSeqs & readSeqs) :
+    MatchesManager(TReadSeqs const & readSeqs, TReadsContext & ctx, TMatches & matches) :
+        readSeqs(readSeqs),
+        ctx(ctx),
+        matches(matches),
         prototype()
     {
         resize(minErrors, getReadsCount(readSeqs), MaxValue<unsigned char>::VALUE, Exact());
@@ -217,7 +228,20 @@ struct MatchesManager<TMatches, AnyBest>
     template <typename THaystackPos, typename TErrors>
     void operator() (THaystackPos /* matchBegin */, THaystackPos /* matchEnd */, TErrors errors)
     {
-        minErrors[prototype.readId] = _min(minErrors[prototype.readId], errors);
+        typedef typename Size<TReadSeqs>::Type   TReadSeqId;
+
+        // TODO(esiragusa): rename prototype.readId member to prototype.readSeqId
+        TReadSeqId readId = getReadId(readSeqs, prototype.readId);
+
+        minErrors[readId] = _min(minErrors[readId], errors);
+
+        // One optimal match has been reported.
+        if (minErrors[readId] == getStratum(ctx, prototype.readId))
+        {
+            // Mark both forward and reverse sequence as mapped.
+            setStatus(ctx, getFirstMateFwdSeqId(readId), STATUS_MAPPED);
+            setStatus(ctx, getFirstMateRevSeqId(readId), STATUS_MAPPED);
+        }
     }
 };
 

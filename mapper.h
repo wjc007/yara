@@ -706,11 +706,12 @@ inline void _extendHitsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeq
     typedef Myers<TMyersSpec, True, void>               TAlgorithm;
     typedef Extender<TContigs, TReadSeq, TAlgorithm>    TExtender;
 
-    typedef MatchesManager<TMatches>                    TManager;
+    typedef typename TMapper::TReadsContext             TReadsContext;
+    typedef MatchesManager<TReadSeqs, TReadsContext, TMatches>  TManager;
 
     TSA & sa = indexSA(mapper.index);
 
-    TManager anchorsManager(mapper.anchors);
+    TManager anchorsManager(readSeqs, mapper.ctx, mapper.anchors);
 
     TExtender extender(contigs(mapper.genome));
 
@@ -727,8 +728,9 @@ inline void _extendHitsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeq
         TReadId readSeqId = getReadSeqId(seeds, seedId);
         TReadSeq readSeq = readSeqs[readSeqId];
 
-        // Skip mapped reads.
-        if (isMapped(mapper.ctx, readSeqId)) continue;
+        // Skip unseeded and mapped reads.
+        if (getStatus(mapper.ctx, readSeqId) != STATUS_SEEDED) continue;
+//        if (getStatus(mapper.ctx, readSeqId) == STATUS_MAPPED) continue;
 
         // Fill readSeqId.
         anchorsManager.prototype.readId = readSeqId;
@@ -759,7 +761,7 @@ inline void _extendHitsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeq
         }
 
         // Full stratum analyzed.
-        // TODO(esiragusa): this holds only for exact seeds: in general one hit != one seed
+        // TODO(esiragusa): generalize stratum for approximate seeds, where one seed can have multiple hits.
         incStratum(mapper.ctx, readSeqId);
     }
 }
@@ -792,7 +794,7 @@ inline void _writeHitsImpl(Mapper<TSpec, TConfig> const & mapper, TReadSeqs cons
     {
         TSeedIds readSeedIds = getSeedIds(seeds, readSeqId);
 
-        if (getStatus(mapper.ctx, readSeqId) == STATUS_UNSEEDED) continue;
+        if (getStatus(mapper.ctx, readSeqId) != STATUS_SEEDED) continue;
         if (getValueI2(readSeedIds) <= getValueI1(readSeedIds)) continue;
 
         for (TSeedId seedId = getValueI1(readSeedIds); seedId < getValueI2(readSeedIds); ++seedId)
@@ -841,7 +843,9 @@ inline void _verifyMatesImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSe
     typedef typename TMapper::TMatches                  TMatches;
     typedef typename Size<TMatches>::Type               TMatchId;
     typedef typename Value<TMatches>::Type              TMatch;
-    typedef MatchesManager<TMatches>                    TManager;
+
+    typedef typename TMapper::TReadsContext             TReadsContext;
+    typedef MatchesManager<TReadSeqs, TReadsContext, TMatches>  TManager;
 
     typedef Myers<>                                     TAlgorithm;
 //    typedef Filter<MultipleShiftAnd>                    TAlgorithm;
@@ -849,7 +853,7 @@ inline void _verifyMatesImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSe
 
     TVerifier verifier(contigs(mapper.genome));
 
-    TManager matesManager(mapper.mates);
+    TManager matesManager(readSeqs, mapper.ctx, mapper.mates);
     clear(mapper.mates);
     reserve(mapper.mates, length(mapper.anchors), Exact());
 
@@ -1013,28 +1017,31 @@ inline void _mapReadsByStrata(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readS
     findSeeds<0>(mapper, 0);
     classifyReads(mapper, readSeqs);
     seedReads(mapper, readSeqs, Pair<unsigned>(1, 2));
-
     findSeeds<0>(mapper, 1);
     findSeeds<0>(mapper, 2);
+
+    // Sort hits by range size.
+    // TODO(esiragusa): generalize sorting for approximate seeds, where one seed can have multiple hits.
     for (unsigned bucketId = 0; bucketId < TConfig::BUCKETS; ++bucketId)
         std::stable_sort(begin(mapper.hits[bucketId], Standard()), end(mapper.hits[bucketId], Standard()), HitsSorterByCount<THit>());
-    extendHits(mapper, readSeqs);
-
-    clearHits(mapper);
-    seedReads(mapper, readSeqs, Pair<unsigned>(1, 2));
-    findSeeds<1>(mapper, 1);
-    findSeeds<1>(mapper, 2);
-//    sortHits(mapper);
-    extendHits(mapper, readSeqs);
-
-    clearHits(mapper);
-    seedReads(mapper, readSeqs, Pair<unsigned>(2, 2));
-    findSeeds<2>(mapper, 2);
-//    sortHits(mapper);
-    extendHits(mapper, readSeqs);
 
     extendHits(mapper, readSeqs);
-    removeDuplicates(mapper, readSeqs);
+
+//    clearHits(mapper);
+//    seedReads(mapper, readSeqs, Pair<unsigned>(1, 2));
+//    findSeeds<1>(mapper, 1);
+//    findSeeds<1>(mapper, 2);
+////    sortHits(mapper);
+//    extendHits(mapper, readSeqs);
+//
+//    clearHits(mapper);
+//    seedReads(mapper, readSeqs, Pair<unsigned>(2, 2));
+//    findSeeds<2>(mapper, 2);
+////    sortHits(mapper);
+//    extendHits(mapper, readSeqs);
+//
+//    extendHits(mapper, readSeqs);
+//    removeDuplicates(mapper, readSeqs);
 }
 
 // ----------------------------------------------------------------------------
