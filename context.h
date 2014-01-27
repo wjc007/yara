@@ -143,8 +143,6 @@ inline void setStatus(TReadsContext & ctx, TReadSeqId readSeqId, ReadStatus stat
 template <typename TReadsContext, typename TReadSeqId>
 inline bool isMapped(TReadsContext const & ctx, TReadSeqId readSeqId)
 {
-    // TODO get readId
-    // TODO let manager set read status to mapped
     return ctx[readSeqId].status == STATUS_MAPPED;
 }
 
