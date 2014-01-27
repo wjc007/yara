@@ -760,7 +760,6 @@ inline void _extendHitsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeq
 
             // Stop when the read has been mapped.
             if (getStatus(mapper.ctx, readSeqId) == STATUS_MAPPED) break;
-
         }
 
         // Full stratum analyzed.
@@ -1030,6 +1029,8 @@ inline void _mapReadsByStrata(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readS
         std::stable_sort(begin(mapper.hits[bucketId], Standard()), end(mapper.hits[bucketId], Standard()), HitsSorterByCount<THit>());
 
     extendHits(mapper, readSeqs);
+
+    std::cout << "Mapped reads:\t\t\t" << countMapped(mapper.ctx) << std::endl;
 
 //    clearHits(mapper);
 //    seedReads(mapper, readSeqs, Pair<unsigned>(1, 2));
