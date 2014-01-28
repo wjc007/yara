@@ -415,7 +415,7 @@ inline void _sortHits(THits & /* hits */, Exact) {}
 template <typename THits>
 inline void _sortHits(THits & hits, HammingDistance)
 {
-    return std::stable_sort(begin(hits, Standard()), end(hits, Standard()));
+    return stableSort(hits, Parallel());
 }
 
 // ----------------------------------------------------------------------------
@@ -425,9 +425,7 @@ inline void _sortHits(THits & hits, HammingDistance)
 template <typename TSize, typename THits>
 inline TSize countHits(THits const & hits)
 {
-    return std::for_each(begin(hits, Standard()),
-                         end(hits, Standard()),
-                         HitsCounter<TSize>()).count;
+    return forEach(hits, HitsCounter<TSize>(), Parallel()).count;
 }
 
 // ----------------------------------------------------------------------------
@@ -437,9 +435,8 @@ inline TSize countHits(THits const & hits)
 template <typename TSize, typename THits, typename THitId>
 inline TSize countHits(THits const & hits, Pair<THitId> hitIds)
 {
-    return std::for_each(begin(hits, Standard()) + getValueI1(hitIds),
-                         begin(hits, Standard()) + getValueI2(hitIds),
-                         HitsCounter<TSize>()).count;
+    return forEach(infix(hits, getValueI1(hitIds), getValueI2(hitIds)),
+                   HitsCounter<TSize>(), Serial()).count;
 }
 
 // ----------------------------------------------------------------------------

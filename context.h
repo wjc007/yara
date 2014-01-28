@@ -165,7 +165,7 @@ inline unsigned long countMapped(TReadsContext const & ctx)
 {
     typedef typename Value<TReadsContext>::Type     TReadContext;
 
-    return std::count_if(begin(ctx, Standard()), end(ctx, Standard()), ctxIsMapped<TReadContext>) / 2;
+    return countIf(ctx, ctxIsMapped<TReadContext>, Parallel()) / 2;
 }
 
 #endif  // #ifndef APP_CUDAMAPPER_CONTEXT_H_

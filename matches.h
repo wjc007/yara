@@ -308,9 +308,9 @@ inline void removeDuplicateMatches(TMatches & matches)
     newIt = matchesBegin;
     oldIt = matchesBegin;
 
-//    std::stable_sort(matchesBegin, matchesEnd, MatchSorterByReadId<TMatch>());
+//    stableSort(matches, MatchSorterByReadId<TMatch>(), Parallel());
 
-    std::stable_sort(matchesBegin, matchesEnd, MatchSorterByEndPos<TMatch>());
+    stableSort(matches, MatchSorterByEndPos<TMatch>(), Parallel());
 
     // Remove duplicates by end position.
     while (oldIt != matchesEnd)
@@ -331,7 +331,7 @@ inline void removeDuplicateMatches(TMatches & matches)
     newIt = matchesBegin;
     oldIt = matchesBegin;
 
-    std::stable_sort(matchesBegin, matchesEnd, MatchSorterByBeginPos<TMatch>());
+    stableSort(matches, MatchSorterByBeginPos<TMatch>(), Parallel());
 
     // Remove duplicates by begin position.
     while (oldIt != matchesEnd)
@@ -355,13 +355,9 @@ inline void removeDuplicateMatches(TMatches & matches)
 template <typename TMatches>
 inline void sortByErrors(TMatches & matches)
 {
-    typedef typename Iterator<TMatches, Standard>::Type         TMatchesIterator;
-    typedef typename Value<TMatches>::Type                      TMatch;
+    typedef typename Value<TMatches>::Type  TMatch;
 
-    TMatchesIterator matchesBegin = begin(matches, Standard());
-    TMatchesIterator matchesEnd = end(matches, Standard());
-
-    std::sort(matchesBegin, matchesEnd, MatchSorterByErrors<TMatch>());
+    sort(matches, MatchSorterByErrors<TMatch>(), Parallel());
 }
 
 // ----------------------------------------------------------------------------
@@ -372,7 +368,7 @@ template <typename TReadSeqs, typename TSpec>
 inline typename Size<TReadSeqs>::Type
 getCount(MatchesCounter<TReadSeqs, TSpec> const & counter)
 {
-    return std::count(begin(counter.matched, Standard()), end(counter.matched, Standard()), true);
+    return count(counter.matched, true, Parallel());
 }
 
 // ----------------------------------------------------------------------------
@@ -383,9 +379,7 @@ template <typename TReadSeqs, typename TMatches, typename TSpec>
 inline typename Size<TReadSeqs>::Type
 countMatches(TReadSeqs const & readSeqs, TMatches const & matches, TSpec const & /* tag */)
 {
-    return getCount(std::for_each(begin(matches, Standard()),
-                                  end(matches, Standard()),
-                                  MatchesCounter<TReadSeqs, TSpec>(readSeqs)));
+    return getCount(forEach(matches, MatchesCounter<TReadSeqs, TSpec>(readSeqs), Parallel()));
 }
 
 #endif  // #ifndef APP_CUDAMAPPER_MATCHES_H_

@@ -125,9 +125,7 @@ inline void init(SeedsManager<TSeeds, TSeedsCount, TSpec> & manager, TSeeds & se
     manager.seeds = &seeds;
     manager.seedsPerRead = &seedsPerRead;
 
-    std::partial_sum(begin(*manager.seedsPerRead, Standard()),
-                     end(*manager.seedsPerRead, Standard()),
-                     begin(*manager.seedsPerRead, Standard()));
+    partialSum(*manager.seedsPerRead, *manager.seedsPerRead, Parallel());
 
     // Resize space for seeds.
     clear(*manager.seeds);
