@@ -128,6 +128,7 @@ struct Mapper
     typedef typename TConfig::TExecSpace                            TExecSpace;
     typedef Index<TFMContigs, TGenomeIndexSpec>                     THostIndex;
     typedef typename Space<THostIndex, TExecSpace>::Type            TIndex;
+    typedef typename Fibre<TIndex, FibreSA>::Type                   TSA;
 
     typedef typename TConfig::TSequencing                           TSequencing;
     typedef FragmentStore<void, TConfig>                            TStore;
@@ -161,6 +162,20 @@ struct Mapper
 
 //    typedef WriterConfig<Options, TReadSeqs>                        TWriterConfig;
 //    typedef Writer<TSpec, TWriterConfig>                            TWriter;
+
+    struct Traits
+    {
+        typedef TContigs            TContigs;
+        typedef TContigsPos         TContigsPos;
+        typedef TReadSeqs           TReadSeqs;
+        typedef TReadSeq            TReadSeq;
+        typedef TReadsContext       TReadsContext;
+        typedef TMatches            TMatches;
+        typedef TMatch              TMatch;
+        typedef TSeedsSet           TSeeds;
+        typedef THitsString         THits;
+        typedef TSA                 TSA;
+    };
 
     Timer<double>       timer;
     Options const &     options;
@@ -365,6 +380,9 @@ inline void seedReads(Mapper<TSpec, TConfig> & mapper, TReadSeqs const & readSeq
         resize(counters[errors], readsCount);
 
     // Count seeds.
+    // Counters(ctx)
+//    iterate(readSeqs, counters, Rooted(), Parallel());
+
     for (TId readSeqId = 0; readSeqId < readsCount; ++readSeqId)
     {
         if (getStatus(mapper.ctx, readSeqId) == STATUS_UNSEEDED)
@@ -382,6 +400,8 @@ inline void seedReads(Mapper<TSpec, TConfig> & mapper, TReadSeqs const & readSeq
         init(managers[errors], mapper.seeds[errors], counters[errors].seedsPerRead);
 
     // Select seeds.
+//    iterate(readSeqs, managers, Rooted(), Parallel());
+
     for (TId readSeqId = 0; readSeqId < readsCount; ++readSeqId)
     {
         if (getStatus(mapper.ctx, readSeqId) == STATUS_UNSEEDED)
@@ -456,6 +476,7 @@ inline void findSeeds(Mapper<TSpec, TConfig> & mapper, TBucketId bucketId)
     stop(mapper.timer);
     std::cout << "Seeding time:\t\t\t" << mapper.timer << std::endl;
     std::cout << "Hits count:\t\t\t" << countHits<unsigned long>(mapper.hits[bucketId]) << std::endl;
+//    writeHits(mapper, readSeqs, mapper.hits[bucketId], mapper.seeds[bucketId], "hits.csv");
 }
 
 // ----------------------------------------------------------------------------
@@ -494,8 +515,8 @@ inline void _findSeedsImpl(Mapper<TSpec, TConfig> & /* mapper */, THitsString & 
 // ----------------------------------------------------------------------------
 // Classifies the reads by hardness.
 
-template <typename TSpec, typename TConfig, typename TReadSeqs>
-inline void classifyReads(Mapper<TSpec, TConfig> & mapper, TReadSeqs const & /* readSeqs */)
+template <typename TSpec, typename TConfig>
+inline void classifyReads(Mapper<TSpec, TConfig> & mapper)
 {
     typedef Mapper<TSpec, TConfig>                                  TMapper;
     typedef typename TMapper::TReadsContext                         TReadsContext;
@@ -536,127 +557,214 @@ inline unsigned long countHits(Mapper<TSpec, TConfig> const & mapper)
     return hitsCount;
 }
 
+// ============================================================================
+// Classes
+// ============================================================================
+
+// ----------------------------------------------------------------------------
+// Class HitsExtender
+// ----------------------------------------------------------------------------
+// One instance per thread.
+
+template <typename TSpec, typename TConfig>
+struct HitsExtender
+{
+    typedef typename TConfig::TContigs          TContigs;
+    typedef typename TConfig::TContigsPos       TContigsPos;
+    typedef typename TConfig::TReadSeqs         TReadSeqs;
+    typedef typename TConfig::TReadSeq          TReadSeq;
+    typedef typename TConfig::TReadsContext     TReadsContext;
+    typedef typename TConfig::TMatches          TMatches;
+    typedef typename TConfig::TMatch            TMatch;
+    typedef typename TConfig::TSeeds            TSeeds;
+    typedef typename TConfig::THits             THits;
+    typedef typename TConfig::TSA               TSA;
+
+    typedef AlignTextBanded<FindPrefix, NMatchesNone_, NMatchesNone_> TMyersSpec;
+    typedef Myers<TMyersSpec, True, void>               TAlgorithm;
+    typedef Extender<TContigs, TReadSeq, TAlgorithm>    TExtender;
+
+    // Thread-private data.
+    TExtender           extender;
+    TMatch              prototype;
+
+    // Shared-memory read-write data.
+    TReadsContext &     ctx;
+    TMatches &          matches;
+
+    // Shared-memory read-only data.
+    TContigs const &    contigs;
+    TReadSeqs const &   readSeqs;
+    TSeeds const &      seeds;
+    THits const &       hits;
+    TSA const &         sa;
+    Options const &     options;
+
+    HitsExtender(TReadsContext & ctx,
+                 TMatches & matches,
+                 TContigs const & contigs,
+                 TSeeds const & seeds,
+                 THits const & hits,
+                 TSA const & sa,
+                 Options const & options) :
+        extender(contigs),
+        prototype(),
+        ctx(ctx),
+        matches(matches),
+        contigs(contigs),
+        readSeqs(host(seeds)),
+        seeds(seeds),
+        hits(hits),
+        sa(sa),
+        options(options)
+    {
+        // Iterate over all hits.
+        iterate(hits, *this, Rooted(), Serial());
+    }
+
+    template <typename THitsIterator>
+    void operator() (THitsIterator const & hitsIt)
+    {
+        _extendHitImpl(*this, hitsIt);
+    }
+
+    void operator() (TExtender const & /* extender */)
+    {
+//        _addMatchImpl(*this, extender);
+    }
+};
+
+// ============================================================================
+// Functions
+// ============================================================================
+
+// ----------------------------------------------------------------------------
+// Function _extendHitImpl()
+// ----------------------------------------------------------------------------
+// Extends one hit.
+
+template <typename TSpec, typename TConfig, typename THitsIterator>
+inline void _extendHitImpl(HitsExtender<TSpec, TConfig> & me, THitsIterator const & hitsIt)
+{
+    typedef HitsExtender<TSpec, TConfig>                THitsExtender;
+
+    typedef typename THitsExtender::TContigs            TContigs;
+    typedef typename Size<TContigs>::Type               TContigId;
+    typedef typename THitsExtender::TContigsPos         TContigsPos;
+
+    typedef typename THitsExtender::TReadSeq            TReadSeq;
+    typedef typename Id<TReadSeqs>::Type                TReadId;
+    typedef Pair<typename Position<TReadSeq>::Type>     TReadPos;
+    typedef typename Size<TReadSeq>::Type               TReadSeqSize;
+    typedef typename Size<TReadSeq>::Type               TErrors;
+
+    typedef typename THitsExtender::TSeeds              TSeedsSet;
+    typedef typename Id<TSeedsSet>::Type                TSeedId;
+
+    typedef typename THitsExtender::THits               THits;
+    typedef typename Value<THits>::Type                 THit;
+    typedef typename Id<THit>::Type                     THitId;
+    typedef typename Position<THit>::Type               THitRange;
+    typedef unsigned char                               THitErrors;
+
+    typedef typename THitsExtender::TMatches            TMatches;
+    typedef typename Value<TMatches>::Type              TMatch;
+
+    typedef typename THitsExtender::TSA                 TSA;
+    typedef typename Size<TSA>::Type                    TSAPos;
+    typedef typename Value<TSA>::Type                   TSAValue;
+
+    typedef typename THitsExtender::TReadsContext       TReadsContext;
+
+    // Get hit id.
+    THitId hitId = position(hitsIt);
+
+    // Extract hit info.
+    TSeedId seedId = getSeedId(me.hits, hitId);
+    THitRange hitRange = getRange(me.hits, hitId);
+    THitErrors hitErrors = getErrors(me.hits, hitId);
+
+    // Get read.
+    TReadId readSeqId = getReadSeqId(me.seeds, seedId);
+    TReadSeq readSeq;// = me.readSeqs[readSeqId];
+
+    // Skip unseeded and mapped reads.
+    if (getStatus(me.ctx, readSeqId) != STATUS_SEEDED) return;
+
+    // Fill readSeqId.
+    me.prototype.readId = readSeqId;
+
+    // Get position in read.
+    TReadPos readPos = getPosInRead(me.seeds, seedId);
+    TReadSeqSize seedLength = getValueI2(readPos) - getValueI1(readPos);
+
+    for (TSAPos saPos = getValueI1(hitRange); saPos < getValueI2(hitRange); ++saPos)
+    {
+        // Invert SA value.
+        TSAValue saValue = me.sa[saPos];
+        setSeqOffset(saValue, suffixLength(saValue, me.contigs) - seedLength);
+
+        // Compute position in contig.
+        TContigsPos contigBegin = saValue;
+        TContigsPos contigEnd = posAdd(contigBegin, seedLength);
+
+        // Get absolute number of errors.
+        TErrors maxErrors = 0;//_getErrorsPerRead(me, me.readSeqs, readSeqId);
+
+        extend(me.extender,
+               readSeq,
+               contigBegin, contigEnd,
+               readPos.i1, readPos.i2,
+               hitErrors, maxErrors,
+               me);
+
+        // Stop when the read has been mapped.
+        if (getStatus(me.ctx, readSeqId) == STATUS_MAPPED) break;
+    }
+
+    // Full stratum analyzed.
+    // TODO(esiragusa): generalize stratum for approximate seeds, where one seed can have multiple hits.
+    // TODO(esiragusa): extend any fwd + any rev seed consecutively, then increase the stratum of both fwd & rev read.
+    incStratum(me.ctx, readSeqId);
+}
+
+//template <typename TSpec, typename TConfig, typename TExtender>
+//inline void _addMatchImpl(HitsExtender<TSpec, TConfig> & me, TExtender const & extender)
+//{
+//    me.prototype.contigId = getValueI1(matchBegin);
+//    me.prototype.contigBegin = getValueI2(matchBegin);
+//    me.prototype.contigEnd = getValueI2(matchEnd);
+//    me.prototype.errors = errors;
+//    appendValue(me.matches, me.prototype); // typename TConfig::TParallel()
+//}
+
 // ----------------------------------------------------------------------------
 // Function extendHits()
 // ----------------------------------------------------------------------------
 // Extends the hits in all buckets.
 
-template <typename TSpec, typename TConfig, typename TReadSeqs>
-inline void extendHits(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs)
+template <typename TSpec, typename TConfig>
+inline void extendHits(Mapper<TSpec, TConfig> & mapper)
 {
+    typedef Mapper<TSpec, TConfig>          TMapper;
+    typedef typename TMapper::Traits        TTraits;
+    typedef HitsExtender<TSpec, TTraits>    THitsExtender;
+
     // TODO(esiragusa): guess the number of matches.
     clear(mapper.anchors);
     reserve(mapper.anchors, countHits(mapper) / 5);
 
     start(mapper.timer);
     for (unsigned bucketId = 0; bucketId < TConfig::BUCKETS; bucketId++)
-        _extendHitsImpl(mapper, readSeqs, mapper.hits[bucketId], mapper.seeds[bucketId]);
+    {
+        THitsExtender extender(mapper.ctx, mapper.anchors, contigs(mapper.genome),
+                               mapper.seeds[bucketId], mapper.hits[bucketId],
+                               indexSA(mapper.index), mapper.options);
+    }
     stop(mapper.timer);
 
     std::cout << "Extension time:\t\t\t" << mapper.timer << std::endl;
     std::cout << "Anchors count:\t\t\t" << length(mapper.anchors) << std::endl;
-}
-
-// ----------------------------------------------------------------------------
-// Function _extendHitsImpl()
-// ----------------------------------------------------------------------------
-// Extends one bucket of hits.
-
-template <typename TSpec, typename TConfig, typename TReadSeqs, typename THitsString, typename TSeedsSet>
-inline void _extendHitsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, THitsString const & hits, TSeedsSet const & seeds)
-{
-    typedef Mapper<TSpec, TConfig>                      TMapper;
-
-    typedef typename TMapper::TContigs                  TContigs;
-    typedef typename Size<TContigs>::Type               TContigId;
-    typedef typename TMapper::TContigsPos               TContigsPos;
-
-    typedef typename TMapper::TReadSeq                  TReadSeq;
-    typedef typename Id<TReadSeqs>::Type                TReadId;
-    typedef Pair<typename Position<TReadSeq>::Type>     TReadPos;
-    typedef typename Size<TReadSeq>::Type               TReadSeqSize;
-    typedef typename Size<TReadSeq>::Type               TErrors;
-
-    typedef typename Id<TSeedsSet>::Type                TSeedId;
-
-    typedef typename TMapper::THit                      THit;
-    typedef typename Id<THit>::Type                     THitId;
-    typedef typename Position<THit>::Type               THitRange;
-    typedef unsigned char                               THitErrors;
-
-    typedef typename TMapper::TMatches                  TMatches;
-    typedef typename Value<TMatches>::Type              TMatch;
-
-    typedef typename TMapper::TIndex                    TIndex;
-    typedef typename Fibre<TIndex, FibreSA>::Type       TSA;
-    typedef typename Size<TSA>::Type                    TSAPos;
-    typedef typename Value<TSA>::Type                   TSAValue;
-
-    typedef AlignTextBanded<FindPrefix, NMatchesNone_, NMatchesNone_> TMyersSpec;
-    typedef Myers<TMyersSpec, True, void>               TAlgorithm;
-    typedef Extender<TContigs, TReadSeq, TAlgorithm>    TExtender;
-
-    typedef typename TMapper::TReadsContext             TReadsContext;
-    typedef MatchesManager<TReadSeqs, TReadsContext, TMatches, typename TConfig::TStrategy>  TManager;
-
-    TSA & sa = indexSA(mapper.index);
-
-    TManager anchorsManager(readSeqs, mapper.ctx, mapper.anchors);
-
-    TExtender extender(contigs(mapper.genome));
-
-    THitId hitsCount = length(hits);
-
-    for (THitId hitId = 0; hitId < hitsCount; ++hitId)
-    {
-        // Extract hit ctx.
-        TSeedId seedId = getSeedId(hits, hitId);
-        THitRange hitRange = getRange(hits, hitId);
-        THitErrors hitErrors = getErrors(hits, hitId);
-
-        // Get read.
-        TReadId readSeqId = getReadSeqId(seeds, seedId);
-        TReadSeq readSeq = readSeqs[readSeqId];
-
-        // Skip unseeded and mapped reads.
-        if (getStatus(mapper.ctx, readSeqId) != STATUS_SEEDED) continue;
-
-        // Fill readSeqId.
-        anchorsManager.prototype.readId = readSeqId;
-
-        // Get position in read.
-        TReadPos readPos = getPosInRead(seeds, seedId);
-        TReadSeqSize seedLength = getValueI2(readPos) - getValueI1(readPos);
-
-        for (TSAPos saPos = getValueI1(hitRange); saPos < getValueI2(hitRange); ++saPos)
-        {
-            // Invert SA value.
-            TSAValue saValue = sa[saPos];
-            setSeqOffset(saValue, suffixLength(saValue, contigs(mapper.genome)) - seedLength);
-
-            // Compute position in contig.
-            TContigsPos contigBegin = saValue;
-            TContigsPos contigEnd = posAdd(contigBegin, seedLength);
-
-            // Get absolute number of errors.
-            TErrors maxErrors = _getErrorsPerRead(mapper, readSeqs, readSeqId);
-
-            extend(extender,
-                   readSeq,
-                   contigBegin, contigEnd,
-                   readPos.i1, readPos.i2,
-                   hitErrors, maxErrors,
-                   anchorsManager);
-
-            // Stop when the read has been mapped.
-            if (getStatus(mapper.ctx, readSeqId) == STATUS_MAPPED) break;
-        }
-
-        // Full stratum analyzed.
-        // TODO(esiragusa): generalize stratum for approximate seeds, where one seed can have multiple hits.
-        // TODO(esiragusa): extend any fwd + any rev seed consecutively, then increase the stratum of both fwd & rev read.
-        incStratum(mapper.ctx, readSeqId);
-    }
 }
 
 // ----------------------------------------------------------------------------
@@ -749,6 +857,9 @@ inline void _verifyMatesImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSe
     TManager matesManager(readSeqs, mapper.ctx, mapper.mates);
     clear(mapper.mates);
     reserve(mapper.mates, length(mapper.anchors), Exact());
+
+//    TVerifier verifier(contigs(mapper.genome), ctx, mates);
+//    iterate(anchors, extender, Rooted(), Parallel());
 
     TMatchId matchesCount = length(mapper.anchors);
     for (TMatchId matchId = 0; matchId < matchesCount; ++matchId)
@@ -870,11 +981,11 @@ inline void _mapReadsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs,
 
     seedReads(mapper, readSeqs, Pair<unsigned>(0, 0));
     findSeeds<0>(mapper, 0);
-    classifyReads(mapper, readSeqs);
+    classifyReads(mapper);
     seedReads(mapper, readSeqs, Pair<unsigned>(1, 2));
     findSeeds<1>(mapper, 1);
     findSeeds<2>(mapper, 2);
-    extendHits(mapper, readSeqs);
+    extendHits(mapper);
     removeDuplicates(mapper, readSeqs);
     verifyMates(mapper, readSeqs);
 }
@@ -908,7 +1019,7 @@ inline void _mapReadsByStrata(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readS
     start(mapper.timer);
     seedReads(mapper, readSeqs, Pair<unsigned>(0, 0));
     findSeeds<0>(mapper, 0);
-    classifyReads(mapper, readSeqs);
+    classifyReads(mapper);
     seedReads(mapper, readSeqs, Pair<unsigned>(1, 2));
     findSeeds<0>(mapper, 1);
     findSeeds<0>(mapper, 2);
@@ -918,7 +1029,7 @@ inline void _mapReadsByStrata(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readS
     for (unsigned bucketId = 0; bucketId < TConfig::BUCKETS; ++bucketId)
         std::stable_sort(begin(mapper.hits[bucketId], Standard()), end(mapper.hits[bucketId], Standard()), HitsSorterByCount<THit>());
 
-    extendHits(mapper, readSeqs);
+    extendHits(mapper);
 
     std::cout << "Mapped reads:\t\t\t" << countMapped(mapper.ctx) << std::endl;
 
@@ -927,15 +1038,15 @@ inline void _mapReadsByStrata(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readS
 //    findSeeds<1>(mapper, 1);
 //    findSeeds<1>(mapper, 2);
 ////    sortHits(mapper);
-//    extendHits(mapper, readSeqs);
+//    extendHits(mapper);
 //
 //    clearHits(mapper);
 //    seedReads(mapper, readSeqs, Pair<unsigned>(2, 2));
 //    findSeeds<2>(mapper, 2);
 ////    sortHits(mapper);
-//    extendHits(mapper, readSeqs);
+//    extendHits(mapper);
 //
-//    extendHits(mapper, readSeqs);
+//    extendHits(mapper);
 //    removeDuplicates(mapper, readSeqs);
 }
 
