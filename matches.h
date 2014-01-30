@@ -214,6 +214,7 @@ struct MatchesManager<TReadSeqs, TReadsContext, TMatches, AnyBest>
     TReadsContext &     ctx;
     TMatches &          matches;
     TMatch              prototype;
+    // TODO(esiragusa): remove errors from manager, it must be lightweight.
     TErrors             minErrors;
 
     MatchesManager(TReadSeqs const & readSeqs, TReadsContext & ctx, TMatches & matches) :
