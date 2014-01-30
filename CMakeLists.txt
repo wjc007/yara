@@ -110,6 +110,7 @@ if (SEQAN_HAS_CUDA)
                                   context.h
                                   index.h
                                   seeds.h
+                                  classifier.h
                                   extender.h
                                   verifier.h
                                   writer.h)
@@ -127,6 +128,7 @@ else ()
                                   context.h
                                   index.h
                                   seeds.h
+                                  classifier.h
                                   extender.h
                                   verifier.h
                                   writer.h)

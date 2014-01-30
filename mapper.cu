@@ -66,6 +66,7 @@
 #include "matches.h"
 #include "index.h"
 #include "seeds.h"
+#include "classifier.h"
 #include "extender.h"
 #include "verifier.h"
 #include "writer.h"
