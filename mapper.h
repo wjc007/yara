@@ -495,127 +495,17 @@ inline void _findSeedsImpl(Mapper<TSpec, TConfig> & /* mapper */, THitsString & 
 // Classifies the reads by hardness.
 
 template <typename TSpec, typename TConfig, typename TReadSeqs>
-inline void classifyReads(Mapper<TSpec, TConfig> & mapper, TReadSeqs const & readSeqs)
+inline void classifyReads(Mapper<TSpec, TConfig> & mapper, TReadSeqs const & /* readSeqs */)
 {
-    _classifyReadsImpl(mapper, readSeqs, mapper.hits[0], mapper.seeds[0], typename TConfig::TStrategy(), typename TConfig::TAnchoring());
+    typedef Mapper<TSpec, TConfig>                                  TMapper;
+    typedef typename TMapper::TReadsContext                         TReadsContext;
+    typedef typename TMapper::THitsString                           THits;
+    typedef typename TMapper::TSeedsSet                             TSeeds;
+    typedef ReadsClassifier<TReadsContext, THits, TSeeds, TConfig>  TClassifier;
+
+    TClassifier classifier(mapper.ctx, mapper.hits[0], mapper.seeds[0], mapper.options);
 
     std::cout << "Hits count:\t\t\t" << countHits<unsigned long>(mapper.hits[0]) << std::endl;
-//    writeHits(mapper, readSeqs, mapper.hits[0], mapper.seeds[0], "hits_0.csv");
-}
-
-// ----------------------------------------------------------------------------
-// Function _classifyReadsImpl(); Default
-// ----------------------------------------------------------------------------
-// Raises the seeds errors, mark for reseeding and clears the hits of hard reads.
-
-template <typename TSpec, typename TConfig, typename TReadSeqs, typename THitsString, typename TSeedsSet, typename TStrategy, typename TAnchoring>
-inline void _classifyReadsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs const & readSeqs, THitsString & hits, TSeedsSet const & seeds, TStrategy, TAnchoring)
-{
-    typedef Mapper<TSpec, TConfig>                      TMapper;
-    typedef typename Id<TSeedsSet>::Type                TSeedId;
-    typedef Pair<TSeedId>                               TSeedIds;
-    typedef typename TMapper::THit                      THit;
-    typedef typename Id<THit>::Type                     THitId;
-    typedef Pair<THitId>                                THitIds;
-    typedef typename Size<THit>::Type                   THitSize;
-    typedef typename Size<TReadSeqs>::Type              TReadId;
-
-    TReadId readSeqsCount = getReadSeqsCount(readSeqs);
-
-    for (TReadId readSeqId = 0; readSeqId < readSeqsCount; ++readSeqId)
-    {
-        // Count the hits per read.
-        TSeedIds readSeedIds = getSeedIds(seeds, readSeqId);
-        THitIds readHitIds = getHitIds(hits, readSeedIds);
-        THitSize readHits = countHits<THitSize>(hits, readHitIds);
-
-        // Re-seed hard reads.
-        if (readHits > mapper.options.hitsThreshold)
-        {
-            // Guess a good seeding stragegy.
-            setSeedErrors(mapper.ctx, readSeqId, (readHits < 200 * mapper.options.hitsThreshold) ? 1 : 2);
-            setStatus(mapper.ctx, readSeqId, STATUS_UNSEEDED);
-
-            // Clear the hits of the read.
-            clearHits(hits, readHitIds);
-        }
-    }
-}
-
-// ----------------------------------------------------------------------------
-// Function _classifyReadsImpl(); AnchorOne
-// ----------------------------------------------------------------------------
-// Selects the mate to anchor; raises the seeds errors, mark for reseeding and clears the hits of hard anchors.
-
-template <typename TSpec, typename TConfig, typename TReadSeqs, typename THitsString, typename TSeedsSet, typename TStrategy>
-inline void _classifyReadsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs const & readSeqs, THitsString & hits, TSeedsSet const & seeds, TStrategy, AnchorOne)
-{
-    typedef Mapper<TSpec, TConfig>                      TMapper;
-    typedef typename Id<TSeedsSet>::Type                TSeedId;
-    typedef Pair<TSeedId>                               TSeedIds;
-    typedef typename TMapper::THit                      THit;
-    typedef typename Id<THit>::Type                     THitId;
-    typedef Pair<THitId>                                THitIds;
-    typedef typename Size<THit>::Type                   THitSize;
-    typedef typename Size<TReadSeqs>::Type              TReadId;
-
-    TReadId readsCount = getReadsCount(readSeqs);
-
-    for (TReadId readSeqId = 0; readSeqId < readsCount; ++readSeqId)
-    {
-        // Get mate id.
-        TReadId mateSeqId = getMateSeqId(readSeqs, readSeqId);
-
-        // Get seed ids.
-        TSeedIds readSeedIds = getSeedIds(seeds, readSeqId);
-        TSeedIds mateSeedIds = getSeedIds(seeds, mateSeqId);
-
-        // Get hit ids.
-        THitIds readHitIds = getHitIds(hits, readSeedIds);
-        THitIds mateHitIds = getHitIds(hits, mateSeedIds);
-
-        // Count the hits of each read.
-        THitSize readHits = countHits<THitSize>(hits, readHitIds);
-        THitSize mateHits = countHits<THitSize>(hits, mateHitIds);
-
-        TReadId anchorSeqId;
-        TReadId otherSeqId;
-        THitIds anchorHitIds;
-        THitIds otherHitIds;
-
-        // Choose the easiest read as the anchor.
-        THitSize anchorHits = std::min(readHits, mateHits);
-
-        if (anchorHits == readHits)
-        {
-            anchorSeqId = readSeqId;
-            anchorHitIds = readHitIds;
-            otherSeqId = mateSeqId;
-            otherHitIds = mateHitIds;
-        }
-        else
-        {
-            anchorSeqId = mateSeqId;
-            anchorHitIds = mateHitIds;
-            otherSeqId = readSeqId;
-            otherHitIds = readHitIds;
-        }
-
-        // Clear the hits of the other read.
-        clearHits(hits, otherHitIds);
-        setStatus(mapper.ctx, otherSeqId, STATUS_UNMAPPABLE);
-
-        // Re-seed hard anchors.
-        if (anchorHits > mapper.options.hitsThreshold)
-        {
-            // Guess a good seeding stragegy.
-            setSeedErrors(mapper.ctx, anchorSeqId, (anchorHits < 200 * mapper.options.hitsThreshold) ? 1 : 2);
-            setStatus(mapper.ctx, anchorSeqId, STATUS_UNSEEDED);
-
-            // Clear the hits of the anchor.
-            clearHits(hits, anchorHitIds);
-        }
-    }
 }
 
 // ----------------------------------------------------------------------------
