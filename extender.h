@@ -221,6 +221,8 @@ inline bool _extendRight(Extender<THaystack, TNeedle, TSpec> & extender,
 // ----------------------------------------------------------------------------
 // Function extend()
 // ----------------------------------------------------------------------------
+// TODO(esiragusa): setScoreThreshold(me, maxErrors)
+// TODO(esiragusa): extend(me, haystackInfix, needleInfix(needle=host), needleErrors, delegate)
 
 template <typename THaystack, typename TNeedle, typename TSpec,
           typename THaystackPos, typename TNeedlePos, typename TErrors, typename TMaxErrors, typename TDelegate>
@@ -277,8 +279,8 @@ extend(Extender<THaystack, TNeedle, TSpec> & extender,
         if (!_extendRight(extender, haystackRight, needleRight, matchEnd, needleErrors, maxErrors)) return;
     }
 
-//    delegate(extender);
-    delegate(matchBegin, matchEnd, needleErrors);
+    delegate(extender);
+//    delegate(matchBegin, matchEnd, needleErrors);
 }
 
 #endif  // #ifndef APP_CUDAMAPPER_EXTENDER_H_
