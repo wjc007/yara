@@ -113,8 +113,7 @@ inline void _classifyReadsImpl(ReadsClassifier<TReadsContext, THits, TSeeds, TCo
 template <typename TReadsContext, typename THits, typename TSeeds, typename TConfig>
 inline void _classifyReadsImpl(ReadsClassifier<TReadsContext, THits, TSeeds, TConfig> & classifier, AnchorOne)
 {
-    std::cout << length(prefix(classifier.readSeqs, getReadsCount(classifier.readSeqs))) << std::endl;
-
+    // TODO(esiragusa): fix this, it returns an empty prefix!
     // Iterate over all pairs.
     iterate(prefix(classifier.readSeqs, getReadsCount(classifier.readSeqs)), classifier, Rooted(), Parallel());
 }
