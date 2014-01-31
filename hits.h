@@ -269,7 +269,7 @@ template <typename TSize, typename TSpec, typename TPattern>
 inline void _init(HitsManager<TSize, TSpec> & manager, TPattern const & pattern, HammingDistance)
 {
     // TODO(esiragusa): reserve more than this.
-    reserve(manager.hits, length(needle(pattern)), Exact());
+    reserve(manager.hits, length(needle(pattern)) * 5, Exact());
 }
 
 // ----------------------------------------------------------------------------
@@ -291,8 +291,7 @@ _addHit(HitsManager<THits, TSpec> & manager, TFinder const & finder, HammingDist
 
     THit hit = { range(textIterator(finder)), finder._patternIt, getScore(finder) };
 
-    // TODO(esiragusa): atomic append.
-    appendValue(manager.hits, hit);
+    appendValue(manager.hits, hit, Insist(), Parallel());
 }
 
 // ----------------------------------------------------------------------------
