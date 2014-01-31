@@ -610,7 +610,7 @@ struct HitsExtender
         options(options)
     {
         // Iterate over all hits.
-        iterate(hits, *this, Rooted(), Serial());
+        iterate(hits, *this, Rooted(), Parallel());
     }
 
     template <typename THitsIterator>
