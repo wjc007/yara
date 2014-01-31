@@ -593,7 +593,7 @@ struct HitsExtender
 
     // Shared-memory read-only data.
     TContigs const &    contigs;
-    TReadSeqs const &   readSeqs;
+    TReadSeqs &         readSeqs;
     TSeeds const &      seeds;
     THits const &       hits;
     TSA const &         sa;
@@ -685,7 +685,7 @@ inline void _extendHitImpl(HitsExtender<TSpec, TConfig> & me, THitsIterator cons
 
     // Get read.
     TReadId readSeqId = getReadSeqId(me.seeds, seedId);
-    TReadSeq readSeq;// = me.readSeqs[readSeqId];
+    TReadSeq readSeq = me.readSeqs[readSeqId];
 
     // Skip unseeded and mapped reads.
     if (getStatus(me.ctx, readSeqId) != STATUS_SEEDED) return;
