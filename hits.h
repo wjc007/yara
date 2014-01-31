@@ -123,7 +123,7 @@ struct HitsCounter
     template <typename THit>
     void operator() (THit const & hit)
     {
-        count += getCount(hit);
+        atomicAdd(count, getCount(hit), Parallel());
     }
 };
 
