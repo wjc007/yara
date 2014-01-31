@@ -113,24 +113,27 @@ struct ReadMapperConfig : public CUDAStoreConfig
 };
 
 // ----------------------------------------------------------------------------
-// Class Mapper
+// Mapper Traits
 // ----------------------------------------------------------------------------
 
-template <typename TSpec, typename TConfig = void>
-struct Mapper
+template <typename TSpec, typename TConfig>
+struct MapperTraits
 {
+    typedef typename TConfig::TExecSpace                            TExecSpace;
+    typedef typename TConfig::TSequencing                           TSequencing;
+    typedef typename TConfig::TStrategy                             TStrategy;
+    typedef typename TConfig::TAnchoring                            TAnchoring;
+
     typedef Genome<void, TConfig>                                   TGenome;
 //    typedef GenomeLoader<void, TConfig>                             TGenomeLoader;
     typedef typename Contigs<TGenome>::Type                         TContigs;
     typedef typename Value<TContigs>::Type                          TContig;
     typedef typename StringSetPosition<TContigs>::Type              TContigsPos;
 
-    typedef typename TConfig::TExecSpace                            TExecSpace;
     typedef Index<TFMContigs, TGenomeIndexSpec>                     THostIndex;
     typedef typename Space<THostIndex, TExecSpace>::Type            TIndex;
     typedef typename Fibre<TIndex, FibreSA>::Type                   TSA;
 
-    typedef typename TConfig::TSequencing                           TSequencing;
     typedef FragmentStore<void, TConfig>                            TStore;
     typedef ReadsConfig<False, False, True, True, TConfig>          TReadsConfig;
     typedef Reads<TSequencing, TReadsConfig>                        TReads;
@@ -142,60 +145,53 @@ struct Mapper
     typedef ReadContext<TSpec, TConfig>                             TReadContext;
     typedef String<TReadContext>                                    TReadsContext;
 
-    typedef StringSet<TReadSeqs, Segment<TReadSeqs> >               TSeedsSet;
-    typedef Tuple<TSeedsSet, TConfig::BUCKETS>                      TSeeds;
+    typedef StringSet<TReadSeqs, Segment<TReadSeqs> >               TSeeds;
+    typedef Tuple<TSeeds, TConfig::BUCKETS>                         TSeedsBuckets;
 
     typedef typename Size<TIndex>::Type                             TIndexSize;
     typedef Hit<TIndexSize, HammingDistance>                        THit;
-    typedef String<THit>                                            THitsString;
-    typedef Tuple<THitsString, TConfig::BUCKETS>                    THits;
+    typedef String<THit>                                            THits;
+    typedef Tuple<THits, TConfig::BUCKETS>                          THitsBuckets;
 
     typedef Match<void>                                             TMatch;
     typedef String<TMatch>                                          TMatches;
 
     typedef Multiple<FinderSTree>                                   TAlgorithmExt;
     typedef Multiple<Backtracking<HammingDistance> >                TAlgorithmApx;
-    typedef Pattern<TSeedsSet, TAlgorithmExt>                       TPatternExt;
-    typedef Pattern<TSeedsSet, TAlgorithmApx>                       TPatternApx;
+    typedef Pattern<TSeeds, TAlgorithmExt>                          TPatternExt;
+    typedef Pattern<TSeeds, TAlgorithmApx>                          TPatternApx;
     typedef Finder2<TIndex, TPatternExt, TAlgorithmExt>             TFinderExt;
     typedef Finder2<TIndex, TPatternApx, TAlgorithmApx>             TFinderApx;
+};
 
-//    typedef WriterConfig<Options, TReadSeqs>                        TWriterConfig;
-//    typedef Writer<TSpec, TWriterConfig>                            TWriter;
+// ----------------------------------------------------------------------------
+// Class Mapper
+// ----------------------------------------------------------------------------
 
-    struct Traits
-    {
-        typedef TContigs            TContigs;
-        typedef TContigsPos         TContigsPos;
-        typedef TReadSeqs           TReadSeqs;
-        typedef TReadSeq            TReadSeq;
-        typedef TReadsContext       TReadsContext;
-        typedef TMatches            TMatches;
-        typedef TMatch              TMatch;
-        typedef TSeedsSet           TSeeds;
-        typedef THitsString         THits;
-        typedef TSA                 TSA;
-    };
+template <typename TSpec, typename TConfig = void>
+struct Mapper
+{
+    typedef MapperTraits<TSpec, TConfig>    Traits;
 
-    Timer<double>       timer;
-    Options const &     options;
+    Timer<double>                       timer;
+    Options const &                     options;
 
-    TGenome             genome;
-//    TGenomeLoader       genomeLoader;
-    TIndex              index;
-    TStore              store;
-    TReads              reads;
-    TReadsLoader        readsLoader;
+    typename Traits::TGenome            genome;
+//    typename Traits::TGenomeLoader      genomeLoader;
+    typename Traits::TIndex             index;
+    typename Traits::TStore             store;
+    typename Traits::TReads             reads;
+    typename Traits::TReadsLoader       readsLoader;
 
-    TReadsContext       ctx;
-    TSeeds              seeds;
-    THits               hits;
-    TMatches            anchors;
-    TMatches            mates;
+    typename Traits::TReadsContext      ctx;
+    typename Traits::TSeedsBuckets      seeds;
+    typename Traits::THitsBuckets       hits;
+    typename Traits::TMatches           anchors;
+    typename Traits::TMatches           mates;
 
-    TFinderExt          finderExt;
-    TFinderApx          finderApx;
-//    TWriter             writer;
+    typename Traits::TFinderExt         finderExt;
+    typename Traits::TFinderApx         finderApx;
+//    typename Traits::TWriter            writer;
 
     Mapper(Options const & options) :
         options(options),
@@ -372,14 +368,13 @@ inline void initReadsContext(Mapper<TSpec, TConfig> & mapper, TReadSeqs const & 
 template <typename TSpec, typename TConfig, typename TReadSeqs, typename TErrors>
 inline void seedReads(Mapper<TSpec, TConfig> & mapper, TReadSeqs const & readSeqs, Pair<TErrors> seedErrors)
 {
-    typedef Mapper<TSpec, TConfig>                      TMapper;
+    typedef MapperTraits<TSpec, TConfig>                TTraits;
     typedef typename Value<TReadSeqs>::Type             TReadSeq;
     typedef typename Id<TReadSeqs>::Type                TId;
     typedef typename Size<TReadSeq>::Type               TSize;
-    typedef typename TMapper::TSeeds                    TSeeds;
-    typedef typename Value<TSeeds>::Type                TSeedsSet;
+    typedef typename TTraits::TSeeds                    TSeeds;
     typedef SeedsCounter<TSize>                         TCounter;
-    typedef SeedsManager<TSeedsSet, String<TSize> >     TManager;
+    typedef SeedsManager<TSeeds, String<TSize> >        TManager;
     typedef Tuple<TCounter, TConfig::BUCKETS>           TCounters;
     typedef Tuple<TManager, TConfig::BUCKETS>           TManagers;
 
@@ -455,9 +450,9 @@ inline void _getSeedsPerRead(Mapper<TSpec, TConfig> & mapper, TReadSeqs const & 
 template <unsigned ERRORS, typename TSpec, typename TConfig, typename TBucketId>
 inline void findSeeds(Mapper<TSpec, TConfig> & mapper, TBucketId bucketId)
 {
-    typedef Mapper<TSpec, TConfig>          TMapper;
-    typedef typename TMapper::TPatternExt   TPatternExt;
-    typedef typename TMapper::TPatternApx   TPatternApx;
+    typedef MapperTraits<TSpec, TConfig>            TTraits;
+    typedef typename TTraits::TPatternExt           TPatternExt;
+    typedef typename TTraits::TPatternApx           TPatternApx;
 
     start(mapper.timer);
     std::cout << "Seeds count:\t\t\t" << length(mapper.seeds[bucketId]) << std::endl;
@@ -482,10 +477,10 @@ inline void findSeeds(Mapper<TSpec, TConfig> & mapper, TBucketId bucketId)
 // Function _findSeedsImpl()
 // ----------------------------------------------------------------------------
 
-template <typename TSpec, typename TConfig, typename THitsString, typename TSeedsSet, typename TFinder, typename TPattern>
-inline void _findSeedsImpl(Mapper<TSpec, TConfig> & /* mapper */, THitsString & hits, TSeedsSet & seeds, TFinder & finder, TPattern)
+template <typename TSpec, typename TConfig, typename THits, typename TSeeds, typename TFinder, typename TPattern>
+inline void _findSeedsImpl(Mapper<TSpec, TConfig> & /* mapper */, THits & hits, TSeeds & seeds, TFinder & finder, TPattern)
 {
-    HitsManager<THitsString> manager(hits);
+    HitsManager<THits> manager(hits);
 
 #ifdef PLATFORM_CUDA
     cudaPrintFreeMemory();
@@ -517,10 +512,11 @@ inline void _findSeedsImpl(Mapper<TSpec, TConfig> & /* mapper */, THitsString & 
 template <typename TSpec, typename TConfig>
 inline void classifyReads(Mapper<TSpec, TConfig> & mapper)
 {
-    typedef Mapper<TSpec, TConfig>                                  TMapper;
-    typedef typename TMapper::TReadsContext                         TReadsContext;
-    typedef typename TMapper::THitsString                           THits;
-    typedef typename TMapper::TSeedsSet                             TSeeds;
+    // TODO(esiragusa): pass Traits to ReadsClassifier
+    typedef MapperTraits<TSpec, TConfig>                            TTraits;
+    typedef typename TTraits::TReadsContext                         TReadsContext;
+    typedef typename TTraits::THits                           THits;
+    typedef typename TTraits::TSeeds                                TSeeds;
     typedef ReadsClassifier<TReadsContext, THits, TSeeds, TConfig>  TClassifier;
 
     TClassifier classifier(mapper.ctx, mapper.hits[0], mapper.seeds[0], mapper.options);
@@ -657,8 +653,8 @@ inline void _extendHitImpl(HitsExtender<TSpec, TConfig> & me, THitsIterator cons
     typedef typename Size<TReadSeq>::Type               TReadSeqSize;
     typedef typename Size<TReadSeq>::Type               TErrors;
 
-    typedef typename THitsExtender::TSeeds              TSeedsSet;
-    typedef typename Id<TSeedsSet>::Type                TSeedId;
+    typedef typename THitsExtender::TSeeds              TSeeds;
+    typedef typename Id<TSeeds>::Type                   TSeedId;
 
     typedef typename THitsExtender::THits               THits;
     typedef typename Value<THits>::Type                 THit;
@@ -745,8 +741,7 @@ inline void _addMatchImpl(HitsExtender<TSpec, TConfig> & /* me */, TExtender con
 template <typename TSpec, typename TConfig>
 inline void extendHits(Mapper<TSpec, TConfig> & mapper)
 {
-    typedef Mapper<TSpec, TConfig>          TMapper;
-    typedef typename TMapper::Traits        TTraits;
+    typedef MapperTraits<TSpec, TConfig>    TTraits;
     typedef HitsExtender<TSpec, TTraits>    THitsExtender;
 
     // TODO(esiragusa): guess the number of matches.
@@ -771,13 +766,13 @@ inline void extendHits(Mapper<TSpec, TConfig> & mapper)
 // ----------------------------------------------------------------------------
 // Debug stuff.
 
-template <typename TSpec, typename TConfig, typename TReadSeqs, typename THits, typename TSeedsSet, typename TFilename>
-inline void _writeHitsImpl(Mapper<TSpec, TConfig> const & mapper, TReadSeqs const & readSeqs, THits const & hits, TSeedsSet const & seeds, TFilename const & filename)
+template <typename TSpec, typename TConfig, typename TReadSeqs, typename THits, typename TSeeds, typename TFilename>
+inline void _writeHitsImpl(Mapper<TSpec, TConfig> const & mapper, TReadSeqs const & readSeqs, THits const & hits, TSeeds const & seeds, TFilename const & filename)
 {
-    typedef Mapper<TSpec, TConfig>                      TMapper;
-    typedef typename Id<TSeedsSet>::Type                TSeedId;
+    typedef MapperTraits<TSpec, TConfig>                TTraits;
+    typedef typename Id<TSeeds>::Type                   TSeedId;
     typedef Pair<TSeedId>                               TSeedIds;
-    typedef typename TMapper::THit                      THit;
+    typedef typename TTraits::THit                      THit;
     typedef typename Id<THit>::Type                     THitId;
     typedef typename Id<THit>::Type                     THitId;
     typedef Pair<THitId>                                THitIds;
@@ -831,20 +826,20 @@ inline void _verifyMatesImpl(Mapper<TSpec, TConfig> & /* mapper */, TReadSeqs & 
 template <typename TSpec, typename TConfig, typename TReadSeqs>
 inline void _verifyMatesImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, AnchorOne)
 {
-    typedef Mapper<TSpec, TConfig>                      TMapper;
+    typedef MapperTraits<TSpec, TConfig>                TTraits;
 
-    typedef typename TMapper::TContigs                  TContigs;
-    typedef typename TMapper::TContigsPos               TContigsPos;
+    typedef typename TTraits::TContigs                  TContigs;
+    typedef typename TTraits::TContigsPos               TContigsPos;
 
     typedef typename Size<TReadSeqs>::Type              TReadId;
     typedef typename Value<TReadSeqs>::Type             TReadSeq;
     typedef typename Size<TReadSeq>::Type               TErrors;
 
-    typedef typename TMapper::TMatches                  TMatches;
+    typedef typename TTraits::TMatches                  TMatches;
     typedef typename Size<TMatches>::Type               TMatchId;
     typedef typename Value<TMatches>::Type              TMatch;
 
-    typedef typename TMapper::TReadsContext             TReadsContext;
+    typedef typename TTraits::TReadsContext             TReadsContext;
     typedef MatchesManager<TReadSeqs, TReadsContext, TMatches>  TManager;
 
     typedef Myers<>                                     TAlgorithm;
@@ -897,8 +892,8 @@ inline void _getMateContigPos(Mapper<TSpec, TConfig> const & mapper,
                               TMatch const & anchor,
                               RightMate)
 {
-    typedef Mapper<TSpec, TConfig>                  TMapper;
-    typedef typename TMapper::TContig               TContig;
+    typedef MapperTraits<TSpec, TConfig>            TTraits;
+    typedef typename TTraits::TContig               TContig;
     typedef typename Size<TContig>::Type            TContigSize;
 
     TContigSize contigLength = length(contigs(mapper.genome)[anchor.contigId]);
@@ -1008,8 +1003,8 @@ inline void _mapReadsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs,
 template <typename TSpec, typename TConfig, typename TReadSeqs>
 inline void _mapReadsByStrata(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs)
 {
-    typedef Mapper<TSpec, TConfig>          TMapper;
-    typedef typename TMapper::THit          THit;
+    typedef MapperTraits<TSpec, TConfig>    TTraits;
+    typedef typename TTraits::THit          THit;
 
     initReadsContext(mapper, readSeqs);
     initSeeds(mapper, readSeqs);
