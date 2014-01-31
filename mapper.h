@@ -693,6 +693,8 @@ inline void _extendHitImpl(HitsExtender<TSpec, TConfig> & me, THitsIterator cons
     {
         // Invert SA value.
         TSAValue saValue = me.sa[saPos];
+        SEQAN_ASSERT_GEQ(suffixLength(saValue, me.contigs), seedLength);
+        if (suffixLength(saValue, me.contigs) < seedLength) continue;
         setSeqOffset(saValue, suffixLength(saValue, me.contigs) - seedLength);
 
         // Compute position in contig.
