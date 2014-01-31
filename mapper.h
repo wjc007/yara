@@ -221,12 +221,23 @@ struct Mapper
 // ============================================================================
 
 // ----------------------------------------------------------------------------
+// Function getReadErrors()
+// ----------------------------------------------------------------------------
+// Returns the absolute number of errors for a given read sequence.
+
+template <typename TReadSeqSize>
+inline TReadSeqSize getReadErrors(Options const & options, TReadSeqSize readSeqLength)
+{
+    return std::ceil(readSeqLength * (options.errorRate / 100.0));
+}
+
+// ----------------------------------------------------------------------------
 // Function configureThreads()
 // ----------------------------------------------------------------------------
 // Sets the number of threads that OpenMP can spawn.
 
 template <typename TSpec, typename TConfig>
-void configureThreads(Mapper<TSpec, TConfig> & mapper)
+inline void configureThreads(Mapper<TSpec, TConfig> & mapper)
 {
 #ifdef _OPENMP
     omp_set_num_threads(mapper.options.threadsCount);
@@ -427,26 +438,14 @@ inline void _getSeedsPerRead(Mapper<TSpec, TConfig> & mapper, TReadSeqs const & 
     typedef typename Value<TReadSeqs>::Type                 TReadSeq;
     typedef typename Size<TReadSeq>::Type                   TSize;
 
-    TSize seedErrors = getSeedErrors(mapper.ctx, readSeqId);
-    TSize errorsPerRead = _getErrorsPerRead(mapper, readSeqs, readSeqId);
-    TSize seedsPerRead = std::ceil((errorsPerRead + 1) / (seedErrors + 1.0));
     TSize readLength = length(readSeqs[readSeqId]);
-    TSize seedsLength = readLength / seedsPerRead;
+    TSize readErrors = getReadErrors(mapper.options, readLength);
+    TSize seedErrors = getSeedErrors(mapper.ctx, readSeqId);
+    TSize seedsCount = std::ceil((readErrors + 1) / (seedErrors + 1.0));
+    TSize seedsLength = readLength / seedsCount;
 
-    for (TSize seedId = 0; seedId < seedsPerRead; ++seedId)
+    for (TSize seedId = 0; seedId < seedsCount; ++seedId)
         delegate(TPos(readSeqId, seedId * seedsLength), seedsLength);
-}
-
-// ----------------------------------------------------------------------------
-// Function _getErrorsPerRead()
-// ----------------------------------------------------------------------------
-// Returns the absolute number of errors for a given read sequence.
-
-template <typename TSpec, typename TConfig, typename TReadSeqs, typename TReadSeqId>
-inline typename Size<typename Value<TReadSeqs>::Type>::Type
-_getErrorsPerRead(Mapper<TSpec, TConfig> & mapper, TReadSeqs const & readSeqs, TReadSeqId readSeqId)
-{
-    return std::ceil(length(readSeqs[readSeqId]) * (mapper.options.errorRate / 100.0));
 }
 
 // ----------------------------------------------------------------------------
@@ -709,7 +708,7 @@ inline void _extendHitImpl(HitsExtender<TSpec, TConfig> & me, THitsIterator cons
         TContigsPos contigEnd = posAdd(contigBegin, seedLength);
 
         // Get absolute number of errors.
-        TErrors maxErrors = 0;//_getErrorsPerRead(me, me.readSeqs, readSeqId);
+        TErrors maxErrors = getReadErrors(me.options, length(readSeq));
 
         extend(me.extender,
                readSeq,
@@ -880,7 +879,7 @@ inline void _verifyMatesImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSe
         matesManager.prototype.readId = mateId;
 
         // Get absolute number of errors.
-        TErrors maxErrors = _getErrorsPerRead(mapper, readSeqs, mateId);
+        TErrors maxErrors = getReadErrors(mapper.options, length(mateSeq));
 
         verify(verifier, mateSeq, contigBegin, contigEnd, maxErrors, matesManager);
     }
