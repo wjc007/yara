@@ -512,12 +512,8 @@ inline void _findSeedsImpl(Mapper<TSpec, TConfig> & /* mapper */, THits & hits, 
 template <typename TSpec, typename TConfig>
 inline void classifyReads(Mapper<TSpec, TConfig> & mapper)
 {
-    // TODO(esiragusa): pass Traits to ReadsClassifier
-    typedef MapperTraits<TSpec, TConfig>                            TTraits;
-    typedef typename TTraits::TReadsContext                         TReadsContext;
-    typedef typename TTraits::THits                           THits;
-    typedef typename TTraits::TSeeds                                TSeeds;
-    typedef ReadsClassifier<TReadsContext, THits, TSeeds, TConfig>  TClassifier;
+    typedef MapperTraits<TSpec, TConfig>                TTraits;
+    typedef ReadsClassifier<TSpec, TTraits>             TClassifier;
 
     TClassifier classifier(mapper.ctx, mapper.hits[0], mapper.seeds[0], mapper.options);
 
