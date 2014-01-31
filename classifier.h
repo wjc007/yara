@@ -113,9 +113,12 @@ inline void _classifyReadsImpl(ReadsClassifier<TReadsContext, THits, TSeeds, TCo
 template <typename TReadsContext, typename THits, typename TSeeds, typename TConfig>
 inline void _classifyReadsImpl(ReadsClassifier<TReadsContext, THits, TSeeds, TConfig> & classifier, AnchorOne)
 {
-    // TODO(esiragusa): fix this, it returns an empty prefix!
+    typedef Segment<TReadSeqs const, PrefixSegment>   TPrefix;
+
+    TPrefix pairs(classifier.readSeqs, getReadsCount(classifier.readSeqs));
+
     // Iterate over all pairs.
-    iterate(prefix(classifier.readSeqs, getReadsCount(classifier.readSeqs)), classifier, Rooted(), Parallel());
+    iterate(pairs, classifier, Rooted(), Parallel());
 }
 
 // ----------------------------------------------------------------------------
@@ -161,7 +164,8 @@ inline void _classifyReadImpl(ReadsClassifier<TReadsContext, THits, TSeeds, TCon
 // Selects the mate to anchor; raises the seeds errors, mark for reseeding and clears the hits of hard anchors.
 
 template <typename TReadsContext, typename THits, typename TSeeds, typename TConfig, typename TReadSeqsIterator>
-inline void _classifyReadImpl(ReadsClassifier<TReadsContext, THits, TSeeds, TConfig> & classifier, TReadSeqsIterator const & it, AnchorOne)
+inline void _classifyReadImpl(ReadsClassifier<TReadsContext, THits, TSeeds, TConfig> & classifier,
+                              TReadSeqsIterator const & it, AnchorOne)
 {
     typedef typename Value<THits>::Type                 THit;
     typedef typename Id<THit>::Type                     THitId;
