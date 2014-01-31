@@ -629,7 +629,7 @@ struct HitsExtender
 
     void operator() (TExtender const & /* extender */)
     {
-//        _addMatchImpl(*this, extender);
+        _addMatchImpl(*this, extender);
     }
 };
 
@@ -727,15 +727,15 @@ inline void _extendHitImpl(HitsExtender<TSpec, TConfig> & me, THitsIterator cons
     incStratum(me.ctx, readSeqId);
 }
 
-//template <typename TSpec, typename TConfig, typename TExtender>
-//inline void _addMatchImpl(HitsExtender<TSpec, TConfig> & me, TExtender const & extender)
-//{
+template <typename TSpec, typename TConfig, typename TExtender>
+inline void _addMatchImpl(HitsExtender<TSpec, TConfig> & /* me */, TExtender const & /* extender */)
+{
 //    me.prototype.contigId = getValueI1(matchBegin);
 //    me.prototype.contigBegin = getValueI2(matchBegin);
 //    me.prototype.contigEnd = getValueI2(matchEnd);
 //    me.prototype.errors = errors;
 //    appendValue(me.matches, me.prototype); // typename TConfig::TParallel()
-//}
+}
 
 // ----------------------------------------------------------------------------
 // Function extendHits()
