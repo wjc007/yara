@@ -32,11 +32,9 @@
 // ==========================================================================
 // Author: Enrico Siragusa <enrico.siragusa@fu-berlin.de>
 // ==========================================================================
-// This file contains the common Option class.
-// ==========================================================================
 
-#ifndef APP_CUDAMAPPER_OPTIONS_H_
-#define APP_CUDAMAPPER_OPTIONS_H_
+#ifndef APP_CUDAMAPPER_MISC_OPTIONS_H_
+#define APP_CUDAMAPPER_MISC_OPTIONS_H_
 
 #include <seqan/basic.h>
 #include <seqan/sequence.h>
@@ -313,4 +311,4 @@ void getTmpFolder(TOptions const & options, ArgumentParser const & parser)
     setEnv("TMPDIR", tmpFolder);
 }
 
-#endif  // #ifndef APP_CUDAMAPPER_OPTIONS_H_
+#endif  // #ifndef APP_CUDAMAPPER_MISC_OPTIONS_H_

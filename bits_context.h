@@ -32,8 +32,8 @@
 // Author: Enrico Siragusa <enrico.siragusa@fu-berlin.de>
 // ==========================================================================
 
-#ifndef APP_CUDAMAPPER_CONTEXT_H_
-#define APP_CUDAMAPPER_CONTEXT_H_
+#ifndef APP_CUDAMAPPER_BITS_CONTEXT_H_
+#define APP_CUDAMAPPER_BITS_CONTEXT_H_
 
 using namespace seqan;
 
@@ -168,4 +168,4 @@ inline unsigned long countMapped(TReadsContext const & ctx)
     return countIf(ctx, ctxIsMapped<TReadContext>, Parallel()) / 2;
 }
 
-#endif  // #ifndef APP_CUDAMAPPER_CONTEXT_H_
+#endif  // #ifndef APP_CUDAMAPPER_BITS_CONTEXT_H_

@@ -34,8 +34,8 @@
 // This file contains classes for storing and manipulating matches.
 // ==========================================================================
 
-#ifndef APP_CUDAMAPPER_MATCHES_H_
-#define APP_CUDAMAPPER_MATCHES_H_
+#ifndef APP_CUDAMAPPER_BITS_MATCHES_H_
+#define APP_CUDAMAPPER_BITS_MATCHES_H_
 
 using namespace seqan;
 
@@ -383,4 +383,4 @@ countMatches(TReadSeqs const & readSeqs, TMatches const & matches, TSpec const &
     return getCount(forEach(matches, MatchesCounter<TReadSeqs, TSpec>(readSeqs), Parallel()));
 }
 
-#endif  // #ifndef APP_CUDAMAPPER_MATCHES_H_
+#endif  // #ifndef APP_CUDAMAPPER_BITS_MATCHES_H_

@@ -1,7 +1,7 @@
 // ==========================================================================
 //                 SeqAn - The Library for Sequence Analysis
 // ==========================================================================
-// Copyright (c) 2006-2013, Knut Reinert, FU Berlin
+// Copyright (c) 2006-2010, Knut Reinert, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -31,41 +31,68 @@
 // ==========================================================================
 // Author: Enrico Siragusa <enrico.siragusa@fu-berlin.de>
 // ==========================================================================
+// This file contains tags.
+// ==========================================================================
 
-#ifndef APP_CUDAMAPPER_WRITER_H_
-#define APP_CUDAMAPPER_WRITER_H_
+#ifndef APP_CUDAMAPPER_MISC_TAGS_H_
+#define APP_CUDAMAPPER_MISC_TAGS_H_
+
+#include <seqan/basic.h>
 
 using namespace seqan;
 
 // ============================================================================
-// Classes
+// Tags
 // ============================================================================
 
 // ----------------------------------------------------------------------------
-// Class WriterConfig
+// Mapping Strategy Tags
 // ----------------------------------------------------------------------------
 
-template <typename TOptions_, typename TReadSeqs_>
-struct WriterConfig
-{
-    typedef TOptions_    TOptions;
-    typedef TReadSeqs_   TReadSeqs;
-};
+struct AnyBest_;
+struct AllBest_;
+struct All_;
+
+typedef Tag<AnyBest_>   AnyBest;
+typedef Tag<AllBest_>   AllBest;
+typedef Tag<All_>       All;
 
 // ----------------------------------------------------------------------------
-// Class Writer
+// Pairing Strategy Tags
 // ----------------------------------------------------------------------------
 
-template <typename TExecSpace, typename TConfig>
-struct Writer
-{
-    typedef typename TConfig::TOptions                      TOptions;
+struct AnchorOne_;
+struct AnchorBoth_;
 
-    TOptions const &    options;
+typedef Tag<AnchorBoth_>    AnchorOne;
+typedef Tag<AnchorOne_>     AnchorBoth;
 
-    Writer(TOptions const & options) :
-        options(options)
-    {}
-};
+// ----------------------------------------------------------------------------
+// Sequencing Technologies Tags
+// ----------------------------------------------------------------------------
 
-#endif  // #ifndef APP_CUDAMAPPER_WRITER_H_
+struct SingleEnd_;
+struct PairedEnd_;
+struct MatePairs_;
+
+typedef Tag<SingleEnd_>     SingleEnd;
+typedef Tag<PairedEnd_>     PairedEnd;
+typedef Tag<MatePairs_>     MatePairs;
+
+// ----------------------------------------------------------------------------
+// File Tags
+// ----------------------------------------------------------------------------
+
+struct LeftMate_;
+struct RightMate_;
+
+typedef Tag<LeftMate_>      LeftMate;
+typedef Tag<RightMate_>     RightMate;
+
+struct LeftFile_;
+struct RightFile_;
+
+typedef Tag<LeftFile_>      LeftFile;
+typedef Tag<RightFile_>     RightFile;
+
+#endif  // #ifndef APP_CUDAMAPPER_MISC_TAGS_H_

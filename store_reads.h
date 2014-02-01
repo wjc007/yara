@@ -34,8 +34,8 @@
 // This file contains the Reads and ReadsLoader classes.
 // ==========================================================================
 
-#ifndef APP_CUDAMAPPER_READS_H_
-#define APP_CUDAMAPPER_READS_H_
+#ifndef APP_CUDAMAPPER_STORE_READS_H_
+#define APP_CUDAMAPPER_STORE_READS_H_
 
 #include <seqan/basic.h>
 #include <seqan/sequence.h>
@@ -588,4 +588,4 @@ getMateSeqId(TReadSeqs const & readSeqs, TReadSeqId readSeqId)
     }
 }
 
-#endif  // #ifndef APP_CUDAMAPPER_READS_H_
+#endif  // #ifndef APP_CUDAMAPPER_STORE_READS_H_

@@ -34,8 +34,8 @@
 // This file contains the Genome class.
 // ==========================================================================
 
-#ifndef APP_CUDAMAPPER_GENOME_H_
-#define APP_CUDAMAPPER_GENOME_H_
+#ifndef APP_CUDAMAPPER_STORE_GENOME_H_
+#define APP_CUDAMAPPER_STORE_GENOME_H_
 
 #include <seqan/basic.h>
 #include <seqan/sequence.h>
@@ -382,4 +382,4 @@ void load(GenomeLoader<TSpec, TConfig> & loader)
     }
 }
 
-#endif  // #ifndef APP_CUDAMAPPER_GENOME_H_
+#endif  // #ifndef APP_CUDAMAPPER_STORE_GENOME_H_

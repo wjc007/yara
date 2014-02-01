@@ -32,8 +32,8 @@
 // Author: Enrico Siragusa <enrico.siragusa@fu-berlin.de>
 // ==========================================================================
 
-#ifndef APP_CUDAMAPPER_HITS_H_
-#define APP_CUDAMAPPER_HITS_H_
+#ifndef APP_CUDAMAPPER_BITS_HITS_H_
+#define APP_CUDAMAPPER_BITS_HITS_H_
 
 using namespace seqan;
 
@@ -453,4 +453,4 @@ inline void clearHits(THits & hits, Pair<THitId> hitIds)
                    clearRange<THit>);
 }
 
-#endif  // #ifndef APP_CUDAMAPPER_HITS_H_
+#endif  // #ifndef APP_CUDAMAPPER_BITS_HITS_H_

@@ -50,26 +50,26 @@
 // I/O and options
 // ----------------------------------------------------------------------------
 
-#include "tags.h"
-#include "reads.h"
-#include "genome.h"
+#include "misc_tags.h"
+#include "store_reads.h"
+#include "store_genome.h"
 
 // ----------------------------------------------------------------------------
 // App headers
 // ----------------------------------------------------------------------------
 
-#include "misc.h"
-#include "options.h"
-#include "types.h"
-#include "hits.h"
-#include "context.h"
-#include "matches.h"
-#include "index.h"
-#include "seeds.h"
-#include "classifier.h"
-#include "verifier.h"
-#include "extender.h"
-#include "writer.h"
+#include "misc_timer.h"
+#include "misc_options.h"
+#include "misc_types.h"
+#include "index_fm.h"
+#include "bits_hits.h"
+#include "bits_context.h"
+#include "bits_matches.h"
+#include "bits_seeds.h"
+#include "find_verifier.h"
+#include "find_extender.h"
+#include "mapper_classifier.h"
+#include "mapper_writer.h"
 #include "mapper.h"
 #ifndef CUDA_DISABLED
 #include "mapper.cuh"

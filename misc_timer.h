@@ -32,8 +32,8 @@
 // Author: Enrico Siragusa <enrico.siragusa@fu-berlin.de>
 // ==========================================================================
 
-#ifndef APP_CUDAMAPPER_MISC_H_
-#define APP_CUDAMAPPER_MISC_H_
+#ifndef APP_CUDAMAPPER_MISC_TIMER_H_
+#define APP_CUDAMAPPER_MISC_TIMER_H_
 
 using namespace seqan;
 
@@ -137,4 +137,4 @@ void printRuler()
               << std::endl << std::endl;
 }
 
-#endif // APP_CUDAMAPPER_MISC_H_
+#endif // APP_CUDAMAPPER_MISC_TIMER_H_
