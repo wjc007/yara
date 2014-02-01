@@ -90,9 +90,6 @@ struct AnchorsVerifier
         anchors(anchors),
         options(options)
     {
-        clear(mates);
-        reserve(mates, length(anchors), Exact());
-
         // Iterate over all anchors.
         iterate(anchors, *this, Rooted(), Parallel());
     }

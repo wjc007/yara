@@ -494,17 +494,19 @@ inline void extendHits(Mapper<TSpec, TConfig> & mapper)
     typedef MapperTraits<TSpec, TConfig>    TTraits;
     typedef HitsExtender<TSpec, TTraits>    THitsExtender;
 
+    start(mapper.timer);
+
     // TODO(esiragusa): guess the number of matches.
     clear(mapper.anchors);
     reserve(mapper.anchors, countHits(mapper) / 5);
 
-    start(mapper.timer);
     for (unsigned bucketId = 0; bucketId < TConfig::BUCKETS; bucketId++)
     {
         THitsExtender extender(mapper.ctx, mapper.anchors, contigs(mapper.genome),
                                mapper.seeds[bucketId], mapper.hits[bucketId],
                                indexSA(mapper.index), mapper.options);
     }
+
     stop(mapper.timer);
 
     std::cout << "Extension time:\t\t\t" << mapper.timer << std::endl;
@@ -574,10 +576,17 @@ inline void _verifyAnchorsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & read
     typedef AnchorsVerifier<TSpec, TTraits> TAnchorsVerifier;
 
     start(mapper.timer);
+
+    // TODO(esiragusa): guess the number of mates.
+    clear(mapper.mates);
+    reserve(mapper.mates, length(mapper.anchors));
+
     TAnchorsVerifier verifier(mapper.ctx, mapper.mates,
                               contigs(mapper.genome), readSeqs,
                               mapper.anchors, mapper.options);
+
     stop(mapper.timer);
+
     std::cout << "Verification time:\t\t" << mapper.timer << std::endl;
     std::cout << "Mates count:\t\t\t" << length(mapper.mates) << std::endl;
     std::cout << "Mapped pairs:\t\t\t" << countMatches(readSeqs, mapper.mates, typename TConfig::TSequencing()) << std::endl;
@@ -605,10 +614,7 @@ inline void removeDuplicates(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSe
 template <typename TSpec, typename TConfig>
 inline void mapReads(Mapper<TSpec, TConfig> & mapper)
 {
-//SEQAN_OMP_PRAGMA(critical(_mapper_mapReads_filter))
-//{
     _mapReadsImpl(mapper, getSeqs(mapper.reads), typename TConfig::TSequencing(), typename TConfig::TStrategy());
-//}
 }
 
 // ----------------------------------------------------------------------------
