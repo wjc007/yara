@@ -1019,7 +1019,7 @@ inline void _mapReadsByStrata(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readS
     // Sort hits by range size.
     // TODO(esiragusa): generalize sorting for approximate seeds, where one seed can have multiple hits.
     for (unsigned bucketId = 0; bucketId < TConfig::BUCKETS; ++bucketId)
-        std::stable_sort(begin(mapper.hits[bucketId], Standard()), end(mapper.hits[bucketId], Standard()), HitsSorterByCount<THit>());
+        stableSort(mapper.hits[bucketId], HitsSorterByCount<THit>());
 
     extendHits(mapper);
 
