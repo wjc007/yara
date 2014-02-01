@@ -493,7 +493,7 @@ inline void extendHits(Mapper<TSpec, TConfig> & mapper)
 
     // TODO(esiragusa): guess the number of matches.
     clear(mapper.anchors);
-    reserve(mapper.anchors, countHits(mapper) / 5);
+    reserve(mapper.anchors, countHits(mapper) / 3);
 
     for (unsigned bucketId = 0; bucketId < TConfig::BUCKETS; bucketId++)
     {
