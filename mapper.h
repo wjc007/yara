@@ -722,13 +722,13 @@ inline void _extendHitImpl(HitsExtender<TSpec, TConfig> & me, THitsIterator cons
 }
 
 template <typename TSpec, typename TConfig, typename TExtender>
-inline void _addMatchImpl(HitsExtender<TSpec, TConfig> & /* me */, TExtender const & /* extender */)
+inline void _addMatchImpl(HitsExtender<TSpec, TConfig> & me, TExtender const & /* extender */)
 {
 //    me.prototype.contigId = getValueI1(matchBegin);
 //    me.prototype.contigBegin = getValueI2(matchBegin);
 //    me.prototype.contigEnd = getValueI2(matchEnd);
 //    me.prototype.errors = errors;
-//    appendValue(me.matches, me.prototype); // typename TConfig::TParallel()
+    appendValue(me.matches, me.prototype, Insist(), Parallel());
 }
 
 // ----------------------------------------------------------------------------
