@@ -38,12 +38,6 @@
 using namespace seqan;
 
 // ============================================================================
-// Forwards
-// ============================================================================
-
-struct Options;
-
-// ============================================================================
 // Classes
 // ============================================================================
 
@@ -66,7 +60,6 @@ struct ReadsClassifier
 
     // Shared-memory read-only data.
     TSeeds const &      seeds;
-    // TODO(esiragusa): remove TReadSeqs - it is a global typedef
     TReadSeqs const &   readSeqs;
     Options const &     options;
 
@@ -99,7 +92,7 @@ template <typename TSpec, typename TConfig, typename TAnchoring>
 inline void _classifyReadsImpl(ReadsClassifier<TSpec, TConfig> & me, TAnchoring)
 {
     // Iterate over all reads.
-    iterate(me.readSeqs, me, Rooted(), Serial());
+    iterate(me.readSeqs, me, Rooted(), Parallel());
 }
 
 // ----------------------------------------------------------------------------
@@ -115,7 +108,7 @@ inline void _classifyReadsImpl(ReadsClassifier<TSpec, TConfig> & me, AnchorOne)
     TPrefix pairs(me.readSeqs, getReadsCount(me.readSeqs));
 
     // Iterate over all pairs.
-    iterate(pairs, me, Rooted(), Serial());
+    iterate(pairs, me, Rooted(), Parallel());
 }
 
 // ----------------------------------------------------------------------------

@@ -619,134 +619,33 @@ inline void _writeHitsImpl(Mapper<TSpec, TConfig> const & mapper, TReadSeqs cons
 }
 
 // ----------------------------------------------------------------------------
-// Function verifyMates()
+// Function verifyAnchors()
 // ----------------------------------------------------------------------------
 // Verifies all mates in within the insert window of their anchors.
 
 template <typename TSpec, typename TConfig, typename TReadSeqs>
-inline void verifyMates(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs)
+inline void verifyAnchors(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs)
 {
+    _verifyAnchorsImpl(mapper, readSeqs, typename TConfig::TAnchoring());
+}
+
+template <typename TSpec, typename TConfig, typename TReadSeqs, typename TAnchoring>
+inline void _verifyAnchorsImpl(Mapper<TSpec, TConfig> & /* mapper */, TReadSeqs & /* readSeqs */, TAnchoring) {}
+
+template <typename TSpec, typename TConfig, typename TReadSeqs>
+inline void _verifyAnchorsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, AnchorOne)
+{
+    typedef MapperTraits<TSpec, TConfig>    TTraits;
+    typedef AnchorsVerifier<TSpec, TTraits> TAnchorsVerifier;
+
     start(mapper.timer);
-    _verifyMatesImpl(mapper, readSeqs, typename TConfig::TAnchoring());
+    TAnchorsVerifier verifier(mapper.ctx, mapper.mates,
+                              contigs(mapper.genome), readSeqs,
+                              mapper.anchors, mapper.options);
     stop(mapper.timer);
     std::cout << "Verification time:\t\t" << mapper.timer << std::endl;
     std::cout << "Mates count:\t\t\t" << length(mapper.mates) << std::endl;
     std::cout << "Mapped pairs:\t\t\t" << countMatches(readSeqs, mapper.mates, typename TConfig::TSequencing()) << std::endl;
-}
-
-template <typename TSpec, typename TConfig, typename TReadSeqs, typename TAnchoring>
-inline void _verifyMatesImpl(Mapper<TSpec, TConfig> & /* mapper */, TReadSeqs & /* readSeqs */, TAnchoring)
-{}
-
-template <typename TSpec, typename TConfig, typename TReadSeqs>
-inline void _verifyMatesImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, AnchorOne)
-{
-    typedef MapperTraits<TSpec, TConfig>                TTraits;
-
-    typedef typename TTraits::TContigs                  TContigs;
-    typedef typename TTraits::TContigsPos               TContigsPos;
-
-    typedef typename Size<TReadSeqs>::Type              TReadId;
-    typedef typename Value<TReadSeqs>::Type             TReadSeq;
-    typedef typename Size<TReadSeq>::Type               TErrors;
-
-    typedef typename TTraits::TMatches                  TMatches;
-    typedef typename Size<TMatches>::Type               TMatchId;
-    typedef typename Value<TMatches>::Type              TMatch;
-
-    typedef typename TTraits::TReadsContext             TReadsContext;
-    typedef MatchesManager<TReadSeqs, TReadsContext, TMatches>  TManager;
-
-    typedef Myers<>                                     TAlgorithm;
-//    typedef Filter<MultipleShiftAnd>                    TAlgorithm;
-    typedef Verifier<TContigs, TReadSeq, TAlgorithm>    TVerifier;
-
-    TVerifier verifier(contigs(mapper.genome));
-
-    TManager matesManager(readSeqs, mapper.ctx, mapper.mates);
-    clear(mapper.mates);
-    reserve(mapper.mates, length(mapper.anchors), Exact());
-
-//    TVerifier verifier(contigs(mapper.genome), ctx, mates);
-//    iterate(anchors, extender, Rooted(), Parallel());
-
-    TMatchId matchesCount = length(mapper.anchors);
-    for (TMatchId matchId = 0; matchId < matchesCount; ++matchId)
-    {
-        TMatch const & match = mapper.anchors[matchId];
-        TReadId mateId = getMateSeqId(readSeqs, match.readId);
-        TReadSeq mateSeq = readSeqs[mateId];
-
-        TContigsPos contigBegin;
-        TContigsPos contigEnd;
-
-        if (isRevReadSeq(readSeqs, mateId))
-            _getMateContigPos(mapper, contigBegin, contigEnd, match, RightMate());
-        else
-            _getMateContigPos(mapper, contigBegin, contigEnd, match, LeftMate());
-
-        // Fill readId.
-        matesManager.prototype.readId = mateId;
-
-        // Get absolute number of errors.
-        TErrors maxErrors = getReadErrors(mapper.options, length(mateSeq));
-
-        verify(verifier, mateSeq, contigBegin, contigEnd, maxErrors, matesManager);
-    }
-}
-
-// ----------------------------------------------------------------------------
-// Function _getMateContigPos()
-// ----------------------------------------------------------------------------
-// Computes the insert window.
-
-template <typename TSpec, typename TConfig, typename TContigPos, typename TMatch>
-inline void _getMateContigPos(Mapper<TSpec, TConfig> const & mapper,
-                              TContigPos & contigBegin,
-                              TContigPos & contigEnd,
-                              TMatch const & anchor,
-                              RightMate)
-{
-    typedef MapperTraits<TSpec, TConfig>            TTraits;
-    typedef typename TTraits::TContig               TContig;
-    typedef typename Size<TContig>::Type            TContigSize;
-
-    TContigSize contigLength = length(contigs(mapper.genome)[anchor.contigId]);
-
-    setValueI1(contigBegin, anchor.contigId);
-    setValueI1(contigEnd, anchor.contigId);
-
-    contigBegin.i2 = 0;
-    if (anchor.contigBegin + mapper.options.libraryLength > mapper.options.libraryError)
-        contigBegin.i2 = anchor.contigBegin + mapper.options.libraryLength - mapper.options.libraryError;
-    contigBegin.i2 = _min(contigBegin.i2, contigLength);
-
-    contigEnd.i2 = _min(anchor.contigBegin + mapper.options.libraryLength + mapper.options.libraryError, contigLength);
-
-    SEQAN_ASSERT_LEQ(getValueI2(contigBegin), getValueI2(contigEnd));
-    SEQAN_ASSERT_LEQ(getValueI2(contigEnd) - getValueI2(contigBegin), 2 * mapper.options.libraryError);
-}
-
-template <typename TSpec, typename TConfig, typename TContigPos, typename TMatch>
-inline void _getMateContigPos(Mapper<TSpec, TConfig> const & mapper,
-                              TContigPos & contigBegin,
-                              TContigPos & contigEnd,
-                              TMatch const & anchor,
-                              LeftMate)
-{
-    setValueI1(contigBegin, anchor.contigId);
-    setValueI1(contigEnd, anchor.contigId);
-
-    contigBegin.i2 = 0;
-    if (anchor.contigEnd > mapper.options.libraryLength + mapper.options.libraryError)
-        contigBegin.i2 = anchor.contigEnd - mapper.options.libraryLength - mapper.options.libraryError;
-
-    contigEnd.i2 = 0;
-    if (anchor.contigEnd + mapper.options.libraryError > mapper.options.libraryLength)
-        contigEnd.i2 = anchor.contigEnd - mapper.options.libraryLength + mapper.options.libraryError;
-
-    SEQAN_ASSERT_LEQ(getValueI2(contigBegin), getValueI2(contigEnd));
-    SEQAN_ASSERT_LEQ(getValueI2(contigEnd) - getValueI2(contigBegin), 2 * mapper.options.libraryError);
 }
 
 // ----------------------------------------------------------------------------
@@ -796,7 +695,7 @@ inline void _mapReadsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs,
     findSeeds<2>(mapper, 2);
     extendHits(mapper);
     removeDuplicates(mapper, readSeqs);
-    verifyMates(mapper, readSeqs);
+    verifyAnchors(mapper, readSeqs);
 }
 
 // ----------------------------------------------------------------------------

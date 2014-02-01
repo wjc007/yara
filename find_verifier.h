@@ -117,8 +117,8 @@ verify(Verifier<THaystack, TNeedle, TSpec> & verifier,
     while (find(verifier.finder, verifier.pattern, -static_cast<int>(maxErrors)))
         paired = true;
 
-//    delegate(verifier);
-    if (paired) delegate(haystackBegin, haystackEnd, maxErrors);
+    if (paired) delegate(verifier);
+//    if (paired) delegate(haystackBegin, haystackEnd, maxErrors);
 }
 
 // ----------------------------------------------------------------------------

@@ -46,19 +46,19 @@ using namespace seqan;
 // ----------------------------------------------------------------------------
 // One instance per thread.
 
-template <typename TSpec, typename TConfig>
+template <typename TSpec, typename Traits>
 struct HitsExtender
 {
-    typedef typename TConfig::TContigs          TContigs;
-    typedef typename TConfig::TContigsPos       TContigsPos;
-    typedef typename TConfig::TReadSeqs         TReadSeqs;
-    typedef typename TConfig::TReadSeq          TReadSeq;
-    typedef typename TConfig::TReadsContext     TReadsContext;
-    typedef typename TConfig::TMatches          TMatches;
-    typedef typename TConfig::TMatch            TMatch;
-    typedef typename TConfig::TSeeds            TSeeds;
-    typedef typename TConfig::THits             THits;
-    typedef typename TConfig::TSA               TSA;
+    typedef typename Traits::TContigs          TContigs;
+    typedef typename Traits::TContigsPos       TContigsPos;
+    typedef typename Traits::TReadSeqs         TReadSeqs;
+    typedef typename Traits::TReadSeq          TReadSeq;
+    typedef typename Traits::TReadsContext     TReadsContext;
+    typedef typename Traits::TMatches          TMatches;
+    typedef typename Traits::TMatch            TMatch;
+    typedef typename Traits::TSeeds            TSeeds;
+    typedef typename Traits::THits             THits;
+    typedef typename Traits::TSA               TSA;
 
     typedef AlignTextBanded<FindPrefix, NMatchesNone_, NMatchesNone_> TMyersSpec;
     typedef Myers<TMyersSpec, True, void>               TAlgorithm;
@@ -110,7 +110,7 @@ struct HitsExtender
 
     void operator() (TExtender const & /* extender */)
     {
-        _addMatchImpl(*this, extender);
+        _addMatchImpl(*this);
     }
 };
 
@@ -123,10 +123,10 @@ struct HitsExtender
 // ----------------------------------------------------------------------------
 // Extends one hit.
 
-template <typename TSpec, typename TConfig, typename THitsIterator>
-inline void _extendHitImpl(HitsExtender<TSpec, TConfig> & me, THitsIterator const & hitsIt)
+template <typename TSpec, typename Traits, typename THitsIterator>
+inline void _extendHitImpl(HitsExtender<TSpec, Traits> & me, THitsIterator const & hitsIt)
 {
-    typedef HitsExtender<TSpec, TConfig>                THitsExtender;
+    typedef HitsExtender<TSpec, Traits>                 THitsExtender;
 
     typedef typename THitsExtender::TContigs            TContigs;
     typedef typename Size<TContigs>::Type               TContigId;
@@ -210,8 +210,13 @@ inline void _extendHitImpl(HitsExtender<TSpec, TConfig> & me, THitsIterator cons
     incStratum(me.ctx, readSeqId);
 }
 
-template <typename TSpec, typename TConfig, typename TExtender>
-inline void _addMatchImpl(HitsExtender<TSpec, TConfig> & me, TExtender const & /* extender */)
+// ----------------------------------------------------------------------------
+// Function _addMatchImpl()
+// ----------------------------------------------------------------------------
+// Adds one match.
+
+template <typename TSpec, typename Traits>
+inline void _addMatchImpl(HitsExtender<TSpec, Traits> & me)
 {
 //    me.prototype.contigId = getValueI1(matchBegin);
 //    me.prototype.contigBegin = getValueI2(matchBegin);
