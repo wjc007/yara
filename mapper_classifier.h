@@ -63,7 +63,10 @@ struct ReadsClassifier
     TReadSeqs const &   readSeqs;
     Options const &     options;
 
-    ReadsClassifier(TReadsContext & ctx, THits & hits, TSeeds const & seeds, Options const & options) :
+    ReadsClassifier(TReadsContext & ctx,
+                    THits & hits,
+                    TSeeds const & seeds,
+                    Options const & options) :
         ctx(ctx),
         hits(hits),
         seeds(seeds),
