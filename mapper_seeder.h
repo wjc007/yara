@@ -32,8 +32,8 @@
 // Author: Enrico Siragusa <enrico.siragusa@fu-berlin.de>
 // ==========================================================================
 
-#ifndef APP_CUDAMAPPER_MAPPER_SEEDER_H_
-#define APP_CUDAMAPPER_MAPPER_SEEDER_H_
+#ifndef APP_CUDAMAPPER_MAPPER_COLLECTOR_H_
+#define APP_CUDAMAPPER_MAPPER_COLLECTOR_H_
 
 using namespace seqan;
 
@@ -42,39 +42,54 @@ using namespace seqan;
 // ============================================================================
 
 // ----------------------------------------------------------------------------
-// Class ReadsSeeder
+// Class SeedsCollector
 // ----------------------------------------------------------------------------
 // One instance per thread.
 
 template <typename TSpec, typename Traits>
-struct ReadsSeeder
+struct SeedsCollector
 {
-    typedef typename Traits::TReadsContext     TReadsContext;
-    typedef typename Traits::TSeeds            TSeeds;
-    typedef typename Traits::TReadSeqs         TReadSeqs;
+    typedef typename Traits::TReadsContext      TReadsContext;
+    typedef typename Traits::TSeeds             TSeeds;
+    typedef typename Traits::TReadSeqs          TReadSeqs;
+//    typedef typename Traits::TSeedsCount        TSeedsCount;
+    typedef String<unsigned>                    TSeedsCount;
 
     // Shared-memory read-write data.
     TReadsContext &     ctx;
     TSeeds &            seeds;
+    TSeedsCount &       seedsCount;
 
     // Shared-memory read-only data.
     TReadSeqs const &   readSeqs;
     Options const &     options;
+    unsigned            seedErrors;
 
-    ReadsSeeder(TReadsContext & ctx, TSeeds & seeds, TReadSeqs const & readSeqs, Options const & options) :
+    SeedsCollector(TReadsContext & ctx,
+                   TSeeds & seeds,
+                   TSeedsCount & seedsCount,
+                   TReadSeqs const & readSeqs,
+                   Options const & options,
+                   unsigned seedErrors) :
         ctx(ctx),
         seeds(seeds),
+        seedsCount(seedsCount),
         readSeqs(readSeqs),
-        options(options)
+        options(options),
+        seedErrors(seedErrors)
     {
+        _init(*this);
+
         // Iterate over all reads.
         iterate(readSeqs, *this, Rooted(), Parallel());
+
+        _finalize(*this);
     }
 
     template <typename TReadSeqsIterator>
     void operator() (TReadSeqsIterator const & it)
     {
-        _seedReadImpl(*this, it);
+        _collectSeedsImpl(*this, it);
     }
 };
 
@@ -83,78 +98,58 @@ struct ReadsSeeder
 // ============================================================================
 
 // ----------------------------------------------------------------------------
-// Function _seedReadImpl()
+// Function _init()
 // ----------------------------------------------------------------------------
-// Samples seeds for one read.
 
-template <typename TSpec, typename Traits, typename TErrors>
-inline void _seedReadImpl(ReadsSeeder<TSpec, Traits> & me, Pair<TErrors> seedErrors)
+template <typename TSpec, typename Traits>
+inline void _init(SeedsCollector<TSpec, Traits> & me)
 {
-    typedef typename Traits::TReadSeqs                  TReadSeqs;
-    typedef typename Value<TReadSeqs>::Type             TReadSeq;
-    typedef typename Id<TReadSeqs>::Type                TId;
-    typedef typename Size<TReadSeq>::Type               TSize;
-    typedef typename Traits::TSeeds                     TSeeds;
-    typedef SeedsCounter<TSize>                         TCounter;
-    typedef SeedsManager<TSeeds, String<TSize> >        TManager;
-    typedef Tuple<TCounter, Traits::BUCKETS>            TCounters;
-    typedef Tuple<TManager, Traits::BUCKETS>            TManagers;
+    partialSum(me.seedsCount, me.seedsCount, Parallel());
 
-    TId readsCount = getReadSeqsCount(me.readSeqs);
+    // Resize space for seeds.
+    clear(me.seeds);
+    resize(me.seeds, back(me.seedsCount), Exact());
+}
 
-    // Initialize counters.
-    TCounters counters;
-    for (TErrors errors = getValueI1(seedErrors); errors <= getValueI2(seedErrors); ++errors)
-        resize(counters[errors], readsCount);
-
-    // Count seeds.
-    // Counters(ctx)
-//    iterate(readSeqs, counters, Rooted(), Parallel());
-
-    for (TId readSeqId = 0; readSeqId < readsCount; ++readSeqId)
-    {
-        if (getStatus(me.ctx, readSeqId) == STATUS_UNSEEDED)
-        {
-            unsigned char errors = getSeedErrors(me.ctx, readSeqId);
-            SEQAN_ASSERT_GEQ(errors, getValueI1(seedErrors));
-            SEQAN_ASSERT_LEQ(errors, getValueI2(seedErrors));
-            _getSeedsPerRead(me, readSeqId, counters[errors]);
-        }
-    }
-
-    // Initialize managers.
-    TManagers managers;
-    for (TErrors errors = getValueI1(seedErrors); errors <= getValueI2(seedErrors); ++errors)
-        init(managers[errors], me.seeds[errors], counters[errors].seedsPerRead);
-
-    // Select seeds.
-//    iterate(readSeqs, managers, Rooted(), Parallel());
-
-    for (TId readSeqId = 0; readSeqId < readsCount; ++readSeqId)
-    {
-        if (getStatus(me.ctx, readSeqId) == STATUS_UNSEEDED)
-        {
-            unsigned char errors = getSeedErrors(me.ctx, readSeqId);
-            SEQAN_ASSERT_GEQ(errors, getValueI1(seedErrors));
-            SEQAN_ASSERT_LEQ(errors, getValueI2(seedErrors));
-            _getSeedsPerRead(me, readSeqId, managers[errors]);
-            setStatus(me.ctx, readSeqId, STATUS_SEEDED);
-        }
-    }
+template <typename Traits>
+inline void _init(SeedsCollector<Counter, Traits> & me)
+{
+    clear(me.seedsCount);
+    resize(me.seedsCount, getReadSeqsCount(me.readSeqs), 0, Exact());
 }
 
 // ----------------------------------------------------------------------------
-// Function _getSeedsPerRead()
+// Function _collectSeedsImpl()
+// ----------------------------------------------------------------------------
+// Collects seeds from one unseeded read.
+
+template <typename TSpec, typename Traits, typename TReadSeqsIterator>
+inline void _collectSeedsImpl(SeedsCollector<TSpec, Traits> & me, TReadSeqsIterator const & it)
+{
+    typedef typename Traits::TReadSeqs                  TReadSeqs;
+    typedef typename Value<TReadSeqs>::Type             TReadSeq;
+    typedef typename Id<TReadSeqs>::Type                TReadSeqId;
+
+    TReadSeqId readSeqId = position(it);
+
+    if (getStatus(me.ctx, readSeqId) == STATUS_UNSEEDED)
+        _getSeeds(me, readSeqId);
+}
+
+// ----------------------------------------------------------------------------
+// Function _getSeeds()
 // ----------------------------------------------------------------------------
 // Enumerates the seeds for a given read sequence.
 
-template <typename TSpec, typename Traits, typename TReadSeqId, typename TDelegate>
-inline void _getSeedsPerRead(ReadsSeeder<TSpec, Traits> & me, TReadSeqId readSeqId, TDelegate & delegate)
+template <typename TSpec, typename Traits, typename TReadSeqId>
+inline void _getSeeds(SeedsCollector<TSpec, Traits> & me, TReadSeqId readSeqId)
 {
     typedef typename Traits::TReadSeqs                      TReadSeqs;
     typedef typename StringSetPosition<TReadSeqs>::Type     TPos;
     typedef typename Value<TReadSeqs>::Type                 TReadSeq;
     typedef typename Size<TReadSeq>::Type                   TSize;
+
+    if (getSeedErrors(me.ctx, readSeqId) != me.seedErrors) return;
 
     TSize readLength = length(me.readSeqs[readSeqId]);
     TSize readErrors = getReadErrors(me.options, readLength);
@@ -163,7 +158,52 @@ inline void _getSeedsPerRead(ReadsSeeder<TSpec, Traits> & me, TReadSeqId readSeq
     TSize seedsLength = readLength / seedsCount;
 
     for (TSize seedId = 0; seedId < seedsCount; ++seedId)
-        delegate(TPos(readSeqId, seedId * seedsLength), seedsLength);
+        _addSeed(me, TPos(readSeqId, seedId * seedsLength), seedsLength);
+
+    _markAsSeeded(me, readSeqId);
 }
 
-#endif  // #ifndef APP_CUDAMAPPER_MAPPER_SEEDER_H_
+// ----------------------------------------------------------------------------
+// Function _addSeed()
+// ----------------------------------------------------------------------------
+
+template <typename TSpec, typename Traits, typename TPos, typename TSize>
+inline void _addSeed(SeedsCollector<TSpec, Traits> & me, TPos seedPos, TSize seedLength)
+{
+    me.seedsCount[getSeqNo(seedPos)]--;
+    assignInfixWithLength(me.seeds, me.seedsCount[getSeqNo(seedPos)], seedPos, seedLength);
+}
+
+template <typename Traits, typename TPos, typename TSize>
+inline void _addSeed(SeedsCollector<Counter, Traits> & me, TPos seedPos, TSize /* seedLength */)
+{
+    me.seedsCount[getSeqNo(seedPos)]++;
+}
+
+// ----------------------------------------------------------------------------
+// Function _markAsSeeded()
+// ----------------------------------------------------------------------------
+
+template <typename TSpec, typename Traits, typename TReadSeqId>
+inline void _markAsSeeded(SeedsCollector<TSpec, Traits> & me, TReadSeqId readSeqId)
+{
+    setStatus(me.ctx, readSeqId, STATUS_SEEDED);
+}
+
+template <typename Traits, typename TReadSeqId>
+inline void _markAsSeeded(SeedsCollector<Counter, Traits> & /* me */, TReadSeqId /* readSeqId */) {}
+
+// ----------------------------------------------------------------------------
+// Function _finalize()
+// ----------------------------------------------------------------------------
+
+template <typename TSpec, typename Traits>
+inline void _finalize(SeedsCollector<TSpec, Traits> & me)
+{
+    _refreshStringSetLimits(me.seeds);
+}
+
+template <typename Traits>
+inline void _finalize(SeedsCollector<Counter, Traits> & /* me */) {}
+
+#endif  // #ifndef APP_CUDAMAPPER_MAPPER_COLLECTOR_H_
