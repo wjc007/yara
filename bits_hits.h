@@ -128,30 +128,6 @@ struct HitsCounter
 };
 
 // ----------------------------------------------------------------------------
-// Class HitsManager
-// ----------------------------------------------------------------------------
-
-template <typename THits, typename TSpec = void>
-struct HitsManager
-{
-    typedef typename Value<THits>::Type  THit;
-    typedef typename Spec<THit>::Type    THitSpec;
-
-    THits & hits;
-
-    HitsManager(THits & hits) :
-        hits(hits)
-    {}
-
-    template <typename TFinder>
-    SEQAN_HOST_DEVICE void
-    operator() (TFinder const & finder)
-    {
-        _addHit(*this, finder, THitSpec());
-    }
-};
-
-// ----------------------------------------------------------------------------
 // Class HitsSorterByXXX
 // ----------------------------------------------------------------------------
 
@@ -163,22 +139,6 @@ struct HitsSorterByCount
         return getCount(a) < getCount(b);
     }
 };
-
-// ============================================================================
-// Metafunctions
-// ============================================================================
-
-// ----------------------------------------------------------------------------
-// Metafunction View
-// ----------------------------------------------------------------------------
-
-namespace seqan {
-template <typename THits, typename TSpec>
-struct View<HitsManager<THits, TSpec> >
-{
-    typedef HitsManager<typename View<THits>::Type, TSpec>  Type;
-};
-}
 
 // ============================================================================
 // Functions
@@ -229,69 +189,6 @@ inline unsigned char
 getErrors(Hit<TSize, HammingDistance> const & hit)
 {
     return hit.errors;
-}
-
-// ----------------------------------------------------------------------------
-// Function view()
-// ----------------------------------------------------------------------------
-
-template <typename THits, typename TSpec>
-inline typename View<HitsManager<THits, TSpec> >::Type
-view(HitsManager<THits, TSpec> & manager)
-{
-    return typename View<HitsManager<THits, TSpec> >::Type(view(manager.hits));
-}
-
-// ----------------------------------------------------------------------------
-// Function init()
-// ----------------------------------------------------------------------------
-
-template <typename TSize, typename TSpec, typename TPattern>
-inline void init(HitsManager<TSize, TSpec> & manager, TPattern const & pattern)
-{
-    typedef HitsManager<TSize, TSpec>   TManager;
-    typedef typename TManager::THitSpec THitSpec;
-
-    _init(manager, pattern, THitSpec());
-}
-
-// ----------------------------------------------------------------------------
-// Function _init()
-// ----------------------------------------------------------------------------
-
-template <typename TSize, typename TSpec, typename TPattern>
-inline void _init(HitsManager<TSize, TSpec> & manager, TPattern const & pattern, Exact)
-{
-    resize(manager.hits, length(needle(pattern)), Exact());
-}
-
-template <typename TSize, typename TSpec, typename TPattern>
-inline void _init(HitsManager<TSize, TSpec> & manager, TPattern const & pattern, HammingDistance)
-{
-    // TODO(esiragusa): reserve more than this.
-    reserve(manager.hits, length(needle(pattern)) * 5, Exact());
-}
-
-// ----------------------------------------------------------------------------
-// Function _addHit()
-// ----------------------------------------------------------------------------
-
-template <typename THits, typename TSpec, typename TFinder>
-inline SEQAN_HOST_DEVICE void
-_addHit(HitsManager<THits, TSpec> & manager, TFinder const & finder, Exact)
-{
-    manager.hits[finder._patternIt].range = range(textIterator(finder));
-}
-
-template <typename THits, typename TSpec, typename TFinder>
-inline SEQAN_HOST_DEVICE void
-_addHit(HitsManager<THits, TSpec> & manager, TFinder const & finder, HammingDistance)
-{
-    typedef typename Value<THits>::Type THit;
-
-    THit hit = { range(textIterator(finder)), finder._patternIt, getScore(finder) };
-
-    appendValue(manager.hits, hit, Insist(), Parallel());
 }
 
 // ----------------------------------------------------------------------------

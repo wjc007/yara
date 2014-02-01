@@ -70,6 +70,7 @@
 #include "find_verifier.h"
 #include "mapper_collector.h"
 #include "mapper_classifier.h"
+#include "mapper_filter.h"
 #include "mapper_extender.h"
 #include "mapper_verifier.h"
 #include "mapper_writer.h"

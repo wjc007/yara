@@ -101,6 +101,7 @@ if (SEQAN_HAS_CUDA)
                                   mapper.cuh
                                   mapper_collector.h
                                   mapper_classifier.h
+                                  mapper_filter.h
                                   mapper_extender.h
                                   mapper_verifier.h
                                   mapper_writer.h
@@ -122,6 +123,7 @@ else ()
                                   mapper.h
                                   mapper_collector.h
                                   mapper_classifier.h
+                                  mapper_filter.h
                                   mapper_extender.h
                                   mapper_verifier.h
                                   mapper_writer.h
