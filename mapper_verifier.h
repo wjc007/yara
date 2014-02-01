@@ -166,7 +166,7 @@ inline void _verifyAnchorImpl(AnchorsVerifier<TSpec, Traits> & me, TAnchorsItera
 // Adds one mate.
 
 template <typename TSpec, typename Traits>
-inline void _addMatchImpl(AnchorsVerifier<TSpec, Traits> & me)
+inline void _addMatchImpl(AnchorsVerifier<TSpec, Traits> & /* me */)
 {
 //    me.prototype.contigId = getValueI1(matchBegin);
 //    me.prototype.contigBegin = getValueI2(matchBegin);
