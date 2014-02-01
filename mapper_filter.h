@@ -97,32 +97,6 @@ view(FilterDelegate<THits, TSpec> & me)
 }
 
 // ----------------------------------------------------------------------------
-// Function init()
-// ----------------------------------------------------------------------------
-
-template <typename THits, typename TSpec, typename TPattern>
-inline void init(FilterDelegate<THits, TSpec> & me, TPattern const & pattern)
-{
-    typedef FilterDelegate<THits, TSpec>   TManager;
-    typedef typename TManager::THitSpec THitSpec;
-
-    _init(me, pattern, THitSpec());
-}
-
-template <typename THits, typename TSpec, typename TPattern>
-inline void _init(FilterDelegate<THits, TSpec> & me, TPattern const & pattern, Exact)
-{
-    resize(me.hits, length(needle(pattern)), Exact());
-}
-
-template <typename THits, typename TSpec, typename TPattern>
-inline void _init(FilterDelegate<THits, TSpec> & me, TPattern const & pattern, HammingDistance)
-{
-    // TODO(esiragusa): reserve more than this.
-    reserve(me.hits, length(needle(pattern)) * 5, Exact());
-}
-
-// ----------------------------------------------------------------------------
 // Function _addHit()
 // ----------------------------------------------------------------------------
 
@@ -130,6 +104,7 @@ template <typename THits, typename TSpec, typename TFinder>
 inline SEQAN_HOST_DEVICE void
 _addHit(FilterDelegate<THits, TSpec> & me, TFinder const & finder, Exact)
 {
+    // NOTE(esiragusa): resize(hits, length(needle(pattern)), Exact())
     me.hits[finder._patternIt].range = range(textIterator(finder));
 }
 

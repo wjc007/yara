@@ -395,10 +395,12 @@ inline void findSeeds(Mapper<TSpec, TConfig> & mapper, TBucketId bucketId)
     if (ERRORS > 0)
     {
         setScoreThreshold(mapper.finderApx, ERRORS);
+        reserve(mapper.hits[bucketId], length(mapper.seeds[bucketId]) * 10 * ERRORS, Exact());
         _findSeedsImpl(mapper, mapper.hits[bucketId], mapper.seeds[bucketId], mapper.finderApx, TPatternApx());
     }
     else
     {
+        reserve(mapper.hits[bucketId], length(mapper.seeds[bucketId]), Exact());
         _findSeedsImpl(mapper, mapper.hits[bucketId], mapper.seeds[bucketId], mapper.finderExt, TPatternExt());
     }
 
@@ -407,10 +409,6 @@ inline void findSeeds(Mapper<TSpec, TConfig> & mapper, TBucketId bucketId)
     std::cout << "Hits count:\t\t\t" << countHits<unsigned long>(mapper.hits[bucketId]) << std::endl;
 //    writeHits(mapper, readSeqs, mapper.hits[bucketId], mapper.seeds[bucketId], "hits.csv");
 }
-
-// ----------------------------------------------------------------------------
-// Function _findSeedsImpl()
-// ----------------------------------------------------------------------------
 
 template <typename TSpec, typename TConfig, typename THits, typename TSeeds, typename TFinder, typename TPattern>
 inline void _findSeedsImpl(Mapper<TSpec, TConfig> & /* mapper */, THits & hits, TSeeds & seeds, TFinder & finder, TPattern)
@@ -422,9 +420,6 @@ inline void _findSeedsImpl(Mapper<TSpec, TConfig> & /* mapper */, THits & hits, 
 #endif
 
     TPattern pattern(seeds);
-
-    // Initialize the delegate.
-    init(delegate, pattern);
 
     // Find hits.
     find(finder, pattern, delegate);
