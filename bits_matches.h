@@ -40,16 +40,6 @@
 using namespace seqan;
 
 // ============================================================================
-// Forwards
-// ============================================================================
-
-//template <typename THaystack, typename TNeedle, typename TSpec>
-//struct Extender;
-//
-//template <typename THaystack, typename TNeedle, typename TSpec>
-//struct Verifier;
-
-// ============================================================================
 // Classes
 // ============================================================================
 
@@ -146,103 +136,6 @@ struct MatchesCounter<TReadSeqs, PairedEnd>
     void operator() (TMatch const & match)
     {
         matched[getPairId(readSeqs, match.readId)] = true;
-    }
-};
-
-// ----------------------------------------------------------------------------
-// Class MatchesManager
-// ----------------------------------------------------------------------------
-
-template <typename TReadSeqs, typename TReadsContext, typename TMatches, typename TConfig = void>
-struct MatchesManager
-{
-    typedef typename Value<TMatches>::Type  TMatch;
-
-    TReadSeqs const &   readSeqs;
-    TReadsContext &     ctx;
-    TMatches &          matches;
-    TMatch              prototype;
-
-    MatchesManager(TReadSeqs const & readSeqs, TReadsContext & ctx, TMatches & matches) :
-        readSeqs(readSeqs),
-        ctx(ctx),
-        matches(matches),
-        prototype()
-    {}
-
-    template <typename THaystackPos, typename TErrors>
-    void operator() (THaystackPos matchBegin, THaystackPos matchEnd, TErrors errors)
-    {
-        SEQAN_ASSERT_EQ(getValueI1(matchBegin), getValueI1(matchEnd));
-
-        prototype.contigId = getValueI1(matchBegin);
-        prototype.contigBegin = getValueI2(matchBegin);
-        prototype.contigEnd = getValueI2(matchEnd);
-        prototype.errors = errors;
-        appendValue(matches, prototype);
-    }
-
-//    template <typename THaystack, typename TNeedle, typename TSpec>
-//    void operator() (Extender<THaystack, TNeedle, TSpec> const & extender)
-//    {
-//        SEQAN_ASSERT_EQ(getValueI1(extender.matchBegin), getValueI1(extender.matchEnd));
-//
-//        prototype.contigBegin = getValueI2(extender.matchBegin);
-//        prototype.contigEnd = getValueI2(extender.matchEnd);
-//        prototype.errors = extender.errors;
-//        appendValue(matches, prototype);
-//    }
-
-//    template <typename THaystack, typename TNeedle, typename TSpec>
-//    void operator() (Verifier<THaystack, TNeedle, TSpec> const & verifier)
-//    {
-//        appendValue(matches, prototype);
-//    }
-};
-
-// ----------------------------------------------------------------------------
-// Class MatchesManager
-// ----------------------------------------------------------------------------
-
-template <typename TReadSeqs, typename TReadsContext, typename TMatches>
-struct MatchesManager<TReadSeqs, TReadsContext, TMatches, AnyBest>
-{
-    typedef typename Value<TMatches>::Type  TMatch;
-    typedef String<unsigned char>           TErrors;
-
-    TReadSeqs const &   readSeqs;
-    TReadsContext &     ctx;
-    TMatches &          matches;
-    TMatch              prototype;
-    // TODO(esiragusa): remove errors from manager, it must be lightweight.
-    TErrors             minErrors;
-
-    MatchesManager(TReadSeqs const & readSeqs, TReadsContext & ctx, TMatches & matches) :
-        readSeqs(readSeqs),
-        ctx(ctx),
-        matches(matches),
-        prototype()
-    {
-        resize(minErrors, getReadsCount(readSeqs), MaxValue<unsigned char>::VALUE, Exact());
-    }
-
-    template <typename THaystackPos, typename TErrors>
-    void operator() (THaystackPos /* matchBegin */, THaystackPos /* matchEnd */, TErrors errors)
-    {
-        typedef typename Size<TReadSeqs>::Type   TReadSeqId;
-
-        // TODO(esiragusa): rename prototype.readId member to prototype.readSeqId
-        TReadSeqId readId = getReadId(readSeqs, prototype.readId);
-
-        minErrors[readId] = _min(minErrors[readId], errors);
-
-        // One optimal match has been reported.
-        if (minErrors[readId] <= getStratum(ctx, prototype.readId))
-        {
-            // Mark both forward and reverse sequence as mapped.
-            setStatus(ctx, getFirstMateFwdSeqId(readSeqs, readId), STATUS_MAPPED);
-            setStatus(ctx, getFirstMateRevSeqId(readSeqs, readId), STATUS_MAPPED);
-        }
     }
 };
 
