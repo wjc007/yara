@@ -80,15 +80,6 @@ struct ReadsClassifier
         _classifyReadsImpl(*this, typename TConfig::TAnchoring());
     }
 
-    // NOTE(esiragusa): This is called on firstprivate.
-    ReadsClassifier(ReadsClassifier const & other) :
-        ctx(other.ctx),
-        hits(other.hits),
-        seeds(other.seeds),
-        readSeqs(other.readSeqs),
-        options(other.options)
-    {}
-
     template <typename TReadSeqsIterator>
     void operator() (TReadSeqsIterator const & it)
     {
