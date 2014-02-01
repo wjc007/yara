@@ -279,8 +279,8 @@ extend(Extender<THaystack, TNeedle, TSpec> & extender,
         if (!_extendRight(extender, haystackRight, needleRight, matchEnd, needleErrors, maxErrors)) return;
     }
 
-    delegate(extender);
-//    delegate(matchBegin, matchEnd, needleErrors);
+//    delegate(extender);
+    delegate(matchBegin, matchEnd, needleErrors);
 }
 
 #endif  // #ifndef APP_CUDAMAPPER_FIND_EXTENDER_H_
