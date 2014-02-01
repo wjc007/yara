@@ -99,7 +99,7 @@ if (SEQAN_HAS_CUDA)
                                   mapper.h
                                   mapper.cu
                                   mapper.cuh
-                                  mapper_seeder.h
+                                  mapper_collector.h
                                   mapper_classifier.h
                                   mapper_extender.h
                                   mapper_verifier.h
@@ -120,7 +120,7 @@ if (SEQAN_HAS_CUDA)
 else ()
   add_executable(cuda_mapper      mapper.cpp
                                   mapper.h
-                                  mapper_seeder.h
+                                  mapper_collector.h
                                   mapper_classifier.h
                                   mapper_extender.h
                                   mapper_verifier.h
