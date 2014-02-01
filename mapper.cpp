@@ -69,6 +69,7 @@
 #include "find_verifier.h"
 #include "find_extender.h"
 #include "mapper_classifier.h"
+#include "mapper_extender.h"
 #include "mapper_writer.h"
 #include "mapper.h"
 #ifndef CUDA_DISABLED
