@@ -100,23 +100,23 @@ view(FilterDelegate<THits, TSpec> & me)
 // Function init()
 // ----------------------------------------------------------------------------
 
-template <typename TSize, typename TSpec, typename TPattern>
-inline void init(FilterDelegate<TSize, TSpec> & me, TPattern const & pattern)
+template <typename THits, typename TSpec, typename TPattern>
+inline void init(FilterDelegate<THits, TSpec> & me, TPattern const & pattern)
 {
-    typedef FilterDelegate<TSize, TSpec>   TManager;
+    typedef FilterDelegate<THits, TSpec>   TManager;
     typedef typename TManager::THitSpec THitSpec;
 
     _init(me, pattern, THitSpec());
 }
 
-template <typename TSize, typename TSpec, typename TPattern>
-inline void _init(FilterDelegate<TSize, TSpec> & me, TPattern const & pattern, Exact)
+template <typename THits, typename TSpec, typename TPattern>
+inline void _init(FilterDelegate<THits, TSpec> & me, TPattern const & pattern, Exact)
 {
     resize(me.hits, length(needle(pattern)), Exact());
 }
 
-template <typename TSize, typename TSpec, typename TPattern>
-inline void _init(FilterDelegate<TSize, TSpec> & me, TPattern const & pattern, HammingDistance)
+template <typename THits, typename TSpec, typename TPattern>
+inline void _init(FilterDelegate<THits, TSpec> & me, TPattern const & pattern, HammingDistance)
 {
     // TODO(esiragusa): reserve more than this.
     reserve(me.hits, length(needle(pattern)) * 5, Exact());
