@@ -418,7 +418,10 @@ inline void findSeeds(Mapper<TSpec, TConfig> & mapper, TBucketId bucketId)
 template <typename TSpec, typename TConfig, typename THits, typename TSeeds, typename TFinder, typename TPattern>
 inline void _findSeedsImpl(Mapper<TSpec, TConfig> & /* mapper */, THits & hits, TSeeds & seeds, TFinder & finder, TPattern)
 {
-    FilterDelegate<THits> delegate(hits);
+    typedef MapperTraits<TSpec, TConfig>            TTraits;
+    typedef FilterDelegate<TSpec, TTraits>          TDelegate;
+
+    TDelegate delegate(hits);
 
 #ifdef PLATFORM_CUDA
     cudaPrintFreeMemory();

@@ -45,11 +45,12 @@ using namespace seqan;
 // Class FilterDelegate
 // ----------------------------------------------------------------------------
 
-template <typename THits, typename TSpec = void>
+template <typename TSpec, typename Traits>
 struct FilterDelegate
 {
-    typedef typename Value<THits>::Type  THit;
-    typedef typename Spec<THit>::Type    THitSpec;
+    typedef typename Traits::THits      THits;
+    typedef typename Value<THits>::Type THit;
+    typedef typename Spec<THit>::Type   THitSpec;
 
     THits & hits;
 
@@ -74,10 +75,10 @@ struct FilterDelegate
 // ----------------------------------------------------------------------------
 
 namespace seqan {
-template <typename THits, typename TSpec>
-struct View<FilterDelegate<THits, TSpec> >
+template <typename TSpec, typename Traits>
+struct View<FilterDelegate<TSpec, Traits> >
 {
-    typedef FilterDelegate<typename View<THits>::Type, TSpec>  Type;
+    typedef FilterDelegate<typename View<typename Traits::THits>::Type, TSpec>   Type;
 };
 }
 
@@ -89,34 +90,34 @@ struct View<FilterDelegate<THits, TSpec> >
 // Function view()
 // ----------------------------------------------------------------------------
 
-template <typename THits, typename TSpec>
-inline typename View<FilterDelegate<THits, TSpec> >::Type
-view(FilterDelegate<THits, TSpec> & me)
+template <typename TSpec, typename Traits>
+inline typename View<FilterDelegate<TSpec, Traits> >::Type
+view(FilterDelegate<TSpec, Traits> & me)
 {
-    return typename View<FilterDelegate<THits, TSpec> >::Type(view(me.hits));
+    return typename View<FilterDelegate<TSpec, Traits> >::Type(view(me.hits));
 }
 
 // ----------------------------------------------------------------------------
 // Function _addHit()
 // ----------------------------------------------------------------------------
 
-template <typename THits, typename TSpec, typename TFinder>
+template <typename TSpec, typename Traits, typename TFinder>
 inline SEQAN_HOST_DEVICE void
-_addHit(FilterDelegate<THits, TSpec> & me, TFinder const & finder, Exact)
+_addHit(FilterDelegate<TSpec, Traits> & me, TFinder const & finder, Exact)
 {
     // NOTE(esiragusa): resize(hits, length(needle(pattern)), Exact())
     me.hits[finder._patternIt].range = range(textIterator(finder));
 }
 
-template <typename THits, typename TSpec, typename TFinder>
+template <typename TSpec, typename Traits, typename TFinder>
 inline SEQAN_HOST_DEVICE void
-_addHit(FilterDelegate<THits, TSpec> & me, TFinder const & finder, HammingDistance)
+_addHit(FilterDelegate<TSpec, Traits> & me, TFinder const & finder, HammingDistance)
 {
-    typedef typename Value<THits>::Type THit;
+    typedef typename Value<typename Traits::THits>::Type    THit;
 
     THit hit = { range(textIterator(finder)), finder._patternIt, getScore(finder) };
 
-    appendValue(me.hits, hit, Insist(), Parallel());
+    appendValue(me.hits, hit, Insist(), typename Traits::TThreading());
 }
 
 #endif  // #ifndef APP_CUDAMAPPER_MAPPER_FILTER_H_

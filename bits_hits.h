@@ -111,7 +111,7 @@ struct Spec<Hit<TSize, TSpec> >
 // Class HitsCounter
 // ----------------------------------------------------------------------------
 
-template <typename TSize, typename TSpec = void>
+template <typename TSize, typename TThreading, typename TSpec = void>
 struct HitsCounter
 {
     TSize count;
