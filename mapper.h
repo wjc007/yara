@@ -422,24 +422,14 @@ inline void _findSeedsImpl(Mapper<TSpec, TConfig> & /* mapper */, THits & hits, 
     typedef FilterDelegate<TSpec, TTraits>          TDelegate;
 
     TDelegate delegate(hits);
-
-#ifdef PLATFORM_CUDA
-    cudaPrintFreeMemory();
-#endif
-
     TPattern pattern(seeds);
 
     // Find hits.
     find(finder, pattern, delegate);
 
-#ifdef PLATFORM_CUDA
-    cudaPrintFreeMemory();
-#endif
-
-#ifdef _OPENMP
     // Sort the hits by seedId.
-    sortHits(hits, typename TConfig::TThreading());
-#endif
+    if (IsSameType<typename TConfig::TThreading, Parallel>::VALUE)
+        sortHits(hits, typename TConfig::TThreading());
 }
 
 // ----------------------------------------------------------------------------
