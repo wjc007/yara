@@ -100,10 +100,16 @@ struct AnchorsVerifier
         _verifyAnchorImpl(*this, anchorsIt);
     }
 
-    void operator() (TVerifier const & /* verifier */)
+    template <typename TMatchPos, typename TMatchErrors>
+    void operator() (TMatchPos matchBegin, TMatchPos matchEnd, TMatchErrors matchErrors)
     {
-        _addMatchImpl(*this);
+        _addMatchImpl(*this, matchBegin, matchEnd, matchErrors);
     }
+
+//    void operator() (TVerifier const & /* verifier */)
+//    {
+//        _addMatchImpl(*this);
+//    }
 };
 
 // ============================================================================
@@ -162,14 +168,17 @@ inline void _verifyAnchorImpl(AnchorsVerifier<TSpec, Traits> & me, TAnchorsItera
 // ----------------------------------------------------------------------------
 // Adds one mate.
 
-template <typename TSpec, typename Traits>
-inline void _addMatchImpl(AnchorsVerifier<TSpec, Traits> & /* me */)
+template <typename TSpec, typename Traits, typename TMatchPos, typename TMatchErrors>
+inline void _addMatchImpl(AnchorsVerifier<TSpec, Traits> & me,
+                          TMatchPos matchBegin,
+                          TMatchPos matchEnd,
+                          TMatchErrors matchErrors)
 {
-//    me.prototype.contigId = getValueI1(matchBegin);
-//    me.prototype.contigBegin = getValueI2(matchBegin);
-//    me.prototype.contigEnd = getValueI2(matchEnd);
-//    me.prototype.errors = errors;
-//    appendValue(me.matches, me.prototype, Insist(), Parallel());
+    me.prototype.contigId = getValueI1(matchBegin);
+    me.prototype.contigBegin = getValueI2(matchBegin);
+    me.prototype.contigEnd = getValueI2(matchEnd);
+    me.prototype.errors = matchErrors;
+    appendValue(me.mates, me.prototype, Insist(), Parallel());
 }
 
 // ----------------------------------------------------------------------------

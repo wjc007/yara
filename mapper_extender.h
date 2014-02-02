@@ -108,13 +108,16 @@ struct HitsExtender
         _extendHitImpl(*this, hitsIt);
     }
 
-//    void operator() (TExtender const & /* extender */)
-
     template <typename TMatchPos, typename TMatchErrors>
     void operator() (TMatchPos matchBegin, TMatchPos matchEnd, TMatchErrors matchErrors)
     {
         _addMatchImpl(*this, matchBegin, matchEnd, matchErrors);
     }
+
+//    void operator() (TExtender const & /* extender */)
+//    {
+//        _addMatchImpl(*this);
+//    }
 };
 
 // ============================================================================
@@ -217,9 +220,6 @@ inline void _extendHitImpl(HitsExtender<TSpec, Traits> & me, THitsIterator const
 // Function _addMatchImpl()
 // ----------------------------------------------------------------------------
 // Adds one match.
-
-//template <typename TSpec, typename Traits>
-//inline void _addMatchImpl(HitsExtender<TSpec, Traits> & me)
 
 template <typename TSpec, typename Traits, typename TMatchPos, typename TMatchErrors>
 inline void _addMatchImpl(HitsExtender<TSpec, Traits> & me,
