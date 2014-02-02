@@ -31,8 +31,9 @@
 // ==========================================================================
 // Author: Enrico Siragusa <enrico.siragusa@fu-berlin.de>
 // ==========================================================================
-// This file contains the Genome class.
+// This file contains the Genome and GenomeLoader classes.
 // ==========================================================================
+// NOTE(esiragusa): the FragmentStore should provide these functionalities.
 
 #ifndef APP_CUDAMAPPER_STORE_GENOME_H_
 #define APP_CUDAMAPPER_STORE_GENOME_H_

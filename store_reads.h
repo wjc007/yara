@@ -33,6 +33,7 @@
 // ==========================================================================
 // This file contains the Reads and ReadsLoader classes.
 // ==========================================================================
+// NOTE(esiragusa): the FragmentStore should provide these functionalities.
 
 #ifndef APP_CUDAMAPPER_STORE_READS_H_
 #define APP_CUDAMAPPER_STORE_READS_H_
