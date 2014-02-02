@@ -160,12 +160,12 @@ inline bool isMapped(TReadsContext const & ctx, TReadSeqId readSeqId)
 // Function countMapped()
 // ----------------------------------------------------------------------------
 
-template <typename TReadsContext>
-inline unsigned long countMapped(TReadsContext const & ctx)
+template <typename TReadsContext, typename TThreading>
+inline unsigned long countMapped(TReadsContext const & ctx, TThreading const & threading)
 {
     typedef typename Value<TReadsContext>::Type     TReadContext;
 
-    return countIf(ctx, ctxIsMapped<TReadContext>, Parallel()) / 2;
+    return countIf(ctx, ctxIsMapped<TReadContext>, threading) / 2;
 }
 
 #endif  // #ifndef APP_CUDAMAPPER_BITS_CONTEXT_H_

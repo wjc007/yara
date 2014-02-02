@@ -682,7 +682,7 @@ inline void _mapReadsByStrata(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readS
 
     extendHits(mapper);
 
-    std::cout << "Mapped reads:\t\t\t" << countMapped(mapper.ctx) << std::endl;
+    std::cout << "Mapped reads:\t\t\t" << countMapped(mapper.ctx, typename TConfig::TThreading()) << std::endl;
 
 //    clearHits(mapper);
 //    collectSeeds<1>(mapper, readSeqs);
