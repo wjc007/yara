@@ -438,7 +438,7 @@ inline void _findSeedsImpl(Mapper<TSpec, TConfig> & /* mapper */, THits & hits, 
 
 #ifdef _OPENMP
     // Sort the hits by seedId.
-    sortHits(hits);
+    sortHits(hits, typename TConfig::TThreading());
 #endif
 }
 
