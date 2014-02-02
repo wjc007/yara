@@ -52,8 +52,7 @@ struct SeedsCollector
     typedef typename Traits::TReadsContext      TReadsContext;
     typedef typename Traits::TSeeds             TSeeds;
     typedef typename Traits::TReadSeqs          TReadSeqs;
-//    typedef typename Traits::TSeedsCount        TSeedsCount;
-    typedef String<unsigned>                    TSeedsCount;
+    typedef typename Traits::TSeedsCount        TSeedsCount;
 
     // Shared-memory read-write data.
     TReadsContext &     ctx;

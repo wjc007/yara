@@ -141,6 +141,8 @@ struct MapperTraits
     typedef typename TStore::TReadSeqStore                          THostReadSeqs;
     typedef typename Space<THostReadSeqs, TExecSpace>::Type         TReadSeqs;
     typedef typename Value<TReadSeqs>::Type                         TReadSeq;
+    typedef typename Size<TReadSeqs>::Type                          TReadSeqSize;
+    typedef String<TReadSeqSize>                                    TSeedsCount;
 
     typedef ReadContext<TSpec, TConfig>                             TReadContext;
     typedef String<TReadContext>                                    TReadsContext;
@@ -372,7 +374,7 @@ inline void collectSeeds(Mapper<TSpec, TConfig> & mapper, TReadSeqs const & read
     typedef SeedsCollector<Counter, TTraits>            TCounter;
     typedef SeedsCollector<void, TTraits>               TFiller;
 
-    String<unsigned> seedsCounts;
+    typename TTraits::TSeedsCount seedsCounts;
 
     TCounter counter(mapper.ctx, mapper.seeds[ERRORS], seedsCounts, readSeqs, mapper.options, ERRORS);
     TFiller filler(mapper.ctx, mapper.seeds[ERRORS], seedsCounts, readSeqs, mapper.options, ERRORS);
