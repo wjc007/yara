@@ -101,7 +101,7 @@ struct MatchSorterByErrors
 // Class MatchesCounter
 // ----------------------------------------------------------------------------
 
-template <typename TReadSeqs, typename TSpec = void>
+template <typename TReadSeqs, typename TSequencing = SingleEnd>
 struct MatchesCounter
 {
     TReadSeqs const &   readSeqs;
@@ -186,8 +186,8 @@ inline bool isDuplicateEnd(Match<TSpec> const & a, Match<TSpec> const & b)
 // Function removeDuplicateMatches()
 // ----------------------------------------------------------------------------
 
-template <typename TMatches>
-inline void removeDuplicateMatches(TMatches & matches)
+template <typename TMatches, typename TThreading>
+inline void removeDuplicateMatches(TMatches & matches, TThreading const & threading)
 {
     typedef typename Iterator<TMatches, Standard>::Type         TMatchesIterator;
     typedef typename Value<TMatches>::Type                      TMatch;
@@ -202,9 +202,9 @@ inline void removeDuplicateMatches(TMatches & matches)
     newIt = matchesBegin;
     oldIt = matchesBegin;
 
-//    stableSort(matches, MatchSorterByReadId<TMatch>(), Parallel());
+//    stableSort(matches, MatchSorterByReadId<TMatch>(), threading);
 
-    stableSort(matches, MatchSorterByEndPos<TMatch>(), Parallel());
+    stableSort(matches, MatchSorterByEndPos<TMatch>(), threading);
 
     // Remove duplicates by end position.
     while (oldIt != matchesEnd)
@@ -225,7 +225,7 @@ inline void removeDuplicateMatches(TMatches & matches)
     newIt = matchesBegin;
     oldIt = matchesBegin;
 
-    stableSort(matches, MatchSorterByBeginPos<TMatch>(), Parallel());
+    stableSort(matches, MatchSorterByBeginPos<TMatch>(), threading);
 
     // Remove duplicates by begin position.
     while (oldIt != matchesEnd)
@@ -246,34 +246,34 @@ inline void removeDuplicateMatches(TMatches & matches)
 // Function sortByErrors()
 // ----------------------------------------------------------------------------
 
-template <typename TMatches>
-inline void sortByErrors(TMatches & matches)
+template <typename TMatches, typename TThreading>
+inline void sortByErrors(TMatches & matches, TThreading const & threading)
 {
     typedef typename Value<TMatches>::Type  TMatch;
 
-    sort(matches, MatchSorterByErrors<TMatch>(), Parallel());
+    sort(matches, MatchSorterByErrors<TMatch>(), threading);
 }
 
 // ----------------------------------------------------------------------------
 // Function getCount()
 // ----------------------------------------------------------------------------
 
-template <typename TReadSeqs, typename TSpec>
+template <typename TReadSeqs, typename TSequencing, typename TThreading>
 inline typename Size<TReadSeqs>::Type
-getCount(MatchesCounter<TReadSeqs, TSpec> const & counter)
+getCount(MatchesCounter<TReadSeqs, TSequencing> const & counter, TThreading const & threading)
 {
-    return count(counter.matched, true, Parallel());
+    return count(counter.matched, true, threading);
 }
 
 // ----------------------------------------------------------------------------
 // Function countMatches()
 // ----------------------------------------------------------------------------
 
-template <typename TReadSeqs, typename TMatches, typename TSpec>
+template <typename TReadSeqs, typename TMatches, typename TSequencing, typename TThreading>
 inline typename Size<TReadSeqs>::Type
-countMatches(TReadSeqs const & readSeqs, TMatches const & matches, TSpec const & /* tag */)
+countMatches(TReadSeqs const & readSeqs, TMatches const & matches, TSequencing const & /* tag */, TThreading const & threading)
 {
-    return getCount(forEach(matches, MatchesCounter<TReadSeqs, TSpec>(readSeqs), Parallel()));
+    return getCount(forEach(matches, MatchesCounter<TReadSeqs, TSequencing>(readSeqs), threading), threading);
 }
 
 #endif  // #ifndef APP_CUDAMAPPER_BITS_MATCHES_H_

@@ -95,7 +95,7 @@ template <typename TSpec, typename TConfig, typename TAnchoring>
 inline void _classifyReadsImpl(ReadsClassifier<TSpec, TConfig> & me, TAnchoring)
 {
     // Iterate over all reads.
-    iterate(me.readSeqs, me, Rooted(), Parallel());
+    iterate(me.readSeqs, me, Rooted(), typename TConfig::TThreading());
 }
 
 // ----------------------------------------------------------------------------
@@ -111,7 +111,7 @@ inline void _classifyReadsImpl(ReadsClassifier<TSpec, TConfig> & me, AnchorOne)
     TPrefix pairs(me.readSeqs, getReadsCount(me.readSeqs));
 
     // Iterate over all pairs.
-    iterate(pairs, me, Rooted(), Parallel());
+    iterate(pairs, me, Rooted(), typename TConfig::TThreading());
 }
 
 // ----------------------------------------------------------------------------

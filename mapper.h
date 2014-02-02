@@ -98,6 +98,7 @@ struct Options
 // ----------------------------------------------------------------------------
 
 template <typename TExecSpace_  = ExecHost,
+          typename TThreading_  = Parallel,
           typename TSequencing_ = SingleEnd,
           typename TStrategy_   = AnyBest,
           typename TAnchoring_  = Nothing,
@@ -105,6 +106,7 @@ template <typename TExecSpace_  = ExecHost,
 struct ReadMapperConfig : public CUDAStoreConfig
 {
     typedef TExecSpace_     TExecSpace;
+    typedef TThreading_     TThreading;
     typedef TSequencing_    TSequencing;
     typedef TStrategy_      TStrategy;
     typedef TAnchoring_     TAnchoring;
@@ -120,6 +122,7 @@ template <typename TSpec, typename TConfig>
 struct MapperTraits
 {
     typedef typename TConfig::TExecSpace                            TExecSpace;
+    typedef typename TConfig::TThreading                            TThreading;
     typedef typename TConfig::TSequencing                           TSequencing;
     typedef typename TConfig::TStrategy                             TStrategy;
     typedef typename TConfig::TAnchoring                            TAnchoring;
@@ -408,7 +411,7 @@ inline void findSeeds(Mapper<TSpec, TConfig> & mapper, TBucketId bucketId)
 
     stop(mapper.timer);
     std::cout << "Seeding time:\t\t\t" << mapper.timer << std::endl;
-    std::cout << "Hits count:\t\t\t" << countHits<unsigned long>(mapper.hits[bucketId]) << std::endl;
+    std::cout << "Hits count:\t\t\t" << countHits<unsigned long>(mapper.hits[bucketId], typename TConfig::TThreading()) << std::endl;
 //    writeHits(mapper, readSeqs, mapper.hits[bucketId], mapper.seeds[bucketId], "hits.csv");
 }
 
@@ -449,7 +452,7 @@ inline void classifyReads(Mapper<TSpec, TConfig> & mapper)
 
     TClassifier classifier(mapper.ctx, mapper.hits[0], mapper.seeds[0], mapper.options);
 
-    std::cout << "Hits count:\t\t\t" << countHits<unsigned long>(mapper.hits[0]) << std::endl;
+    std::cout << "Hits count:\t\t\t" << countHits<unsigned long>(mapper.hits[0], typename TConfig::TThreading()) << std::endl;
 }
 
 // ----------------------------------------------------------------------------
@@ -475,7 +478,7 @@ inline unsigned long countHits(Mapper<TSpec, TConfig> const & mapper)
     unsigned long hitsCount = 0;
 
     for (unsigned bucketId = 0; bucketId < TConfig::BUCKETS; bucketId++)
-        hitsCount += countHits<unsigned long>(mapper.hits[bucketId]);
+        hitsCount += countHits<unsigned long>(mapper.hits[bucketId], typename TConfig::TThreading());
 
     return hitsCount;
 }
@@ -544,7 +547,7 @@ inline void _writeHitsImpl(Mapper<TSpec, TConfig> const & mapper, TReadSeqs cons
         for (TSeedId seedId = getValueI1(readSeedIds); seedId < getValueI2(readSeedIds); ++seedId)
         {
             THitIds seedHitIds = getHitIds(hits, seedId);
-            file << countHits<THitSize>(hits, seedHitIds) << "\t";
+            file << countHits<THitSize>(hits, seedHitIds, Serial()) << "\t";
         }
         file << "\n";
     }
@@ -586,7 +589,7 @@ inline void _verifyAnchorsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & read
 
     std::cout << "Verification time:\t\t" << mapper.timer << std::endl;
     std::cout << "Mates count:\t\t\t" << length(mapper.mates) << std::endl;
-    std::cout << "Mapped pairs:\t\t\t" << countMatches(readSeqs, mapper.mates, typename TConfig::TSequencing()) << std::endl;
+    std::cout << "Mapped pairs:\t\t\t" << countMatches(readSeqs, mapper.mates, typename TConfig::TSequencing(), typename TConfig::TThreading()) << std::endl;
 }
 
 // ----------------------------------------------------------------------------
@@ -597,11 +600,11 @@ template <typename TSpec, typename TConfig, typename TReadSeqs>
 inline void removeDuplicates(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs)
 {
     start(mapper.timer);
-    removeDuplicateMatches(mapper.anchors);
+    removeDuplicateMatches(mapper.anchors, typename TConfig::TThreading());
     stop(mapper.timer);
     std::cout << "Compaction time:\t\t" << mapper.timer << std::endl;
     std::cout << "Anchors count:\t\t\t" << length(mapper.anchors) << std::endl;
-    std::cout << "Anchored pairs:\t\t\t" << countMatches(readSeqs, mapper.anchors, typename TConfig::TSequencing()) << std::endl;
+    std::cout << "Anchored pairs:\t\t\t" << countMatches(readSeqs, mapper.anchors, typename TConfig::TSequencing(), typename TConfig::TThreading()) << std::endl;
 }
 
 // ----------------------------------------------------------------------------
@@ -842,14 +845,15 @@ inline void runMapper(Mapper<TSpec, TConfig> & mapper, Parallel)
 // Function spawnMapper()
 // ----------------------------------------------------------------------------
 
-template <typename TExecSpace, typename TSequencing, typename TStrategy, typename TAnchoring>
+template <typename TExecSpace, typename TThreading, typename TSequencing, typename TStrategy, typename TAnchoring>
 inline void spawnMapper(Options const & options,
                         TExecSpace const & /* tag */,
+                        TThreading const & /* tag */,
                         TSequencing const & /* tag */,
                         TStrategy const & /* tag */,
                         TAnchoring const & /* tag */)
 {
-    typedef ReadMapperConfig<TExecSpace, TSequencing, TStrategy, TAnchoring> TConfig;
+    typedef ReadMapperConfig<TExecSpace, TThreading, TSequencing, TStrategy, TAnchoring> TConfig;
 
     Mapper<void, TConfig> mapper(options);
     runMapper(mapper);

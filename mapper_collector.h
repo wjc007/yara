@@ -80,7 +80,7 @@ struct SeedsCollector
         _init(*this);
 
         // Iterate over all reads.
-        iterate(readSeqs, *this, Rooted(), Parallel());
+        iterate(readSeqs, *this, Rooted(), typename Traits::TThreading());
 
         _finalize(*this);
     }
@@ -103,7 +103,7 @@ struct SeedsCollector
 template <typename TSpec, typename Traits>
 inline void _init(SeedsCollector<TSpec, Traits> & me)
 {
-    partialSum(me.seedsCount, me.seedsCount, Parallel());
+    partialSum(me.seedsCount, me.seedsCount, typename Traits::TThreading());
 
     // Resize space for seeds.
     clear(me.seeds);

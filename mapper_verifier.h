@@ -91,7 +91,7 @@ struct AnchorsVerifier
         options(options)
     {
         // Iterate over all anchors.
-        iterate(anchors, *this, Rooted(), Parallel());
+        iterate(anchors, *this, Rooted(), typename Traits::TThreading());
     }
 
     template <typename TAnchorsIterator>
@@ -178,7 +178,7 @@ inline void _addMatchImpl(AnchorsVerifier<TSpec, Traits> & me,
     me.prototype.contigBegin = getValueI2(matchBegin);
     me.prototype.contigEnd = getValueI2(matchEnd);
     me.prototype.errors = matchErrors;
-    appendValue(me.mates, me.prototype, Insist(), Parallel());
+    appendValue(me.mates, me.prototype, Insist(), typename Traits::TThreading());
 }
 
 // ----------------------------------------------------------------------------

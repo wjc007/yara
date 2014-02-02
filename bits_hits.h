@@ -123,7 +123,7 @@ struct HitsCounter
     template <typename THit>
     void operator() (THit const & hit)
     {
-        atomicAdd(count, getCount(hit), Parallel());
+        atomicAdd(count, getCount(hit), TThreading());
     }
 };
 
@@ -296,32 +296,32 @@ _getHitIds(THits const & hits, Pair<TSeedId> seedIds, HammingDistance)
 // Function sortHits()
 // ----------------------------------------------------------------------------
 
-template <typename THits>
-inline void sortHits(THits & hits)
+template <typename THits, typename TThreading>
+inline void sortHits(THits & hits, TThreading const & threading)
 {
     typedef typename Value<THits>::Type THit;
     typedef typename Spec<THit>::Type   THitSpec;
 
-    _sortHits(hits, THitSpec());
+    _sortHits(hits, THitSpec(), threading);
 }
 
-template <typename THits>
-inline void _sortHits(THits & /* hits */, Exact) {}
+template <typename THits, typename TThreading>
+inline void _sortHits(THits & /* hits */, Exact, TThreading const & /* threading */) {}
 
-template <typename THits>
-inline void _sortHits(THits & hits, HammingDistance)
+template <typename THits, typename TThreading>
+inline void _sortHits(THits & hits, HammingDistance, TThreading const & threading)
 {
-    return stableSort(hits, Parallel());
+    return stableSort(hits, threading);
 }
 
 // ----------------------------------------------------------------------------
 // Function countHits()
 // ----------------------------------------------------------------------------
 
-template <typename TSize, typename THits>
-inline TSize countHits(THits const & hits)
+template <typename TSize, typename THits, typename TThreading>
+inline TSize countHits(THits const & hits, TThreading const & threading)
 {
-    return forEach(hits, HitsCounter<TSize>(), Parallel()).count;
+    return forEach(hits, HitsCounter<TSize, TThreading>(), threading).count;
 }
 
 // ----------------------------------------------------------------------------
@@ -332,7 +332,7 @@ template <typename TSize, typename THits, typename THitId>
 inline TSize countHits(THits const & hits, Pair<THitId> hitIds)
 {
     return forEach(infix(hits, getValueI1(hitIds), getValueI2(hitIds)),
-                   HitsCounter<TSize>(), Serial()).count;
+                   HitsCounter<TSize, Serial>(), Serial()).count;
 }
 
 // ----------------------------------------------------------------------------

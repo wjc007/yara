@@ -99,7 +99,7 @@ struct HitsExtender
         options(options)
     {
         // Iterate over all hits.
-        iterate(hits, *this, Rooted(), Parallel());
+        iterate(hits, *this, Rooted(), typename Traits::TThreading());
     }
 
     template <typename THitsIterator>
@@ -231,7 +231,7 @@ inline void _addMatchImpl(HitsExtender<TSpec, Traits> & me,
     me.prototype.contigBegin = getValueI2(matchBegin);
     me.prototype.contigEnd = getValueI2(matchEnd);
     me.prototype.errors = matchErrors;
-    appendValue(me.matches, me.prototype, Insist(), Parallel());
+    appendValue(me.matches, me.prototype, Insist(), typename Traits::TThreading());
 }
 
 /*

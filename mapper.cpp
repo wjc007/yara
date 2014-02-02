@@ -228,32 +228,34 @@ parseCommandLine(Options & options, ArgumentParser & parser, int argc, char cons
 // Function configureAnchoring()
 // ----------------------------------------------------------------------------
 
-template <typename TExecSpace, typename TSequencing, typename TStrategy>
-void configureAnchoring(Options const & options, TExecSpace const & execSpace, TSequencing const & sequencing, TStrategy const & strategy)
+template <typename TExecSpace, typename TThreading, typename TSequencing, typename TStrategy>
+void configureAnchoring(Options const & options, TExecSpace const & execSpace, TThreading const & threading,
+                        TSequencing const & sequencing, TStrategy const & strategy)
 {
     if (options.anchorOne)
-        spawnMapper(options, execSpace, sequencing, strategy, AnchorOne());
+        spawnMapper(options, execSpace, threading, sequencing, strategy, AnchorOne());
     else
-        spawnMapper(options, execSpace, sequencing, strategy, AnchorBoth());
+        spawnMapper(options, execSpace, threading, sequencing, strategy, AnchorBoth());
 }
 
 // ----------------------------------------------------------------------------
 // Function configureStrategy()
 // ----------------------------------------------------------------------------
 
-template <typename TExecSpace, typename TSequencing>
-void configureStrategy(Options const & options, TExecSpace const & execSpace, TSequencing const & sequencing)
+template <typename TExecSpace, typename TThreading, typename TSequencing>
+void configureStrategy(Options const & options, TExecSpace const & execSpace, TThreading const & threading,
+                       TSequencing const & sequencing)
 {
     switch (options.mappingMode)
     {
     case Options::ANY_BEST:
-        return spawnMapper(options, execSpace, sequencing, AnyBest(), Nothing());
+        return spawnMapper(options, execSpace, threading, sequencing, AnyBest(), Nothing());
 
     case Options::ALL_BEST:
-        return spawnMapper(options, execSpace, sequencing, AllBest(), Nothing());
+        return spawnMapper(options, execSpace, threading, sequencing, AllBest(), Nothing());
 
     case Options::ALL:
-        return spawnMapper(options, execSpace, sequencing, All(), Nothing());
+        return spawnMapper(options, execSpace, threading, sequencing, All(), Nothing());
 
     default:
         return;
@@ -264,13 +266,28 @@ void configureStrategy(Options const & options, TExecSpace const & execSpace, TS
 // Function configureSequencing()
 // ----------------------------------------------------------------------------
 
-template <typename TExecSpace>
-void configureSequencing(Options const & options, TExecSpace const & execSpace)
+template <typename TExecSpace, typename TThreading>
+void configureSequencing(Options const & options, TExecSpace const & execSpace, TThreading const & threading)
 {
     if (options.singleEnd)
-        configureStrategy(options, execSpace, SingleEnd());
+        configureStrategy(options, execSpace, threading, SingleEnd());
     else
-        configureAnchoring(options, execSpace, PairedEnd(), All());
+        configureAnchoring(options, execSpace, threading, PairedEnd(), All());
+}
+
+// ----------------------------------------------------------------------------
+// Function configureThreading()
+// ----------------------------------------------------------------------------
+
+template <typename TExecSpace>
+void configureThreading(Options const & options, TExecSpace const & execSpace)
+{
+#ifdef _OPENMP
+    if (options.threadsCount > 1)
+        configureSequencing(options, execSpace, Parallel());
+    else
+#endif
+        configureSequencing(options, execSpace, Serial());
 }
 
 // ----------------------------------------------------------------------------
@@ -282,10 +299,10 @@ void configureMapper(Options const & options)
 #ifndef CUDA_DISABLED
     if (options.noCuda)
 #endif
-        configureSequencing(options, ExecHost());
+        configureThreading(options, ExecHost());
 #ifndef CUDA_DISABLED
     else
-        configureSequencing(options, ExecDevice());
+        configureThreading(options, ExecDevice());
 #endif
 }
 
