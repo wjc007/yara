@@ -34,8 +34,8 @@
 // This file contains Index overloads.
 // ==========================================================================
 
-#ifndef APP_CUDAMAPPER_INDEX_H_
-#define APP_CUDAMAPPER_INDEX_H_
+#ifndef APP_CUDAMAPPER_INDEX_FM_H_
+#define APP_CUDAMAPPER_INDEX_FM_H_
 
 // ----------------------------------------------------------------------------
 // Function save()
@@ -179,4 +179,4 @@ _getNodeByChar(Iter<Index<TText, FMIndex<TOccSpec, TIndexSpec> >, VSTree<TopDown
 }
 }
 
-#endif  // #ifndef APP_CUDAMAPPER_INDEX_H_
+#endif  // #ifndef APP_CUDAMAPPER_INDEX_FM_H_

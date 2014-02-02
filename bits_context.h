@@ -32,8 +32,8 @@
 // Author: Enrico Siragusa <enrico.siragusa@fu-berlin.de>
 // ==========================================================================
 
-#ifndef APP_CUDAMAPPER_CONTEXT_H_
-#define APP_CUDAMAPPER_CONTEXT_H_
+#ifndef APP_CUDAMAPPER_BITS_CONTEXT_H_
+#define APP_CUDAMAPPER_BITS_CONTEXT_H_
 
 using namespace seqan;
 
@@ -160,12 +160,12 @@ inline bool isMapped(TReadsContext const & ctx, TReadSeqId readSeqId)
 // Function countMapped()
 // ----------------------------------------------------------------------------
 
-template <typename TReadsContext>
-inline unsigned long countMapped(TReadsContext const & ctx)
+template <typename TReadsContext, typename TThreading>
+inline unsigned long countMapped(TReadsContext const & ctx, TThreading const & threading)
 {
     typedef typename Value<TReadsContext>::Type     TReadContext;
 
-    return std::count_if(begin(ctx, Standard()), end(ctx, Standard()), ctxIsMapped<TReadContext>) / 2;
+    return countIf(ctx, ctxIsMapped<TReadContext>, threading) / 2;
 }
 
-#endif  // #ifndef APP_CUDAMAPPER_CONTEXT_H_
+#endif  // #ifndef APP_CUDAMAPPER_BITS_CONTEXT_H_

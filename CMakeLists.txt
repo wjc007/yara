@@ -88,48 +88,58 @@ set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${SEQAN_CXX_FLAGS}")
 
 # Update the list of file names below if you add source files to your application.
 add_executable(cuda_indexer indexer.cpp
-                            genome.h
-                            misc.h
-                            options.h
-                            types.h
-                            index.h)
+                            store_genome.h
+                            misc_timer.h
+                            misc_options.h
+                            misc_types.h
+                            index_fm.h)
 
 if (SEQAN_HAS_CUDA)
   cuda_add_executable(cuda_mapper mapper.cpp
                                   mapper.h
                                   mapper.cu
                                   mapper.cuh
-                                  tags.h
-                                  reads.h
-                                  genome.h
-                                  misc.h
-                                  options.h
-                                  types.h
-                                  hits.h
-                                  matches.h
-                                  context.h
-                                  index.h
-                                  seeds.h
-                                  extender.h
-                                  verifier.h
-                                  writer.h)
+                                  mapper_collector.h
+                                  mapper_classifier.h
+                                  mapper_filter.h
+                                  mapper_extender.h
+                                  mapper_verifier.h
+                                  mapper_writer.h
+                                  store_reads.h
+                                  store_genome.h
+                                  misc_tags.h
+                                  misc_timer.h
+                                  misc_options.h
+                                  misc_types.h
+                                  bits_hits.h
+                                  bits_matches.h
+                                  bits_context.h
+                                  bits_seeds.h
+                                  find_extender.h
+                                  find_verifier.h
+                                  index_fm.h)
 else ()
   add_executable(cuda_mapper      mapper.cpp
                                   mapper.h
-                                  tags.h
-                                  reads.h
-                                  genome.h
-                                  misc.h
-                                  options.h
-                                  types.h
-                                  hits.h
-                                  matches.h
-                                  context.h
-                                  index.h
-                                  seeds.h
-                                  extender.h
-                                  verifier.h
-                                  writer.h)
+                                  mapper_collector.h
+                                  mapper_classifier.h
+                                  mapper_filter.h
+                                  mapper_extender.h
+                                  mapper_verifier.h
+                                  mapper_writer.h
+                                  store_reads.h
+                                  store_genome.h
+                                  misc_tags.h
+                                  misc_timer.h
+                                  misc_options.h
+                                  misc_types.h
+                                  bits_hits.h
+                                  bits_matches.h
+                                  bits_context.h
+                                  bits_seeds.h
+                                  find_extender.h
+                                  find_verifier.h
+                                  index_fm.h)
 endif ()
 
 # Add dependencies found by find_package (SeqAn).

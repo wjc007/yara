@@ -34,20 +34,10 @@
 // This file contains classes for storing and manipulating matches.
 // ==========================================================================
 
-#ifndef APP_CUDAMAPPER_MATCHES_H_
-#define APP_CUDAMAPPER_MATCHES_H_
+#ifndef APP_CUDAMAPPER_BITS_MATCHES_H_
+#define APP_CUDAMAPPER_BITS_MATCHES_H_
 
 using namespace seqan;
-
-// ============================================================================
-// Forwards
-// ============================================================================
-
-//template <typename THaystack, typename TNeedle, typename TSpec>
-//struct Extender;
-//
-//template <typename THaystack, typename TNeedle, typename TSpec>
-//struct Verifier;
 
 // ============================================================================
 // Classes
@@ -111,7 +101,7 @@ struct MatchSorterByErrors
 // Class MatchesCounter
 // ----------------------------------------------------------------------------
 
-template <typename TReadSeqs, typename TSpec = void>
+template <typename TReadSeqs, typename TSequencing = SingleEnd>
 struct MatchesCounter
 {
     TReadSeqs const &   readSeqs;
@@ -146,102 +136,6 @@ struct MatchesCounter<TReadSeqs, PairedEnd>
     void operator() (TMatch const & match)
     {
         matched[getPairId(readSeqs, match.readId)] = true;
-    }
-};
-
-// ----------------------------------------------------------------------------
-// Class MatchesManager
-// ----------------------------------------------------------------------------
-
-template <typename TReadSeqs, typename TReadsContext, typename TMatches, typename TConfig = void>
-struct MatchesManager
-{
-    typedef typename Value<TMatches>::Type  TMatch;
-
-    TReadSeqs const &   readSeqs;
-    TReadsContext &     ctx;
-    TMatches &          matches;
-    TMatch              prototype;
-
-    MatchesManager(TReadSeqs const & readSeqs, TReadsContext & ctx, TMatches & matches) :
-        readSeqs(readSeqs),
-        ctx(ctx),
-        matches(matches),
-        prototype()
-    {}
-
-    template <typename THaystackPos, typename TErrors>
-    void operator() (THaystackPos matchBegin, THaystackPos matchEnd, TErrors errors)
-    {
-        SEQAN_ASSERT_EQ(getValueI1(matchBegin), getValueI1(matchEnd));
-
-        prototype.contigId = getValueI1(matchBegin);
-        prototype.contigBegin = getValueI2(matchBegin);
-        prototype.contigEnd = getValueI2(matchEnd);
-        prototype.errors = errors;
-        appendValue(matches, prototype);
-    }
-
-//    template <typename THaystack, typename TNeedle, typename TSpec>
-//    void operator() (Extender<THaystack, TNeedle, TSpec> const & extender)
-//    {
-//        SEQAN_ASSERT_EQ(getValueI1(extender.matchBegin), getValueI1(extender.matchEnd));
-//
-//        prototype.contigBegin = getValueI2(extender.matchBegin);
-//        prototype.contigEnd = getValueI2(extender.matchEnd);
-//        prototype.errors = extender.errors;
-//        appendValue(matches, prototype);
-//    }
-
-//    template <typename THaystack, typename TNeedle, typename TSpec>
-//    void operator() (Verifier<THaystack, TNeedle, TSpec> const & verifier)
-//    {
-//        appendValue(matches, prototype);
-//    }
-};
-
-// ----------------------------------------------------------------------------
-// Class MatchesManager
-// ----------------------------------------------------------------------------
-
-template <typename TReadSeqs, typename TReadsContext, typename TMatches>
-struct MatchesManager<TReadSeqs, TReadsContext, TMatches, AnyBest>
-{
-    typedef typename Value<TMatches>::Type  TMatch;
-    typedef String<unsigned char>           TErrors;
-
-    TReadSeqs const &   readSeqs;
-    TReadsContext &     ctx;
-    TMatches &          matches;
-    TMatch              prototype;
-    TErrors             minErrors;
-
-    MatchesManager(TReadSeqs const & readSeqs, TReadsContext & ctx, TMatches & matches) :
-        readSeqs(readSeqs),
-        ctx(ctx),
-        matches(matches),
-        prototype()
-    {
-        resize(minErrors, getReadsCount(readSeqs), MaxValue<unsigned char>::VALUE, Exact());
-    }
-
-    template <typename THaystackPos, typename TErrors>
-    void operator() (THaystackPos /* matchBegin */, THaystackPos /* matchEnd */, TErrors errors)
-    {
-        typedef typename Size<TReadSeqs>::Type   TReadSeqId;
-
-        // TODO(esiragusa): rename prototype.readId member to prototype.readSeqId
-        TReadSeqId readId = getReadId(readSeqs, prototype.readId);
-
-        minErrors[readId] = _min(minErrors[readId], errors);
-
-        // One optimal match has been reported.
-        if (minErrors[readId] <= getStratum(ctx, prototype.readId))
-        {
-            // Mark both forward and reverse sequence as mapped.
-            setStatus(ctx, getFirstMateFwdSeqId(readSeqs, readId), STATUS_MAPPED);
-            setStatus(ctx, getFirstMateRevSeqId(readSeqs, readId), STATUS_MAPPED);
-        }
     }
 };
 
@@ -292,8 +186,8 @@ inline bool isDuplicateEnd(Match<TSpec> const & a, Match<TSpec> const & b)
 // Function removeDuplicateMatches()
 // ----------------------------------------------------------------------------
 
-template <typename TMatches>
-inline void removeDuplicateMatches(TMatches & matches)
+template <typename TMatches, typename TThreading>
+inline void removeDuplicateMatches(TMatches & matches, TThreading const & threading)
 {
     typedef typename Iterator<TMatches, Standard>::Type         TMatchesIterator;
     typedef typename Value<TMatches>::Type                      TMatch;
@@ -308,9 +202,9 @@ inline void removeDuplicateMatches(TMatches & matches)
     newIt = matchesBegin;
     oldIt = matchesBegin;
 
-//    std::stable_sort(matchesBegin, matchesEnd, MatchSorterByReadId<TMatch>());
+//    stableSort(matches, MatchSorterByReadId<TMatch>(), threading);
 
-    std::stable_sort(matchesBegin, matchesEnd, MatchSorterByEndPos<TMatch>());
+    stableSort(matches, MatchSorterByEndPos<TMatch>(), threading);
 
     // Remove duplicates by end position.
     while (oldIt != matchesEnd)
@@ -331,7 +225,7 @@ inline void removeDuplicateMatches(TMatches & matches)
     newIt = matchesBegin;
     oldIt = matchesBegin;
 
-    std::stable_sort(matchesBegin, matchesEnd, MatchSorterByBeginPos<TMatch>());
+    stableSort(matches, MatchSorterByBeginPos<TMatch>(), threading);
 
     // Remove duplicates by begin position.
     while (oldIt != matchesEnd)
@@ -352,40 +246,34 @@ inline void removeDuplicateMatches(TMatches & matches)
 // Function sortByErrors()
 // ----------------------------------------------------------------------------
 
-template <typename TMatches>
-inline void sortByErrors(TMatches & matches)
+template <typename TMatches, typename TThreading>
+inline void sortByErrors(TMatches & matches, TThreading const & threading)
 {
-    typedef typename Iterator<TMatches, Standard>::Type         TMatchesIterator;
-    typedef typename Value<TMatches>::Type                      TMatch;
+    typedef typename Value<TMatches>::Type  TMatch;
 
-    TMatchesIterator matchesBegin = begin(matches, Standard());
-    TMatchesIterator matchesEnd = end(matches, Standard());
-
-    std::sort(matchesBegin, matchesEnd, MatchSorterByErrors<TMatch>());
+    sort(matches, MatchSorterByErrors<TMatch>(), threading);
 }
 
 // ----------------------------------------------------------------------------
 // Function getCount()
 // ----------------------------------------------------------------------------
 
-template <typename TReadSeqs, typename TSpec>
+template <typename TReadSeqs, typename TSequencing, typename TThreading>
 inline typename Size<TReadSeqs>::Type
-getCount(MatchesCounter<TReadSeqs, TSpec> const & counter)
+getCount(MatchesCounter<TReadSeqs, TSequencing> const & counter, TThreading const & threading)
 {
-    return std::count(begin(counter.matched, Standard()), end(counter.matched, Standard()), true);
+    return count(counter.matched, true, threading);
 }
 
 // ----------------------------------------------------------------------------
 // Function countMatches()
 // ----------------------------------------------------------------------------
 
-template <typename TReadSeqs, typename TMatches, typename TSpec>
+template <typename TReadSeqs, typename TMatches, typename TSequencing, typename TThreading>
 inline typename Size<TReadSeqs>::Type
-countMatches(TReadSeqs const & readSeqs, TMatches const & matches, TSpec const & /* tag */)
+countMatches(TReadSeqs const & readSeqs, TMatches const & matches, TSequencing const & /* tag */, TThreading const & threading)
 {
-    return getCount(std::for_each(begin(matches, Standard()),
-                                  end(matches, Standard()),
-                                  MatchesCounter<TReadSeqs, TSpec>(readSeqs)));
+    return getCount(forEach(matches, MatchesCounter<TReadSeqs, TSequencing>(readSeqs), threading), threading);
 }
 
-#endif  // #ifndef APP_CUDAMAPPER_MATCHES_H_
+#endif  // #ifndef APP_CUDAMAPPER_BITS_MATCHES_H_

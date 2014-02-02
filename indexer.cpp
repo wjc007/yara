@@ -51,16 +51,16 @@
 // I/O and options
 // ----------------------------------------------------------------------------
 
-#include "genome.h"
+#include "store_genome.h"
 
 // ----------------------------------------------------------------------------
 // App headers
 // ----------------------------------------------------------------------------
 
-#include "misc.h"
-#include "options.h"
-#include "types.h"
-#include "index.h"
+#include "misc_timer.h"
+#include "misc_options.h"
+#include "misc_types.h"
+#include "index_fm.h"
 
 using namespace seqan;
 
@@ -282,7 +282,7 @@ int main(int argc, char const ** argv)
     }
     catch (Exception const & e)
     {
-        std::cout << e.what() << std::endl;
+        std::cerr << e.what() << std::endl;
         return 1;
     }
 

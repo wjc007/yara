@@ -33,6 +33,12 @@
 // ==========================================================================
 
 // ============================================================================
+// Forwards
+// ============================================================================
+
+struct Options;
+
+// ============================================================================
 // Prerequisites
 // ============================================================================
 
@@ -50,25 +56,30 @@
 // I/O and options
 // ----------------------------------------------------------------------------
 
-#include "tags.h"
-#include "reads.h"
-#include "genome.h"
+#include "misc_tags.h"
+#include "store_reads.h"
+#include "store_genome.h"
 
 // ----------------------------------------------------------------------------
 // App headers
 // ----------------------------------------------------------------------------
 
-#include "misc.h"
-#include "options.h"
-#include "types.h"
-#include "hits.h"
-#include "context.h"
-#include "matches.h"
-#include "index.h"
-#include "seeds.h"
-#include "verifier.h"
-#include "extender.h"
-#include "writer.h"
+#include "misc_timer.h"
+#include "misc_options.h"
+#include "misc_types.h"
+#include "index_fm.h"
+#include "bits_hits.h"
+#include "bits_context.h"
+#include "bits_matches.h"
+#include "bits_seeds.h"
+#include "find_verifier.h"
+#include "find_extender.h"
+#include "mapper_collector.h"
+#include "mapper_classifier.h"
+#include "mapper_filter.h"
+#include "mapper_extender.h"
+#include "mapper_verifier.h"
+#include "mapper_writer.h"
 #include "mapper.h"
 #ifndef CUDA_DISABLED
 #include "mapper.cuh"
@@ -217,32 +228,34 @@ parseCommandLine(Options & options, ArgumentParser & parser, int argc, char cons
 // Function configureAnchoring()
 // ----------------------------------------------------------------------------
 
-template <typename TExecSpace, typename TSequencing, typename TStrategy>
-void configureAnchoring(Options const & options, TExecSpace const & execSpace, TSequencing const & sequencing, TStrategy const & strategy)
+template <typename TExecSpace, typename TThreading, typename TSequencing, typename TStrategy>
+void configureAnchoring(Options const & options, TExecSpace const & execSpace, TThreading const & threading,
+                        TSequencing const & sequencing, TStrategy const & strategy)
 {
     if (options.anchorOne)
-        spawnMapper(options, execSpace, sequencing, strategy, AnchorOne());
+        spawnMapper(options, execSpace, threading, sequencing, strategy, AnchorOne());
     else
-        spawnMapper(options, execSpace, sequencing, strategy, AnchorBoth());
+        spawnMapper(options, execSpace, threading, sequencing, strategy, AnchorBoth());
 }
 
 // ----------------------------------------------------------------------------
 // Function configureStrategy()
 // ----------------------------------------------------------------------------
 
-template <typename TExecSpace, typename TSequencing>
-void configureStrategy(Options const & options, TExecSpace const & execSpace, TSequencing const & sequencing)
+template <typename TExecSpace, typename TThreading, typename TSequencing>
+void configureStrategy(Options const & options, TExecSpace const & execSpace, TThreading const & threading,
+                       TSequencing const & sequencing)
 {
     switch (options.mappingMode)
     {
     case Options::ANY_BEST:
-        return spawnMapper(options, execSpace, sequencing, AnyBest(), Nothing());
+        return spawnMapper(options, execSpace, threading, sequencing, AnyBest(), Nothing());
 
     case Options::ALL_BEST:
-        return spawnMapper(options, execSpace, sequencing, AllBest(), Nothing());
+        return spawnMapper(options, execSpace, threading, sequencing, AllBest(), Nothing());
 
     case Options::ALL:
-        return spawnMapper(options, execSpace, sequencing, All(), Nothing());
+        return spawnMapper(options, execSpace, threading, sequencing, All(), Nothing());
 
     default:
         return;
@@ -253,13 +266,28 @@ void configureStrategy(Options const & options, TExecSpace const & execSpace, TS
 // Function configureSequencing()
 // ----------------------------------------------------------------------------
 
-template <typename TExecSpace>
-void configureSequencing(Options const & options, TExecSpace const & execSpace)
+template <typename TExecSpace, typename TThreading>
+void configureSequencing(Options const & options, TExecSpace const & execSpace, TThreading const & threading)
 {
     if (options.singleEnd)
-        configureStrategy(options, execSpace, SingleEnd());
+        configureStrategy(options, execSpace, threading, SingleEnd());
     else
-        configureAnchoring(options, execSpace, PairedEnd(), All());
+        configureAnchoring(options, execSpace, threading, PairedEnd(), All());
+}
+
+// ----------------------------------------------------------------------------
+// Function configureThreading()
+// ----------------------------------------------------------------------------
+
+template <typename TExecSpace>
+void configureThreading(Options const & options, TExecSpace const & execSpace)
+{
+#ifdef _OPENMP
+    if (options.threadsCount > 1)
+        configureSequencing(options, execSpace, Parallel());
+    else
+#endif
+        configureSequencing(options, execSpace, Serial());
 }
 
 // ----------------------------------------------------------------------------
@@ -271,10 +299,10 @@ void configureMapper(Options const & options)
 #ifndef CUDA_DISABLED
     if (options.noCuda)
 #endif
-        configureSequencing(options, ExecHost());
+        configureThreading(options, ExecHost());
 #ifndef CUDA_DISABLED
     else
-        configureSequencing(options, ExecDevice());
+        configureThreading(options, ExecDevice());
 #endif
 }
 
@@ -299,7 +327,7 @@ int main(int argc, char const ** argv)
     }
     catch (Exception const & e)
     {
-        std::cout << e.what() << std::endl;
+        std::cerr << e.what() << std::endl;
         return 1;
     }
 

@@ -32,8 +32,8 @@
 // Author: Enrico Siragusa <enrico.siragusa@fu-berlin.de>
 // ==========================================================================
 
-#ifndef APP_CUDAMAPPER_VERIFIER_H_
-#define APP_CUDAMAPPER_VERIFIER_H_
+#ifndef APP_CUDAMAPPER_FIND_VERIFIER_H_
+#define APP_CUDAMAPPER_FIND_VERIFIER_H_
 
 using namespace seqan;
 
@@ -117,7 +117,7 @@ verify(Verifier<THaystack, TNeedle, TSpec> & verifier,
     while (find(verifier.finder, verifier.pattern, -static_cast<int>(maxErrors)))
         paired = true;
 
-//    delegate(verifier);
+//    if (paired) delegate(verifier);
     if (paired) delegate(haystackBegin, haystackEnd, maxErrors);
 }
 
@@ -164,8 +164,8 @@ verify(Verifier<THaystack, TNeedle, Filter<TSpec> > & verifier,
     while (find(verifier.finder, verifier.pattern))
         paired = true;
 
-//    delegate(verifier);
+//    if (paired) delegate(verifier);
     if (paired) delegate(haystackBegin, haystackEnd, maxErrors);
 }
 
-#endif  // #ifndef APP_CUDAMAPPER_VERIFIER_H_
+#endif  // #ifndef APP_CUDAMAPPER_FIND_VERIFIER_H_

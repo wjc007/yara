@@ -32,30 +32,10 @@
 // Author: Enrico Siragusa <enrico.siragusa@fu-berlin.de>
 // ==========================================================================
 
-#ifndef APP_CUDAMAPPER_MISC_H_
-#define APP_CUDAMAPPER_MISC_H_
+#ifndef APP_CUDAMAPPER_MISC_TIMER_H_
+#define APP_CUDAMAPPER_MISC_TIMER_H_
 
 using namespace seqan;
-
-// ============================================================================
-// Metafunctions
-// ============================================================================
-
-// ----------------------------------------------------------------------------
-// Metafunction Space
-// ----------------------------------------------------------------------------
-
-template <typename TObject, typename TSpec = void>
-struct Space
-{
-    typedef TObject Type;
-};
-
-template <typename TObject>
-struct Space<TObject, ExecDevice>
-{
-    typedef typename Device<TObject>::Type  Type;
-};
 
 // ============================================================================
 // Classes
@@ -137,4 +117,4 @@ void printRuler()
               << std::endl << std::endl;
 }
 
-#endif // APP_CUDAMAPPER_MISC_H_
+#endif // APP_CUDAMAPPER_MISC_TIMER_H_

@@ -32,107 +32,14 @@
 // Author: Enrico Siragusa <enrico.siragusa@fu-berlin.de>
 // ==========================================================================
 
-#ifndef APP_CUDAMAPPER_SEEDER_H_
-#define APP_CUDAMAPPER_SEEDER_H_
+#ifndef APP_CUDAMAPPER_BITS_SEEDS_H_
+#define APP_CUDAMAPPER_BITS_SEEDS_H_
 
 using namespace seqan;
 
 // ============================================================================
-// Classes
-// ============================================================================
-
-// ----------------------------------------------------------------------------
-// Class SeedsCounter
-// ----------------------------------------------------------------------------
-
-template <typename TSize, typename TSpec = void>
-struct SeedsCounter
-{
-    String<TSize> seedsPerRead;
-
-    SeedsCounter() {};
-
-    template <typename TCount>
-    SeedsCounter(TCount readsCount)
-    {
-        resize(*this, readsCount);
-    }
-
-    template <typename TPos, typename TLength>
-    void operator() (TPos pos, TLength /* length */)
-    {
-        seedsPerRead[getSeqNo(pos)]++;
-    }
-};
-
-// ----------------------------------------------------------------------------
-// Class SeedsManager
-// ----------------------------------------------------------------------------
-
-template <typename TSeeds, typename TSeedsCount, typename TSpec = void>
-struct SeedsManager
-{
-    TSeeds      * seeds;
-    TSeedsCount * seedsPerRead;
-
-    SeedsManager() :
-        seeds(),
-        seedsPerRead()
-    {};
-
-    SeedsManager(TSeeds & seeds, TSeedsCount & seedsPerRead)
-    {
-        init(*this, seeds, seedsPerRead);
-    }
-
-    template <typename TPos, typename TLength>
-    void operator() (TPos pos, TLength len)
-    {
-        SEQAN_ASSERT(seeds);
-        SEQAN_ASSERT(seedsPerRead);
-
-        --(*seedsPerRead)[getSeqNo(pos)];
-        assignInfixWithLength(*seeds, (*seedsPerRead)[getSeqNo(pos)], pos, len);
-    }
-
-    ~SeedsManager()
-    {
-        if (seeds) _refreshStringSetLimits(*seeds);
-    }
-};
-
-// ============================================================================
 // Functions
 // ============================================================================
-
-// --------------------------------------------------------------------------
-// Function resize()
-// --------------------------------------------------------------------------
-
-template <typename TSize, typename TSpec, typename TCount>
-inline void resize(SeedsCounter<TSize, TSpec> & counter, TCount count)
-{
-    resize(counter.seedsPerRead, count, 0, Exact());
-}
-
-// --------------------------------------------------------------------------
-// Function init()
-// --------------------------------------------------------------------------
-
-template <typename TSeeds, typename TSeedsCount, typename TSpec>
-inline void init(SeedsManager<TSeeds, TSeedsCount, TSpec> & manager, TSeeds & seeds, TSeedsCount & seedsPerRead)
-{
-    manager.seeds = &seeds;
-    manager.seedsPerRead = &seedsPerRead;
-
-    std::partial_sum(begin(*manager.seedsPerRead, Standard()),
-                     end(*manager.seedsPerRead, Standard()),
-                     begin(*manager.seedsPerRead, Standard()));
-
-    // Resize space for seeds.
-    clear(*manager.seeds);
-    resize(*manager.seeds, back(*manager.seedsPerRead), Exact());
-}
 
 // --------------------------------------------------------------------------
 // Function getHostPos()
@@ -197,4 +104,4 @@ getPosInRead(StringSet<THost, Segment<TSpec> > const & seeds, TSeedId seedId)
     return Pair<TPos>(seedBegin, seedEnd);
 }
 
-#endif  // #ifndef APP_CUDAMAPPER_SEEDER_H_
+#endif  // #ifndef APP_CUDAMAPPER_BITS_SEEDS_H_
