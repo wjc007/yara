@@ -400,7 +400,7 @@ inline void findSeeds(Mapper<TSpec, TConfig> & mapper, TBucketId bucketId)
     if (ERRORS > 0)
     {
         setScoreThreshold(mapper.finderApx, ERRORS);
-        reserve(mapper.hits[bucketId], length(mapper.seeds[bucketId]) * 10 * ERRORS, Exact());
+        reserve(mapper.hits[bucketId], lengthSum(mapper.seeds[bucketId]) * Power<ERRORS, 2>::VALUE, Exact());
         _findSeedsImpl(mapper, mapper.hits[bucketId], mapper.seeds[bucketId], mapper.finderApx, TPatternApx());
     }
     else
