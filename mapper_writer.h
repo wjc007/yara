@@ -42,30 +42,96 @@ using namespace seqan;
 // ============================================================================
 
 // ----------------------------------------------------------------------------
-// Class WriterConfig
+// Class MatchesWriter
 // ----------------------------------------------------------------------------
 
-template <typename TOptions_, typename TReadSeqs_>
-struct WriterConfig
+template <typename TSpec, typename Traits>
+struct MatchesWriter
 {
-    typedef TOptions_    TOptions;
-    typedef TReadSeqs_   TReadSeqs;
-};
+    typedef typename Traits::TStore            TStore;
+    typedef typename Traits::TMatches          TMatches;
+    typedef typename Traits::TOutputStream     TOutputStream;
+    typedef typename Traits::TOutputContext    TOutputContext;
+    typedef typename Traits::TReadsContext     TReadsContext;
 
-// ----------------------------------------------------------------------------
-// Class Writer
-// ----------------------------------------------------------------------------
+    // Thread-private data.
+    BamAlignmentRecord      record;
 
-template <typename TExecSpace, typename TConfig>
-struct Writer
-{
-    typedef typename TConfig::TOptions                      TOptions;
+    // Shared-memory read-write data.
+    TOutputStream &         outputStream;
+    TOutputContext &        outputCtx;
 
-    TOptions const &    options;
+    // Shared-memory read-only data.
+    TReadsContext const &   ctx;
+    TStore const &          store;
+    TMatches const &        matches;
+    Options const &         options;
 
-    Writer(TOptions const & options) :
+    MatchesWriter(TOutputStream & outputStream,
+                  TOutputContext & outputCtx,
+                  TReadsContext const & ctx,
+                  TStore const & store,
+                  TMatches const & matches,
+                  Options const & options) :
+        outputStream(outputStream),
+        outputCtx(outputCtx),
+        ctx(ctx),
+        store(store),
+        matches(matches),
         options(options)
-    {}
+    {
+        // Iterate over all matches.
+        _iterate(*this);
+    }
+
+    template <typename TMatchesIterator>
+    void operator() (TMatchesIterator const & itBegin, TMatchesIterator const & itEnd)
+    {
+        _writeMatchesImpl(*this, itBegin, itEnd);
+    }
 };
+
+// ============================================================================
+// Functions
+// ============================================================================
+
+// ----------------------------------------------------------------------------
+// Function _iterate()
+// ----------------------------------------------------------------------------
+
+template <typename TSpec, typename Traits>
+inline void _iterate(MatchesWriter<TSpec, Traits> & me)
+{
+    typedef typename Traits::TMatches                           TMatches;
+    typedef typename Iterator<TMatches const, Standard>::Type   TMatchesIterator;
+
+    TMatchesIterator itBegin = begin(me.matches, Standard());
+    TMatchesIterator itEnd = end(me.matches, Standard());
+
+    _writeMatchesImpl(me, itBegin, itEnd);
+}
+
+// ----------------------------------------------------------------------------
+// Function _writeMatchesImpl()
+// ----------------------------------------------------------------------------
+// Writes one block of matches.
+
+template <typename TSpec, typename Traits, typename TMatchesIterator>
+inline void _writeMatchesImpl(MatchesWriter<TSpec, Traits> & me,
+                              TMatchesIterator const & itBegin,
+                              TMatchesIterator const & itEnd)
+{
+    // Add primary alignment information.
+//    _addPrimaryAlignment(me.record, me.store, value(itBegin));
+
+    // Add secondary alignments information.
+//    _addSecondaryAlignments(me.record, me.store, itBegin + 1, itEnd);
+
+    // Add mate information.
+//    _addMate(me.record, me.store, itBegin);
+
+    // Write record to output stream.
+    write2(me.outputStream, me.record, me.outputCtx, typename Traits::TOutputFormat());
+}
 
 #endif  // #ifndef APP_CUDAMAPPER_MAPPER_WRITER_H_
