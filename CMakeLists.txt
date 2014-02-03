@@ -15,7 +15,7 @@ message (STATUS "Configuring core/apps/cuda_mapper")
 # ----------------------------------------------------------------------------
 
 # Search SeqAn and select dependencies.
-set (SEQAN_FIND_DEPENDENCIES OpenMP CUDA)
+set (SEQAN_FIND_DEPENDENCIES OpenMP CUDA ZLIB)
 find_package (SeqAn REQUIRED)
 
 # Disable CUDA acceleration if CUDA was not found.
@@ -28,6 +28,11 @@ endif (NOT SEQAN_HAS_CUDA)
 if (NOT SEQAN_HAS_OPENMP)
   message (STATUS "  OpenMP not found: building cuda_mapper without multi-threading.")
 endif (NOT SEQAN_HAS_OPENMP)
+
+# Warn if Zlib was not found.
+if (NOT SEQAN_HAS_ZLIB)
+  message (STATUS "  Zlib not found: building cuda_mapper without BAM output.")
+endif (NOT SEQAN_HAS_ZLIB)
 
 # ----------------------------------------------------------------------------
 # CUDA Setup

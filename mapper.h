@@ -55,13 +55,22 @@ struct Options
         ALL, ALL_BEST, ANY_BEST
     };
 
+    enum OutputFormat
+    {
+        SAM, BAM
+    };
+
     CharString          genomeFile;
     CharString          genomeIndexFile;
     Pair<CharString>    readsFile;
     CharString          outputFile;
+    OutputFormat        outputFormat;
 
     TList               mappingModeList;
     MappingMode         mappingMode;
+
+    TList               outputFormatList;
+    TList               outputFormatExtensions;
 
     unsigned            errorRate;
     bool                singleEnd;
@@ -76,6 +85,7 @@ struct Options
     bool                verbose;
 
     Options() :
+        outputFormat(SAM),
         mappingMode(ALL),
         errorRate(5),
         singleEnd(true),
@@ -91,6 +101,13 @@ struct Options
         mappingModeList.push_back("all");
         mappingModeList.push_back("all-best");
         mappingModeList.push_back("any-best");
+
+        outputFormatList.push_back("sam");
+        outputFormatExtensions.push_back("sam");
+#ifdef SEQAN_HAS_ZLIB
+        outputFormatList.push_back("bam");
+        outputFormatExtensions.push_back("bam");
+#endif
     }
 };
 
@@ -98,21 +115,21 @@ struct Options
 // Mapper Configuration
 // ----------------------------------------------------------------------------
 
-template <typename TExecSpace_  = ExecHost,
-          typename TThreading_  = Parallel,
-          typename TSequencing_ = SingleEnd,
-          typename TStrategy_   = AnyBest,
-          typename TAnchoring_  = Nothing,
-          typename TFormat_     = Sam,
-          unsigned BUCKETS_     = 3>
+template <typename TExecSpace_      = ExecHost,
+          typename TThreading_      = Parallel,
+          typename TOutputFormat_   = Sam,
+          typename TSequencing_     = SingleEnd,
+          typename TStrategy_       = AnyBest,
+          typename TAnchoring_      = Nothing,
+          unsigned BUCKETS_         = 3>
 struct ReadMapperConfig : public CUDAStoreConfig
 {
     typedef TExecSpace_     TExecSpace;
     typedef TThreading_     TThreading;
+    typedef TOutputFormat_  TOutputFormat;
     typedef TSequencing_    TSequencing;
     typedef TStrategy_      TStrategy;
     typedef TAnchoring_     TAnchoring;
-    typedef TFormat_        TFormat;
 
     static const unsigned BUCKETS = BUCKETS_;
 };
@@ -126,10 +143,10 @@ struct MapperTraits
 {
     typedef typename TConfig::TExecSpace                            TExecSpace;
     typedef typename TConfig::TThreading                            TThreading;
+    typedef typename TConfig::TOutputFormat                         TOutputFormat;
     typedef typename TConfig::TSequencing                           TSequencing;
     typedef typename TConfig::TStrategy                             TStrategy;
     typedef typename TConfig::TAnchoring                            TAnchoring;
-    typedef typename TConfig::TFormat                               TOutputFormat;
 
     typedef Genome<void, TConfig>                                   TGenome;
 //    typedef GenomeLoader<void, TConfig>                             TGenomeLoader;
@@ -897,15 +914,26 @@ inline void runMapper(Mapper<TSpec, TConfig> & mapper, Parallel)
 // Function spawnMapper()
 // ----------------------------------------------------------------------------
 
-template <typename TExecSpace, typename TThreading, typename TSequencing, typename TStrategy, typename TAnchoring>
+template <typename TExecSpace,
+          typename TThreading,
+          typename TOutputFormat,
+          typename TSequencing,
+          typename TStrategy,
+          typename TAnchoring>
 inline void spawnMapper(Options const & options,
                         TExecSpace const & /* tag */,
                         TThreading const & /* tag */,
+                        TOutputFormat const & /* tag */,
                         TSequencing const & /* tag */,
                         TStrategy const & /* tag */,
                         TAnchoring const & /* tag */)
 {
-    typedef ReadMapperConfig<TExecSpace, TThreading, TSequencing, TStrategy, TAnchoring> TConfig;
+    typedef ReadMapperConfig<TExecSpace,
+                             TThreading,
+                             TOutputFormat,
+                             TSequencing,
+                             TStrategy,
+                             TAnchoring> TConfig;
 
     Mapper<void, TConfig> mapper(options);
     runMapper(mapper);

@@ -140,6 +140,11 @@ void setupArgumentParser(ArgumentParser & parser, Options const & options)
 
     addOption(parser, ArgParseOption("a", "anchor", "Anchor one read and verify its mate."));
 
+    // Setup output options.
+    addSection(parser, "Output Options");
+
+    setOutputFile(parser, options);
+
     // Setup index options.
     addSection(parser, "Indexing Options");
 
@@ -195,6 +200,12 @@ parseCommandLine(Options & options, ArgumentParser & parser, int argc, char cons
         return ArgumentParser::PARSE_ERROR;
     }
 
+    // Parse output file.
+    getOutputFile(options.outputFile, options, parser, options.readsFile.i1, "");
+
+    // Parse output format.
+    getOutputFormat(options, options.outputFile);
+
     // Parse mapping options.
     getOptionValue(options.mappingMode, parser, "mapping-mode", options.mappingModeList);
     getOptionValue(options.errorRate, parser, "error-rate");
@@ -228,34 +239,34 @@ parseCommandLine(Options & options, ArgumentParser & parser, int argc, char cons
 // Function configureAnchoring()
 // ----------------------------------------------------------------------------
 
-template <typename TExecSpace, typename TThreading, typename TSequencing, typename TStrategy>
+template <typename TExecSpace, typename TThreading, typename TOutputFormat, typename TSequencing, typename TStrategy>
 void configureAnchoring(Options const & options, TExecSpace const & execSpace, TThreading const & threading,
-                        TSequencing const & sequencing, TStrategy const & strategy)
+                        TOutputFormat const & format, TSequencing const & sequencing, TStrategy const & strategy)
 {
     if (options.anchorOne)
-        spawnMapper(options, execSpace, threading, sequencing, strategy, AnchorOne());
+        spawnMapper(options, execSpace, threading, format, sequencing, strategy, AnchorOne());
     else
-        spawnMapper(options, execSpace, threading, sequencing, strategy, AnchorBoth());
+        spawnMapper(options, execSpace, threading, format, sequencing, strategy, AnchorBoth());
 }
 
 // ----------------------------------------------------------------------------
 // Function configureStrategy()
 // ----------------------------------------------------------------------------
 
-template <typename TExecSpace, typename TThreading, typename TSequencing>
+template <typename TExecSpace, typename TThreading, typename TOutputFormat, typename TSequencing>
 void configureStrategy(Options const & options, TExecSpace const & execSpace, TThreading const & threading,
-                       TSequencing const & sequencing)
+                       TOutputFormat const & format, TSequencing const & sequencing)
 {
     switch (options.mappingMode)
     {
     case Options::ANY_BEST:
-        return spawnMapper(options, execSpace, threading, sequencing, AnyBest(), Nothing());
+        return spawnMapper(options, execSpace, threading, format, sequencing, AnyBest(), Nothing());
 
     case Options::ALL_BEST:
-        return spawnMapper(options, execSpace, threading, sequencing, AllBest(), Nothing());
+        return spawnMapper(options, execSpace, threading, format, sequencing, AllBest(), Nothing());
 
     case Options::ALL:
-        return spawnMapper(options, execSpace, threading, sequencing, All(), Nothing());
+        return spawnMapper(options, execSpace, threading, format, sequencing, All(), Nothing());
 
     default:
         return;
@@ -266,13 +277,36 @@ void configureStrategy(Options const & options, TExecSpace const & execSpace, TT
 // Function configureSequencing()
 // ----------------------------------------------------------------------------
 
-template <typename TExecSpace, typename TThreading>
-void configureSequencing(Options const & options, TExecSpace const & execSpace, TThreading const & threading)
+template <typename TExecSpace, typename TThreading, typename TOutputFormat>
+void configureSequencing(Options const & options, TExecSpace const & execSpace, TThreading const & threading,
+                         TOutputFormat const & format)
 {
     if (options.singleEnd)
-        configureStrategy(options, execSpace, threading, SingleEnd());
+        configureStrategy(options, execSpace, threading, format, SingleEnd());
     else
-        configureAnchoring(options, execSpace, threading, PairedEnd(), All());
+        configureAnchoring(options, execSpace, threading, format, PairedEnd(), All());
+}
+
+// ----------------------------------------------------------------------------
+// Function configureOutputFormat()
+// ----------------------------------------------------------------------------
+
+template <typename TExecSpace, typename TThreading>
+void configureOutputFormat(Options const & options, TExecSpace const & execSpace, TThreading const & threading)
+{
+    switch (options.outputFormat)
+    {
+    case Options::SAM:
+        return configureSequencing(options, execSpace, threading, Sam());
+
+#ifdef SEQAN_HAS_ZLIB
+    case Options::BAM:
+        return configureSequencing(options, execSpace, threading, Bam());
+#endif
+
+    default:
+        return;
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -284,10 +318,10 @@ void configureThreading(Options const & options, TExecSpace const & execSpace)
 {
 #ifdef _OPENMP
     if (options.threadsCount > 1)
-        configureSequencing(options, execSpace, Parallel());
+        configureOutputFormat(options, execSpace, Parallel());
     else
 #endif
-        configureSequencing(options, execSpace, Serial());
+        configureOutputFormat(options, execSpace, Serial());
 }
 
 // ----------------------------------------------------------------------------
