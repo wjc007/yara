@@ -122,13 +122,19 @@ inline void _writeMatchesImpl(MatchesWriter<TSpec, Traits> & me,
                               TMatchesIterator const & itEnd)
 {
     // Add primary alignment information.
-//    _addPrimaryAlignment(me.record, me.store, value(itBegin));
+//    setPrimaryMatch(me.record, me.store, value(itBegin));
+
+    // Add primary alignment information.
+//    setAlignment(me.record, me.store, ...);
+
+    // Add primary alignment information.
+//    setQuality(me.record, me.store, ...);
 
     // Add secondary alignments information.
-//    _addSecondaryAlignments(me.record, me.store, itBegin + 1, itEnd);
+//    addSecondaryMatch(me.record, me.store, itBegin + 1, itEnd);
 
     // Add mate information.
-//    _addMate(me.record, me.store, itBegin);
+//    setMateMatch(me.record, me.store, itBegin);
 
     // Write record to output stream.
     write2(me.outputStream, me.record, me.outputCtx, typename Traits::TOutputFormat());

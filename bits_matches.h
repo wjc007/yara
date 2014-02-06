@@ -144,25 +144,6 @@ struct MatchesCounter<TReadSeqs, PairedEnd>
 // ============================================================================
 
 // ----------------------------------------------------------------------------
-// Function fill()
-// ----------------------------------------------------------------------------
-
-template <typename TSpec, typename TReadId, typename TContigId, typename TContigPos, typename TErrors>
-inline void fill(Match<TSpec> & match,
-                 TReadId readId,
-                 TContigId contigId,
-                 TContigPos contigBegin,
-                 TContigPos contigEnd,
-                 TErrors errors)
-{
-    match.readId = readId;
-    match.contigBegin = contigBegin;
-    match.contigEnd = contigEnd;
-    match.contigId = contigId;
-    match.errors = errors;
-}
-
-// ----------------------------------------------------------------------------
 // Function isDuplicateBegin()
 // ----------------------------------------------------------------------------
 
