@@ -178,7 +178,7 @@ inline void _extendHitImpl(HitsExtender<TSpec, Traits> & me, THitsIterator const
     if (getStatus(me.ctx, readSeqId) != STATUS_SEEDED) return;
 
     // Fill readSeqId.
-    me.prototype.readId = readSeqId;
+    setReadId(me.prototype, me.readSeqs, readSeqId);
 
     // Get position in read.
     TReadPos readPos = getPosInRead(me.seeds, seedId);
@@ -202,7 +202,7 @@ inline void _extendHitImpl(HitsExtender<TSpec, Traits> & me, THitsIterator const
         extend(me.extender,
                readSeq,
                contigBegin, contigEnd,
-               readPos.i1, readPos.i2,
+               getValueI1(readPos), getValueI2(readPos),
                hitErrors, maxErrors,
                me);
 
@@ -227,9 +227,7 @@ inline void _addMatchImpl(HitsExtender<TSpec, Traits> & me,
                           TMatchPos matchEnd,
                           TMatchErrors matchErrors)
 {
-    me.prototype.contigId = getValueI1(matchBegin);
-    me.prototype.contigBegin = getValueI2(matchBegin);
-    me.prototype.contigEnd = getValueI2(matchEnd);
+    setContigPosition(me.prototype, matchBegin, matchEnd);
     me.prototype.errors = matchErrors;
     appendValue(me.matches, me.prototype, Insist(), typename Traits::TThreading());
 }

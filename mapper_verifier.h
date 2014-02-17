@@ -143,19 +143,19 @@ inline void _verifyAnchorImpl(AnchorsVerifier<TSpec, Traits> & me, TAnchorsItera
     TMatchId anchorId = position(anchorsIt);
 
     TMatch const & anchor = me.anchors[anchorId];
-    TReadId mateId = getMateSeqId(me.readSeqs, anchor.readId);
-    TReadSeq mateSeq = me.readSeqs[mateId];
+    TReadId mateSeqId = getMateSeqId(me.readSeqs, getReadSeqId(anchor, me.readSeqs));
+    TReadSeq mateSeq = me.readSeqs[mateSeqId];
 
     TContigsPos contigBegin;
     TContigsPos contigEnd;
 
-    if (isRevReadSeq(me.readSeqs, mateId))
+    if (isRevReadSeq(me.readSeqs, mateSeqId))
         _getMateContigPos(me, contigBegin, contigEnd, anchor, RightMate());
     else
         _getMateContigPos(me, contigBegin, contigEnd, anchor, LeftMate());
 
     // Fill readId.
-    me.prototype.readId = mateId;
+    setReadId(me.prototype, me.readSeqs, mateSeqId);
 
     // Get absolute number of errors.
     TErrors maxErrors = getReadErrors(me.options, length(mateSeq));
@@ -174,9 +174,7 @@ inline void _addMatchImpl(AnchorsVerifier<TSpec, Traits> & me,
                           TMatchPos matchEnd,
                           TMatchErrors matchErrors)
 {
-    me.prototype.contigId = getValueI1(matchBegin);
-    me.prototype.contigBegin = getValueI2(matchBegin);
-    me.prototype.contigEnd = getValueI2(matchEnd);
+    setContigPosition(me.prototype, matchBegin, matchEnd);
     me.prototype.errors = matchErrors;
     appendValue(me.mates, me.prototype, Insist(), typename Traits::TThreading());
 }
@@ -196,17 +194,17 @@ inline void _getMateContigPos(AnchorsVerifier<TSpec, Traits> const & me,
     typedef typename Traits::TContig                TContig;
     typedef typename Size<TContig>::Type            TContigSize;
 
-    TContigSize contigLength = length(me.contigs[anchor.contigId]);
+    TContigSize contigLength = length(me.contigs[getContigId(anchor)]);
 
-    setValueI1(contigBegin, anchor.contigId);
-    setValueI1(contigEnd, anchor.contigId);
+    setValueI1(contigBegin, getContigId(anchor));
+    setValueI1(contigEnd, getContigId(anchor));
 
     contigBegin.i2 = 0;
-    if (anchor.contigBegin + me.options.libraryLength > me.options.libraryError)
-        contigBegin.i2 = anchor.contigBegin + me.options.libraryLength - me.options.libraryError;
+    if (getContigBegin(anchor) + me.options.libraryLength > me.options.libraryError)
+        contigBegin.i2 = getContigBegin(anchor) + me.options.libraryLength - me.options.libraryError;
     contigBegin.i2 = _min(contigBegin.i2, contigLength);
 
-    contigEnd.i2 = _min(anchor.contigBegin + me.options.libraryLength + me.options.libraryError, contigLength);
+    contigEnd.i2 = _min(getContigBegin(anchor) + me.options.libraryLength + me.options.libraryError, contigLength);
 
     SEQAN_ASSERT_LEQ(getValueI2(contigBegin), getValueI2(contigEnd));
     SEQAN_ASSERT_LEQ(getValueI2(contigEnd) - getValueI2(contigBegin), 2 * me.options.libraryError);
@@ -219,16 +217,16 @@ inline void _getMateContigPos(AnchorsVerifier<TSpec, Traits> const & me,
                               TMatch const & anchor,
                               LeftMate)
 {
-    setValueI1(contigBegin, anchor.contigId);
-    setValueI1(contigEnd, anchor.contigId);
+    setValueI1(contigBegin, getContigId(anchor));
+    setValueI1(contigEnd, getContigId(anchor));
 
     contigBegin.i2 = 0;
-    if (anchor.contigEnd > me.options.libraryLength + me.options.libraryError)
-        contigBegin.i2 = anchor.contigEnd - me.options.libraryLength - me.options.libraryError;
+    if (getContigEnd(anchor) > me.options.libraryLength + me.options.libraryError)
+        contigBegin.i2 = getContigEnd(anchor) - me.options.libraryLength - me.options.libraryError;
 
     contigEnd.i2 = 0;
-    if (anchor.contigEnd + me.options.libraryError > me.options.libraryLength)
-        contigEnd.i2 = anchor.contigEnd - me.options.libraryLength + me.options.libraryError;
+    if (getContigEnd(anchor) + me.options.libraryError > me.options.libraryLength)
+        contigEnd.i2 = getContigEnd(anchor) - me.options.libraryLength + me.options.libraryError;
 
     SEQAN_ASSERT_LEQ(getValueI2(contigBegin), getValueI2(contigEnd));
     SEQAN_ASSERT_LEQ(getValueI2(contigEnd) - getValueI2(contigBegin), 2 * me.options.libraryError);
