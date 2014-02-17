@@ -50,12 +50,39 @@ using namespace seqan;
 template <typename TSpec = void>
 struct Match
 {
-    unsigned        readId;
-    unsigned        contigBegin;
-    unsigned        contigEnd;
-    unsigned char   contigId;
-    unsigned char   errors;
-};
+    unsigned        readId       : 22;
+    unsigned char   contigId     : 8;
+    unsigned        contigBegin  : 30;
+    unsigned short  contigEnd    : 14;
+    bool            isFwd        : 1;
+    unsigned char   errors       : 5;
+}
+__attribute__((packed));
+
+template <typename TSpec, typename TReadSeqs, typename TReadSeqId>
+inline void setReadId(Match<TSpec> & me, TReadSeqs const & readSeqs, TReadSeqId readSeqId)
+{
+    me.readId = getReadId(readSeqs, readSeqId);
+    me.isFwd = isFwdReadSeq(readSeqs, readSeqId);
+}
+
+template <typename TSpec, typename TContigPos>
+inline void setContigPosition(Match<TSpec> & me, TContigPos contigBegin, TContigPos contigEnd)
+{
+    SEQAN_ASSERT_EQ(getValueI1(contigBegin), getValueI1(contigEnd));
+    SEQAN_ASSERT_LT(getValueI2(contigBegin), getValueI2(contigEnd));
+
+    me.contigId = getValueI1(contigBegin);
+    me.contigBegin = getValueI2(contigBegin);
+    me.contigEnd = getValueI2(contigEnd) - getValueI2(contigBegin);
+}
+
+template <typename TReadSeqs, typename TSpec>
+inline typename Size<TReadSeqs>::Type
+getReadSeqId(Match<TSpec> const & me, TReadSeqs const & readSeqs)
+{
+    return onForwardStrand(me) ? getFirstMateFwdSeqId(readSeqs, me.readId) : getFirstMateRevSeqId(readSeqs, me.readId);
+}
 
 template <typename TSpec>
 inline unsigned getReadId(Match<TSpec> const & me)
@@ -78,13 +105,13 @@ inline unsigned getContigBegin(Match<TSpec> const & me)
 template <typename TSpec>
 inline unsigned getContigEnd(Match<TSpec> const & me)
 {
-    return me.contigEnd;
+    return me.contigBegin + me.contigEnd;
 }
 
 template <typename TSpec>
 inline bool onForwardStrand(Match<TSpec> const & me)
 {
-    return true;
+    return me.isFwd;
 }
 
 template <typename TSpec>
@@ -98,6 +125,7 @@ inline unsigned char getScore(Match<TSpec> const & /* me */)
 {
     return 0;
 }
+
 template <typename TSpec>
 inline unsigned char getErrors(Match<TSpec> const & me)
 {
@@ -113,7 +141,7 @@ struct MatchSorterByReadId
 {
     inline bool operator()(TMatch const & a, TMatch const & b) const
     {
-        return a.readId <= b.readId;
+        return getReadId(a) < getReadId(b);
     }
 };
 
@@ -122,7 +150,8 @@ struct MatchSorterByBeginPos
 {
     inline bool operator()(TMatch const & a, TMatch const & b) const
     {
-        return (a.contigId < b.contigId) || (a.contigId == b.contigId && a.contigBegin < b.contigBegin);
+        return (getContigId(a) <  getContigId(b)) ||
+               (getContigId(a) == getContigId(b)  && getContigBegin(a) < getContigBegin(b));
     }
 };
 
@@ -131,7 +160,8 @@ struct MatchSorterByEndPos
 {
     inline bool operator()(TMatch const & a, TMatch const & b) const
     {
-        return (a.contigId < b.contigId) || (a.contigId == b.contigId && a.contigEnd < b.contigEnd);
+        return (getContigId(a) <  getContigId(b)) ||
+               (getContigId(a) == getContigId(b)  && getContigEnd(a) < getContigEnd(b));
     }
 };
 
@@ -140,7 +170,7 @@ struct MatchSorterByErrors
 {
     inline bool operator()(TMatch const & a, TMatch const & b) const
     {
-        return a.errors <= b.errors;
+        return getErrors(a) < getErrors(b);
     }
 };
 
@@ -163,7 +193,7 @@ struct MatchesCounter
     template <typename TMatch>
     void operator() (TMatch const & match)
     {
-        matched[getReadId(readSeqs, match.readId)] = true;
+        matched[match.readId] = true;
     }
 };
 
@@ -197,7 +227,7 @@ struct MatchesCounter<TReadSeqs, PairedEnd>
 template <typename TSpec>
 inline bool isDuplicateBegin(Match<TSpec> const & a, Match<TSpec> const & b)
 {
-    return a.readId == b.readId && a.contigId == b.contigId && a.contigBegin == b.contigBegin;
+    return getReadId(a) == getReadId(b) && getContigId(a) == getContigId(b) && getContigBegin(a) == getContigBegin(b);
 }
 
 // ----------------------------------------------------------------------------
@@ -207,7 +237,7 @@ inline bool isDuplicateBegin(Match<TSpec> const & a, Match<TSpec> const & b)
 template <typename TSpec>
 inline bool isDuplicateEnd(Match<TSpec> const & a, Match<TSpec> const & b)
 {
-    return a.readId == b.readId && a.contigId == b.contigId && a.contigEnd == b.contigEnd;
+    return getReadId(a) == getReadId(b) && getContigId(a) == getContigId(b) && getContigEnd(a) == getContigEnd(b);
 }
 
 // ----------------------------------------------------------------------------
