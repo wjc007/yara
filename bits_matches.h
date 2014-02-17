@@ -123,7 +123,7 @@ inline bool onReverseStrand(Match<TSpec> const & me)
 template <typename TSpec>
 inline unsigned char getScore(Match<TSpec> const & /* me */)
 {
-    return 0;
+    return 254;
 }
 
 template <typename TSpec>
