@@ -260,7 +260,7 @@ inline void removeDuplicateMatches(TMatches & matches, TThreading const & thread
     newIt = matchesBegin;
     oldIt = matchesBegin;
 
-//    stableSort(matches, MatchSorterByReadId<TMatch>(), threading);
+    stableSort(matches, MatchSorterByReadId<TMatch>(), threading);
 
     stableSort(matches, MatchSorterByEndPos<TMatch>(), threading);
 
