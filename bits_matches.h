@@ -57,6 +57,53 @@ struct Match
     unsigned char   errors;
 };
 
+template <typename TSpec>
+inline unsigned getReadId(Match<TSpec> const & me)
+{
+    return me.readId;
+}
+
+template <typename TSpec>
+inline unsigned getContigId(Match<TSpec> const & me)
+{
+    return me.contigId;
+}
+
+template <typename TSpec>
+inline unsigned getContigBegin(Match<TSpec> const & me)
+{
+    return me.contigBegin;
+}
+
+template <typename TSpec>
+inline unsigned getContigEnd(Match<TSpec> const & me)
+{
+    return me.contigEnd;
+}
+
+template <typename TSpec>
+inline bool onForwardStrand(Match<TSpec> const & me)
+{
+    return true;
+}
+
+template <typename TSpec>
+inline bool onReverseStrand(Match<TSpec> const & me)
+{
+    return !onForwardStrand(me);
+}
+
+template <typename TSpec>
+inline unsigned char getScore(Match<TSpec> const & /* me */)
+{
+    return 0;
+}
+template <typename TSpec>
+inline unsigned char getErrors(Match<TSpec> const & me)
+{
+    return me.errors;
+}
+
 // ----------------------------------------------------------------------------
 // Class MatchSorterByXXX
 // ----------------------------------------------------------------------------
