@@ -121,20 +121,33 @@ inline void _writeMatchesImpl(MatchesWriter<TSpec, Traits> & me,
                               TMatchesIterator const & itBegin,
                               TMatchesIterator const & itEnd)
 {
-    // Add primary alignment information.
-//    setPrimaryMatch(me.record, me.store, value(itBegin));
+    typedef typename Value<TMatchesIterator>::Type  TMatches;
+    typedef typename Value<TMatches>::Type          TMatch;
+
+    // The first match is supposed to be the best one.
+    TMatch const & primary = value(itBegin);
+
+    clear(me.record.tags);
+    me.record.flag = 0;
 
     // Add primary alignment information.
-//    setAlignment(me.record, me.store, ...);
+    setName(me.record, me.store, primary);
+//    setSeqAndQual(me.record, me.store, primary);
+    setOrientation(me.record, me.store, primary);
 
-    // Add primary alignment information.
-//    setQuality(me.record, me.store, ...);
+//    setPosition(me.record, me.store, primary);
+//    me.record.rID = getContigId(primary);
+    me.record.beginPos = getContigBegin(primary);
 
-    // Add secondary alignments information.
+//    setAlignment(record, store, primary, primary, alignFunctor);
+    setScore(me.record, me.store, primary);
+
+    // Clear mate information.
+//    clearMateInfo(me.record, me.store, primary);
+    clearMatePosition(me.record, me.store);
+
+    // Add secondary match information.
 //    addSecondaryMatch(me.record, me.store, itBegin + 1, itEnd);
-
-    // Add mate information.
-//    setMateMatch(me.record, me.store, itBegin);
 
     // Write record to output stream.
     write2(me.outputStream, me.record, me.outputCtx, typename Traits::TOutputFormat());
