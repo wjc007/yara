@@ -159,7 +159,7 @@ struct MapperTraits
     typedef typename Fibre<TIndex, FibreSA>::Type                   TSA;
 
     typedef FragmentStore<void, TConfig>                            TStore;
-    typedef ReadsConfig<False, False, True, True, TConfig>          TReadsConfig;
+    typedef ReadsConfig<False, True, True, True, TConfig>           TReadsConfig;
     typedef Reads<TSequencing, TReadsConfig>                        TReads;
     typedef ReadsLoader<TSequencing, TReadsConfig>                  TReadsLoader;
     typedef typename TStore::TReadSeqStore                          THostReadSeqs;
