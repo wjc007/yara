@@ -798,6 +798,9 @@ inline void runMapper(Mapper<TSpec, TConfig> & mapper)
         clearReads(mapper);
     }
 
+    // Close output file.
+    close(mapper.outputStream);
+
     // Close reads file.
     close(mapper.readsLoader);
 }
