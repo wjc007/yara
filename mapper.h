@@ -185,6 +185,7 @@ struct MapperTraits
 
     typedef Match<void>                                             TMatch;
     typedef String<TMatch>                                          TMatches;
+    typedef StringSet<TMatches, Segment<TMatches> >                 TMatchesSet;
 
     typedef Multiple<FinderSTree>                                   TAlgorithmExt;
     typedef Multiple<Backtracking<HammingDistance> >                TAlgorithmApx;
@@ -220,6 +221,8 @@ struct Mapper
     typename Traits::THitsBuckets       hits;
     typename Traits::TMatches           anchors;
     typename Traits::TMatches           mates;
+    typename Traits::TMatchesSet        anchorsSet;
+    typename Traits::TMatchesSet        matesSet;
 
     typename Traits::TFinderExt         finderExt;
     typename Traits::TFinderApx         finderApx;
@@ -239,6 +242,8 @@ struct Mapper
         hits(),
         anchors(),
         mates(),
+        anchorsSet(),
+        matesSet(),
         finderExt(index),
         finderApx(index)
     {};
@@ -523,6 +528,32 @@ inline unsigned long countHits(Mapper<TSpec, TConfig> const & mapper)
     return hitsCount;
 }
 
+// --------------------------------------------------------------------------
+// Function aggregate()
+// --------------------------------------------------------------------------
+
+template <typename THost, typename TSpec, typename TKey>
+inline void aggregate(StringSet<THost, Segment<TSpec> > & me, TKey const & key)
+{
+    typedef typename Iterator<THost, Standard>::Type    THostIter;
+
+    THostIter beginIt = begin(host(me), Standard());
+    THostIter endIt = end(host(me), Standard());
+    THostIter firstIt = beginIt;
+    THostIter lastIt = firstIt;
+
+    clear(me);
+
+    while (firstIt != endIt)
+    {
+        while (lastIt != endIt && key(value(firstIt)) == key(value(lastIt))) ++lastIt;
+
+        appendInfixWithLength(me, firstIt - beginIt, lastIt - firstIt, Generous());
+
+        firstIt = lastIt;
+    }
+}
+
 // ----------------------------------------------------------------------------
 // Function extendHits()
 // ----------------------------------------------------------------------------
@@ -546,6 +577,14 @@ inline void extendHits(Mapper<TSpec, TConfig> & mapper)
                                mapper.seeds[bucketId], mapper.hits[bucketId],
                                indexSA(mapper.index), mapper.options);
     }
+
+    // Sort anchors by readId.
+    if (IsSameType<typename TConfig::TThreading, Parallel>::VALUE)
+        sort(mapper.anchors, MatchSorterByReadId<typename TTraits::TMatch>(), typename TConfig::TThreading());
+
+    // Aggregate anchors by readId.
+    setHost(mapper.anchorsSet, mapper.anchors);
+    aggregate(mapper.anchorsSet, MatchReadId<typename TTraits::TMatch>());
 
     stop(mapper.timer);
 
@@ -583,6 +622,10 @@ inline void _verifyAnchorsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & read
                               contigs(mapper.genome), readSeqs,
                               mapper.anchors, mapper.options);
 
+    // Sort mates by readId.
+    if (IsSameType<typename TConfig::TThreading, Parallel>::VALUE)
+        sort(mapper.mates, MatchSorterByReadId<typename TTraits::TMatch>(), typename TConfig::TThreading());
+
     stop(mapper.timer);
 
     std::cout << "Verification time:\t\t" << mapper.timer << std::endl;
@@ -599,11 +642,15 @@ inline void _verifyAnchorsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & read
 template <typename TSpec, typename TConfig, typename TReadSeqs>
 inline void removeDuplicates(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs)
 {
+    typedef MapperTraits<TSpec, TConfig>    TTraits;
+
     start(mapper.timer);
-    removeDuplicateMatches(mapper.anchors, typename TConfig::TThreading());
+
+    removeDuplicates(mapper.anchorsSet, typename TConfig::TThreading());
+
     stop(mapper.timer);
     std::cout << "Compaction time:\t\t" << mapper.timer << std::endl;
-    std::cout << "Anchors count:\t\t\t" << length(mapper.anchors) << std::endl;
+    std::cout << "Anchors count:\t\t\t" << lengthSum(mapper.anchorsSet) << std::endl;
     std::cout << "Anchored pairs:\t\t\t" << countMatches(readSeqs, mapper.anchors,
                                                          typename TConfig::TSequencing(),
                                                          typename TConfig::TThreading()) << std::endl;
