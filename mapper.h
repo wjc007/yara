@@ -607,7 +607,7 @@ inline void aggregateAnchors(Mapper<TSpec, TConfig> & mapper)
 
     stop(mapper.timer);
 
-    std::cout << "Sorting time:\t\t" << mapper.timer << std::endl;
+    std::cout << "Sorting time:\t\t\t" << mapper.timer << std::endl;
     std::cout << "Mapped anchors:\t\t\t" << length(mapper.anchorsSet) << std::endl;
 }
 
@@ -699,7 +699,7 @@ inline void writeMatches(Mapper<TSpec, TConfig> & mapper)
                           mapper.anchorsSet, mapper.options);
 
     stop(mapper.timer);
-    std::cout << "Output time:\t\t" << mapper.timer << std::endl;
+    std::cout << "Output time:\t\t\t" << mapper.timer << std::endl;
 }
 
 // ----------------------------------------------------------------------------

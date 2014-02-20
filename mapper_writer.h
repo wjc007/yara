@@ -81,6 +81,7 @@ struct MatchesWriter
         options(options)
     {
         // Process all matches.
+        // TODO(esiragusa): insure that forEach() does not copy the functor.
         forEach(matchesSet, *this, Serial());
     }
 
