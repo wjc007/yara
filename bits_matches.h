@@ -50,50 +50,148 @@ using namespace seqan;
 template <typename TSpec = void>
 struct Match
 {
-    unsigned        readId;
-    unsigned        contigBegin;
-    unsigned        contigEnd;
-    unsigned char   contigId;
-    unsigned char   errors;
+    unsigned        readId       : 22;
+    unsigned char   contigId     : 8;
+    unsigned        contigBegin  : 30;
+    unsigned short  contigEnd    : 14;
+    bool            isFwd        : 1;
+    unsigned char   errors       : 5;
+}
+__attribute__((packed));
+
+template <typename TSpec, typename TReadSeqs, typename TReadSeqId>
+inline void setReadId(Match<TSpec> & me, TReadSeqs const & readSeqs, TReadSeqId readSeqId)
+{
+    me.readId = getReadId(readSeqs, readSeqId);
+    me.isFwd = isFwdReadSeq(readSeqs, readSeqId);
+}
+
+template <typename TSpec, typename TContigPos>
+inline void setContigPosition(Match<TSpec> & me, TContigPos contigBegin, TContigPos contigEnd)
+{
+    SEQAN_ASSERT_EQ(getValueI1(contigBegin), getValueI1(contigEnd));
+    SEQAN_ASSERT_LT(getValueI2(contigBegin), getValueI2(contigEnd));
+
+    me.contigId = getValueI1(contigBegin);
+    me.contigBegin = getValueI2(contigBegin);
+    me.contigEnd = getValueI2(contigEnd) - getValueI2(contigBegin);
+}
+
+template <typename TReadSeqs, typename TSpec>
+inline typename Size<TReadSeqs>::Type
+getReadSeqId(Match<TSpec> const & me, TReadSeqs const & readSeqs)
+{
+    return onForwardStrand(me) ? getFirstMateFwdSeqId(readSeqs, me.readId) : getFirstMateRevSeqId(readSeqs, me.readId);
+}
+
+template <typename TSpec>
+inline unsigned getReadId(Match<TSpec> const & me)
+{
+    return me.readId;
+}
+
+template <typename TSpec>
+inline unsigned getContigId(Match<TSpec> const & me)
+{
+    return me.contigId;
+}
+
+template <typename TSpec>
+inline unsigned getContigBegin(Match<TSpec> const & me)
+{
+    return me.contigBegin;
+}
+
+template <typename TSpec>
+inline unsigned getContigEnd(Match<TSpec> const & me)
+{
+    return me.contigBegin + me.contigEnd;
+}
+
+template <typename TSpec>
+inline bool onForwardStrand(Match<TSpec> const & me)
+{
+    return me.isFwd;
+}
+
+template <typename TSpec>
+inline bool onReverseStrand(Match<TSpec> const & me)
+{
+    return !onForwardStrand(me);
+}
+
+template <typename TSpec>
+inline unsigned char getScore(Match<TSpec> const & /* me */)
+{
+    return 254;
+}
+
+template <typename TSpec>
+inline unsigned char getErrors(Match<TSpec> const & me)
+{
+    return me.errors;
+}
+
+// ----------------------------------------------------------------------------
+// Class MatchReadId
+// ----------------------------------------------------------------------------
+
+template <typename TMatch>
+struct MatchReadId
+{
+    inline unsigned operator()(TMatch const & me) const
+    {
+        return getReadId(me);
+    }
 };
 
 // ----------------------------------------------------------------------------
-// Class MatchSorterByXXX
+// Class MatchSorter
 // ----------------------------------------------------------------------------
 
+template <typename TMatch, typename TSpec>
+struct MatchSorter;
+
 template <typename TMatch>
-struct MatchSorterByReadId
+struct MatchSorter<TMatch, SortReadId>
 {
     inline bool operator()(TMatch const & a, TMatch const & b) const
     {
-        return a.readId <= b.readId;
+        return getReadId(a) < getReadId(b);
     }
 };
 
 template <typename TMatch>
-struct MatchSorterByBeginPos
+struct MatchSorter<TMatch, SortBeginPos>
 {
+    // TODO(esiragusa): check orientation.
     inline bool operator()(TMatch const & a, TMatch const & b) const
     {
-        return (a.contigId < b.contigId) || (a.contigId == b.contigId && a.contigBegin < b.contigBegin);
+        return (getContigId(a) <  getContigId(b)) ||
+               (getContigId(a) == getContigId(b)  && getContigBegin(a) < getContigBegin(b));
     }
 };
 
 template <typename TMatch>
-struct MatchSorterByEndPos
+struct MatchSorter<TMatch, SortEndPos>
 {
+    // TODO(esiragusa): check orientation.
     inline bool operator()(TMatch const & a, TMatch const & b) const
     {
-        return (a.contigId < b.contigId) || (a.contigId == b.contigId && a.contigEnd < b.contigEnd);
+        return (getContigId(a) <  getContigId(b)) ||
+               (getContigId(a) == getContigId(b)  && getContigEnd(a) < getContigEnd(b));
     }
 };
 
+struct SortErrors_;
+typedef Tag<SortErrors_> const SortErrors;
+
 template <typename TMatch>
-struct MatchSorterByErrors
+struct MatchSorter<TMatch, SortErrors>
 {
     inline bool operator()(TMatch const & a, TMatch const & b) const
     {
-        return a.errors <= b.errors;
+        return getErrors(a) < getErrors(b);
     }
 };
 
@@ -116,7 +214,7 @@ struct MatchesCounter
     template <typename TMatch>
     void operator() (TMatch const & match)
     {
-        matched[getReadId(readSeqs, match.readId)] = true;
+        matched[getReadId(match)] = true;
     }
 };
 
@@ -135,7 +233,33 @@ struct MatchesCounter<TReadSeqs, PairedEnd>
     template <typename TMatch>
     void operator() (TMatch const & match)
     {
-        matched[getPairId(readSeqs, match.readId)] = true;
+        matched[getPairId(readSeqs, getReadId(match))] = true;
+    }
+};
+
+// ----------------------------------------------------------------------------
+// Class DuplicateRemover
+// ----------------------------------------------------------------------------
+
+template <typename TCounts, typename TPosition>
+struct DuplicateRemover
+{
+    TCounts &    unique;
+
+    DuplicateRemover(TCounts & unique) :
+        unique(unique)
+    {}
+
+    template <typename TIterator>
+    void operator() (TIterator & it)
+    {
+        typedef typename Value<TIterator>::Type     TMatches;
+        typedef typename Value<TMatches>::Type      TMatch;
+
+        TMatches matches = value(it);
+
+        sort(matches, MatchSorter<TMatch, TPosition>());
+        unique[position(it) + 1] = compactUniqueMatches(matches, TPosition());
     }
 };
 
@@ -144,114 +268,84 @@ struct MatchesCounter<TReadSeqs, PairedEnd>
 // ============================================================================
 
 // ----------------------------------------------------------------------------
-// Function fill()
-// ----------------------------------------------------------------------------
-
-template <typename TSpec, typename TReadId, typename TContigId, typename TContigPos, typename TErrors>
-inline void fill(Match<TSpec> & match,
-                 TReadId readId,
-                 TContigId contigId,
-                 TContigPos contigBegin,
-                 TContigPos contigEnd,
-                 TErrors errors)
-{
-    match.readId = readId;
-    match.contigBegin = contigBegin;
-    match.contigEnd = contigEnd;
-    match.contigId = contigId;
-    match.errors = errors;
-}
-
-// ----------------------------------------------------------------------------
-// Function isDuplicateBegin()
+// Function isDuplicate(SortBeginPos)
 // ----------------------------------------------------------------------------
 
 template <typename TSpec>
-inline bool isDuplicateBegin(Match<TSpec> const & a, Match<TSpec> const & b)
+inline bool isDuplicate(Match<TSpec> const & a, Match<TSpec> const & b, SortBeginPos)
 {
-    return a.readId == b.readId && a.contigId == b.contigId && a.contigBegin == b.contigBegin;
+    // TODO(esiragusa): check orientation.
+    return getContigId(a) == getContigId(b) && getContigBegin(a) == getContigBegin(b);
 }
 
 // ----------------------------------------------------------------------------
-// Function isDuplicateEnd()
+// Function isDuplicate(SortEndPos)
 // ----------------------------------------------------------------------------
 
 template <typename TSpec>
-inline bool isDuplicateEnd(Match<TSpec> const & a, Match<TSpec> const & b)
+inline bool isDuplicate(Match<TSpec> const & a, Match<TSpec> const & b, SortEndPos)
 {
-    return a.readId == b.readId && a.contigId == b.contigId && a.contigEnd == b.contigEnd;
+    // TODO(esiragusa): check orientation.
+    return getContigId(a) == getContigId(b) && getContigEnd(a) == getContigEnd(b);
 }
 
 // ----------------------------------------------------------------------------
-// Function removeDuplicateMatches()
+// Function compactUniqueMatches()
 // ----------------------------------------------------------------------------
+// Compact unique matches at the beginning of their container.
 
-template <typename TMatches, typename TThreading>
-inline void removeDuplicateMatches(TMatches & matches, TThreading const & threading)
+template <typename TMatches, typename TPosition>
+inline typename Size<TMatches>::Type
+compactUniqueMatches(TMatches & matches, Tag<TPosition> const & posTag)
 {
     typedef typename Iterator<TMatches, Standard>::Type         TMatchesIterator;
-    typedef typename Value<TMatches>::Type                      TMatch;
 
-    TMatchesIterator matchesBegin;
-    TMatchesIterator matchesEnd;
-    TMatchesIterator newIt;
-    TMatchesIterator oldIt;
+    TMatchesIterator matchesBegin = begin(matches, Standard());
+    TMatchesIterator matchesEnd = end(matches, Standard());
+    TMatchesIterator newIt = matchesBegin;
+    TMatchesIterator oldIt = matchesBegin;
 
-    matchesBegin = begin(matches, Standard());
-    matchesEnd   = end(matches, Standard());
-    newIt = matchesBegin;
-    oldIt = matchesBegin;
-
-//    stableSort(matches, MatchSorterByReadId<TMatch>(), threading);
-
-    stableSort(matches, MatchSorterByEndPos<TMatch>(), threading);
-
-    // Remove duplicates by end position.
     while (oldIt != matchesEnd)
     {
         *newIt = *oldIt;
 
         ++oldIt;
 
-        while (oldIt != matchesEnd && isDuplicateEnd(*newIt, *oldIt)) ++oldIt;
+        while (oldIt != matchesEnd && isDuplicate(*newIt, *oldIt, posTag)) ++oldIt;
 
         ++newIt;
     }
 
-    resize(matches, newIt - matchesBegin, Exact());
-
-    matchesBegin = begin(matches, Standard());
-    matchesEnd   = end(matches, Standard());
-    newIt = matchesBegin;
-    oldIt = matchesBegin;
-
-    stableSort(matches, MatchSorterByBeginPos<TMatch>(), threading);
-
-    // Remove duplicates by begin position.
-    while (oldIt != matchesEnd)
-    {
-        *newIt = *oldIt;
-
-        ++oldIt;
-
-        while (oldIt != matchesEnd && isDuplicateBegin(*newIt, *oldIt)) ++oldIt;
-
-        ++newIt;
-    }
-
-    resize(matches, newIt - matchesBegin, Exact());
+    return newIt - matchesBegin;
 }
 
 // ----------------------------------------------------------------------------
-// Function sortByErrors()
+// Function removeDuplicates()
 // ----------------------------------------------------------------------------
+// Remove duplicate matches from a set of matches.
 
-template <typename TMatches, typename TThreading>
-inline void sortByErrors(TMatches & matches, TThreading const & threading)
+template <typename TMatchesSet, typename TThreading>
+inline void removeDuplicates(TMatchesSet & matchesSet, TThreading const & threading)
 {
-    typedef typename Value<TMatches>::Type  TMatch;
+    typedef typename StringSetLimits<TMatchesSet>::Type         TLimits;
 
-    sort(matches, MatchSorterByErrors<TMatch>(), threading);
+    TLimits newLimits;
+    resize(newLimits, length(stringSetLimits(matchesSet)));
+    front(newLimits) = 0;
+
+    // Sort matches by end position and move unique matches at the beginning.
+    iterate(matchesSet, DuplicateRemover<TLimits, SortEndPos>(newLimits), Rooted(), threading);
+
+    // Exclude duplicate matches at the end.
+    assign(stringSetLimits(matchesSet), newLimits);
+    _refreshStringSetLimits(matchesSet, Parallel());
+
+    // Sort matches by begin position and move unique matches at the beginning.
+    iterate(matchesSet, DuplicateRemover<TLimits, SortBeginPos>(newLimits), Rooted(), threading);
+
+    // Exclude duplicate matches at the end.
+    assign(stringSetLimits(matchesSet), newLimits);
+    _refreshStringSetLimits(matchesSet, Parallel());
 }
 
 // ----------------------------------------------------------------------------
@@ -274,6 +368,28 @@ inline typename Size<TReadSeqs>::Type
 countMatches(TReadSeqs const & readSeqs, TMatches const & matches, TSequencing const & /* tag */, TThreading const & threading)
 {
     return getCount(forEach(matches, MatchesCounter<TReadSeqs, TSequencing>(readSeqs), threading), threading);
+}
+
+// ----------------------------------------------------------------------------
+// Function sortMatches()
+// ----------------------------------------------------------------------------
+
+//template <typename TMatches, typename TKey>
+//inline void sortMatches(TMatches & matches)
+//{
+//    typedef typename Value<TMatches>::Type  TMatch;
+//
+//    sort(matches, MatchSorter<TMatch, TKey>());
+//}
+
+template <typename TIterator, typename TKey>
+inline void sortMatches(TIterator & it)
+{
+    typedef typename Value<TIterator>::Type TMatches;
+    typedef typename Value<TMatches>::Type  TMatch;
+
+    TMatches matches = value(it);
+    sort(matches, MatchSorter<TMatch, TKey>());
 }
 
 #endif  // #ifndef APP_CUDAMAPPER_BITS_MATCHES_H_

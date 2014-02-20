@@ -42,30 +42,96 @@ using namespace seqan;
 // ============================================================================
 
 // ----------------------------------------------------------------------------
-// Class WriterConfig
+// Class MatchesWriter
 // ----------------------------------------------------------------------------
 
-template <typename TOptions_, typename TReadSeqs_>
-struct WriterConfig
+template <typename TSpec, typename Traits>
+struct MatchesWriter
 {
-    typedef TOptions_    TOptions;
-    typedef TReadSeqs_   TReadSeqs;
-};
+    typedef typename Traits::TStore            TStore;
+    typedef typename Traits::TMatchesSet       TMatchesSet;
+    typedef typename Traits::TOutputStream     TOutputStream;
+    typedef typename Traits::TOutputContext    TOutputContext;
+    typedef typename Traits::TReadsContext     TReadsContext;
 
-// ----------------------------------------------------------------------------
-// Class Writer
-// ----------------------------------------------------------------------------
+    // Thread-private data.
+    BamAlignmentRecord      record;
 
-template <typename TExecSpace, typename TConfig>
-struct Writer
-{
-    typedef typename TConfig::TOptions                      TOptions;
+    // Shared-memory read-write data.
+    TOutputStream &         outputStream;
+    TOutputContext &        outputCtx;
 
-    TOptions const &    options;
+    // Shared-memory read-only data.
+    TReadsContext const &   ctx;
+    TStore const &          store;
+    TMatchesSet const &     matchesSet;
+    Options const &         options;
 
-    Writer(TOptions const & options) :
+    MatchesWriter(TOutputStream & outputStream,
+                  TOutputContext & outputCtx,
+                  TReadsContext const & ctx,
+                  TStore const & store,
+                  TMatchesSet const & matchesSet,
+                  Options const & options) :
+        outputStream(outputStream),
+        outputCtx(outputCtx),
+        ctx(ctx),
+        store(store),
+        matchesSet(matchesSet),
         options(options)
-    {}
+    {
+        // Process all matches.
+        // TODO(esiragusa): insure that forEach() does not copy the functor.
+        forEach(matchesSet, *this, Serial());
+    }
+
+    template <typename TMatches>
+    void operator() (TMatches const & matches)
+    {
+        _writeMatchesImpl(*this, matches);
+    }
 };
+
+// ============================================================================
+// Functions
+// ============================================================================
+
+// ----------------------------------------------------------------------------
+// Function _writeMatchesImpl()
+// ----------------------------------------------------------------------------
+// Writes one block of matches.
+
+template <typename TSpec, typename Traits, typename TMatches>
+inline void _writeMatchesImpl(MatchesWriter<TSpec, Traits> & me, TMatches const & matches)
+{
+    typedef typename Value<TMatches>::Type          TMatch;
+
+    // The first match is supposed to be the best one.
+    TMatch const & primary = front(matches);
+
+    clear(me.record.tags);
+    me.record.flag = 0;
+
+    // Add primary alignment information.
+    setName(me.record, me.store, primary);
+//    setSeqAndQual(me.record, me.store, primary);
+    setOrientation(me.record, me.store, primary);
+//    setPosition(me.record, me.store, primary);
+//    me.record.rID = getContigId(primary);
+    me.record.beginPos = getContigBegin(primary);
+
+//    setAlignment(record, store, primary, primary, alignFunctor);
+    setScore(me.record, me.store, primary);
+
+    // Clear mate information.
+//    clearMateInfo(me.record, me.store, primary);
+    clearMatePosition(me.record, me.store);
+
+    // Add secondary match information.
+//    addSecondaryMatch(me.record, me.store, itBegin + 1, itEnd);
+
+    // Write record to output stream.
+    write2(me.outputStream, me.record, me.outputCtx, typename Traits::TOutputFormat());
+}
 
 #endif  // #ifndef APP_CUDAMAPPER_MAPPER_WRITER_H_
