@@ -268,18 +268,6 @@ struct DuplicateRemover
 // ============================================================================
 
 // ----------------------------------------------------------------------------
-// Function sortByErrors()
-// ----------------------------------------------------------------------------
-
-template <typename TMatches>
-inline void sortByErrors(TMatches & matches)
-{
-    typedef typename Value<TMatches>::Type  TMatch;
-
-    sort(matches, MatchSorter<TMatch, SortErrors>());
-}
-
-// ----------------------------------------------------------------------------
 // Function isDuplicate(SortBeginPos)
 // ----------------------------------------------------------------------------
 
@@ -380,6 +368,28 @@ inline typename Size<TReadSeqs>::Type
 countMatches(TReadSeqs const & readSeqs, TMatches const & matches, TSequencing const & /* tag */, TThreading const & threading)
 {
     return getCount(forEach(matches, MatchesCounter<TReadSeqs, TSequencing>(readSeqs), threading), threading);
+}
+
+// ----------------------------------------------------------------------------
+// Function sortMatches()
+// ----------------------------------------------------------------------------
+
+//template <typename TMatches, typename TKey>
+//inline void sortMatches(TMatches & matches)
+//{
+//    typedef typename Value<TMatches>::Type  TMatch;
+//
+//    sort(matches, MatchSorter<TMatch, TKey>());
+//}
+
+template <typename TIterator, typename TKey>
+inline void sortMatches(TIterator & it)
+{
+    typedef typename Value<TIterator>::Type TMatches;
+    typedef typename Value<TMatches>::Type  TMatch;
+
+    TMatches matches = value(it);
+    sort(matches, MatchSorter<TMatch, TKey>());
 }
 
 #endif  // #ifndef APP_CUDAMAPPER_BITS_MATCHES_H_
