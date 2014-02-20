@@ -61,6 +61,7 @@ struct CUDAStoreConfig
     typedef Owner<ConcatDirect<> >  TReadSeqStoreSpec;
     typedef Alloc<>                 TReadNameSpec;
     typedef Owner<ConcatDirect<> >  TReadNameStoreSpec;
+    typedef Owner<ConcatDirect<> >  TContigNameSpec;
     typedef void                    TMatePairStoreElementSpec;
     typedef void                    TLibraryStoreElementSpec;
     typedef void                    TContigStoreElementSpec;
