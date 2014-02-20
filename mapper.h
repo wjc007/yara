@@ -528,32 +528,6 @@ inline unsigned long countHits(Mapper<TSpec, TConfig> const & mapper)
     return hitsCount;
 }
 
-// --------------------------------------------------------------------------
-// Function aggregate()
-// --------------------------------------------------------------------------
-
-template <typename THost, typename TSpec, typename TKey>
-inline void aggregate(StringSet<THost, Segment<TSpec> > & me, TKey const & key)
-{
-    typedef typename Iterator<THost, Standard>::Type    THostIter;
-
-    THostIter beginIt = begin(host(me), Standard());
-    THostIter endIt = end(host(me), Standard());
-    THostIter firstIt = beginIt;
-    THostIter lastIt = firstIt;
-
-    clear(me);
-
-    while (firstIt != endIt)
-    {
-        while (lastIt != endIt && key(value(firstIt)) == key(value(lastIt))) ++lastIt;
-
-        appendInfixWithLength(me, firstIt - beginIt, lastIt - firstIt, Generous());
-
-        firstIt = lastIt;
-    }
-}
-
 // ----------------------------------------------------------------------------
 // Function extendHits()
 // ----------------------------------------------------------------------------
@@ -578,18 +552,84 @@ inline void extendHits(Mapper<TSpec, TConfig> & mapper)
                                indexSA(mapper.index), mapper.options);
     }
 
-    // Sort anchors by readId.
-    if (IsSameType<typename TConfig::TThreading, Parallel>::VALUE)
-        sort(mapper.anchors, MatchSorter<typename TTraits::TMatch, SortReadId>(), typename TConfig::TThreading());
-
-    // Aggregate anchors by readId.
-    setHost(mapper.anchorsSet, mapper.anchors);
-    aggregate(mapper.anchorsSet, MatchReadId<typename TTraits::TMatch>());
-
     stop(mapper.timer);
 
     std::cout << "Extension time:\t\t\t" << mapper.timer << std::endl;
     std::cout << "Anchors count:\t\t\t" << length(mapper.anchors) << std::endl;
+}
+
+// --------------------------------------------------------------------------
+// Function aggregate()
+// --------------------------------------------------------------------------
+// TODO(esiragusa): Parallelize and move into Segment StringSet.
+
+template <typename THost, typename TSpec, typename TKey>
+inline void aggregate(StringSet<THost, Segment<TSpec> > & me, TKey const & key)
+{
+    typedef typename Iterator<THost, Standard>::Type    THostIter;
+
+    THostIter beginIt = begin(host(me), Standard());
+    THostIter endIt = end(host(me), Standard());
+    THostIter firstIt = beginIt;
+    THostIter lastIt = firstIt;
+
+    clear(me);
+
+    while (firstIt != endIt)
+    {
+        while (lastIt != endIt && key(value(firstIt)) == key(value(lastIt))) ++lastIt;
+
+        appendInfixWithLength(me, firstIt - beginIt, lastIt - firstIt, Generous());
+
+        firstIt = lastIt;
+    }
+}
+
+// ----------------------------------------------------------------------------
+// Function aggregateAnchors()
+// ----------------------------------------------------------------------------
+// Aggregate anchors by readId.
+
+template <typename TSpec, typename TConfig>
+inline void aggregateAnchors(Mapper<TSpec, TConfig> & mapper)
+{
+    typedef MapperTraits<TSpec, TConfig>    TTraits;
+    typedef typename TTraits::TMatch        TMatch;
+
+    start(mapper.timer);
+
+    // Sort anchors by readId.
+//    if (IsSameType<typename TConfig::TThreading, Parallel>::VALUE)
+    sort(mapper.anchors, MatchSorter<TMatch, SortReadId>(), typename TConfig::TThreading());
+
+    setHost(mapper.anchorsSet, mapper.anchors);
+    aggregate(mapper.anchorsSet, MatchReadId<TMatch>());
+
+    stop(mapper.timer);
+
+    std::cout << "Sorting time:\t\t" << mapper.timer << std::endl;
+    std::cout << "Mapped anchors:\t\t\t" << length(mapper.anchorsSet) << std::endl;
+}
+
+// ----------------------------------------------------------------------------
+// Function compactAnchors()
+// ----------------------------------------------------------------------------
+
+template <typename TSpec, typename TConfig, typename TReadSeqs>
+inline void compactAnchors(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs)
+{
+    typedef MapperTraits<TSpec, TConfig>    TTraits;
+
+    start(mapper.timer);
+
+    removeDuplicates(mapper.anchorsSet, typename TConfig::TThreading());
+
+    stop(mapper.timer);
+    std::cout << "Compaction time:\t\t" << mapper.timer << std::endl;
+    std::cout << "Anchors count:\t\t\t" << lengthSum(mapper.anchorsSet) << std::endl;
+    std::cout << "Anchored pairs:\t\t\t" << countMatches(readSeqs, concat(mapper.anchorsSet),
+                                                         typename TConfig::TSequencing(),
+                                                         typename TConfig::TThreading()) << std::endl;
 }
 
 // ----------------------------------------------------------------------------
@@ -616,15 +656,15 @@ inline void _verifyAnchorsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & read
 
     // TODO(esiragusa): guess the number of mates.
     clear(mapper.mates);
-    reserve(mapper.mates, length(mapper.anchors));
+    reserve(mapper.mates, lengthSum(mapper.anchorsSet));
 
     TAnchorsVerifier verifier(mapper.ctx, mapper.mates,
                               contigs(mapper.genome), readSeqs,
-                              mapper.anchors, mapper.options);
+                              concat(mapper.anchorsSet), mapper.options);
 
     // Sort mates by readId.
-    if (IsSameType<typename TConfig::TThreading, Parallel>::VALUE)
-        sort(mapper.mates, MatchSorter<typename TTraits::TMatch, SortReadId>(), typename TConfig::TThreading());
+//    if (IsSameType<typename TConfig::TThreading, Parallel>::VALUE)
+//    sort(mapper.mates, MatchSorter<typename TTraits::TMatch, SortReadId>(), typename TConfig::TThreading());
 
     stop(mapper.timer);
 
@@ -633,27 +673,6 @@ inline void _verifyAnchorsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & read
     std::cout << "Mapped pairs:\t\t\t" << countMatches(readSeqs, mapper.mates,
                                                        typename TConfig::TSequencing(),
                                                        typename TConfig::TThreading()) << std::endl;
-}
-
-// ----------------------------------------------------------------------------
-// Function removeDuplicates()
-// ----------------------------------------------------------------------------
-
-template <typename TSpec, typename TConfig, typename TReadSeqs>
-inline void removeDuplicates(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs)
-{
-    typedef MapperTraits<TSpec, TConfig>    TTraits;
-
-    start(mapper.timer);
-
-    removeDuplicates(mapper.anchorsSet, typename TConfig::TThreading());
-
-    stop(mapper.timer);
-    std::cout << "Compaction time:\t\t" << mapper.timer << std::endl;
-    std::cout << "Anchors count:\t\t\t" << lengthSum(mapper.anchorsSet) << std::endl;
-    std::cout << "Anchored pairs:\t\t\t" << countMatches(readSeqs, mapper.anchors,
-                                                         typename TConfig::TSequencing(),
-                                                         typename TConfig::TThreading()) << std::endl;
 }
 
 // ----------------------------------------------------------------------------
@@ -755,7 +774,8 @@ inline void _mapReadsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs,
     findSeeds<1>(mapper, 1);
     findSeeds<2>(mapper, 2);
     extendHits(mapper);
-    removeDuplicates(mapper, readSeqs);
+    aggregateAnchors(mapper);
+    compactAnchors(mapper, readSeqs);
     verifyAnchors(mapper, readSeqs);
     writeMatches(mapper);
 }
@@ -801,8 +821,9 @@ inline void _mapReadsByStrata(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readS
         stableSort(mapper.hits[bucketId], HitsSorterByCount<THit>());
 
     extendHits(mapper);
+    aggregateAnchors(mapper);
 
-    std::cout << "Mapped reads:\t\t\t" << countMapped(mapper.ctx, typename TConfig::TThreading()) << std::endl;
+//    std::cout << "Mapped reads:\t\t\t" << countMapped(mapper.ctx, typename TConfig::TThreading()) << std::endl;
 
 //    clearHits(mapper);
 //    collectSeeds<1>(mapper, readSeqs);
