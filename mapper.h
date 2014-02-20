@@ -580,7 +580,7 @@ inline void extendHits(Mapper<TSpec, TConfig> & mapper)
 
     // Sort anchors by readId.
     if (IsSameType<typename TConfig::TThreading, Parallel>::VALUE)
-        sort(mapper.anchors, MatchSorterByReadId<typename TTraits::TMatch>(), typename TConfig::TThreading());
+        sort(mapper.anchors, MatchSorter<typename TTraits::TMatch, SortReadId>(), typename TConfig::TThreading());
 
     // Aggregate anchors by readId.
     setHost(mapper.anchorsSet, mapper.anchors);
@@ -624,7 +624,7 @@ inline void _verifyAnchorsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & read
 
     // Sort mates by readId.
     if (IsSameType<typename TConfig::TThreading, Parallel>::VALUE)
-        sort(mapper.mates, MatchSorterByReadId<typename TTraits::TMatch>(), typename TConfig::TThreading());
+        sort(mapper.mates, MatchSorter<typename TTraits::TMatch, SortReadId>(), typename TConfig::TThreading());
 
     stop(mapper.timer);
 
@@ -667,6 +667,9 @@ inline void writeMatches(Mapper<TSpec, TConfig> & mapper)
     typedef MatchesWriter<TSpec, TTraits>       TMatchesWriter;
 
     start(mapper.timer);
+
+    // Sort each set of matches by errors.
+//    transform(matchesSet, sortByErrors<TMatches>, threading);
 
     TMatchesWriter writer(mapper.outputStream, mapper.outputCtx,
                           mapper.ctx, mapper.store,
