@@ -673,7 +673,7 @@ inline void writeMatches(Mapper<TSpec, TConfig> & mapper)
 
     TMatchesWriter writer(mapper.outputStream, mapper.outputCtx,
                           mapper.ctx, mapper.store,
-                          mapper.anchors, mapper.options);
+                          mapper.anchorsSet, mapper.options);
 
     stop(mapper.timer);
     std::cout << "Output time:\t\t" << mapper.timer << std::endl;

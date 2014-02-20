@@ -49,7 +49,7 @@ template <typename TSpec, typename Traits>
 struct MatchesWriter
 {
     typedef typename Traits::TStore            TStore;
-    typedef typename Traits::TMatches          TMatches;
+    typedef typename Traits::TMatchesSet       TMatchesSet;
     typedef typename Traits::TOutputStream     TOutputStream;
     typedef typename Traits::TOutputContext    TOutputContext;
     typedef typename Traits::TReadsContext     TReadsContext;
@@ -64,30 +64,30 @@ struct MatchesWriter
     // Shared-memory read-only data.
     TReadsContext const &   ctx;
     TStore const &          store;
-    TMatches const &        matches;
+    TMatchesSet const &     matchesSet;
     Options const &         options;
 
     MatchesWriter(TOutputStream & outputStream,
                   TOutputContext & outputCtx,
                   TReadsContext const & ctx,
                   TStore const & store,
-                  TMatches const & matches,
+                  TMatchesSet const & matchesSet,
                   Options const & options) :
         outputStream(outputStream),
         outputCtx(outputCtx),
         ctx(ctx),
         store(store),
-        matches(matches),
+        matchesSet(matchesSet),
         options(options)
     {
-        // Iterate over all matches.
-        _iterate(*this);
+        // Process all matches.
+        forEach(matchesSet, *this, Serial());
     }
 
-    template <typename TMatchesIterator>
-    void operator() (TMatchesIterator const & itBegin, TMatchesIterator const & itEnd)
+    template <typename TMatches>
+    void operator() (TMatches const & matches)
     {
-        _writeMatchesImpl(*this, itBegin, itEnd);
+        _writeMatchesImpl(*this, matches);
     }
 };
 
@@ -96,36 +96,17 @@ struct MatchesWriter
 // ============================================================================
 
 // ----------------------------------------------------------------------------
-// Function _iterate()
-// ----------------------------------------------------------------------------
-
-template <typename TSpec, typename Traits>
-inline void _iterate(MatchesWriter<TSpec, Traits> & me)
-{
-    typedef typename Traits::TMatches                           TMatches;
-    typedef typename Iterator<TMatches const, Standard>::Type   TMatchesIterator;
-
-    TMatchesIterator itBegin = begin(me.matches, Standard());
-    TMatchesIterator itEnd = end(me.matches, Standard());
-
-    _writeMatchesImpl(me, itBegin, itEnd);
-}
-
-// ----------------------------------------------------------------------------
 // Function _writeMatchesImpl()
 // ----------------------------------------------------------------------------
 // Writes one block of matches.
 
-template <typename TSpec, typename Traits, typename TMatchesIterator>
-inline void _writeMatchesImpl(MatchesWriter<TSpec, Traits> & me,
-                              TMatchesIterator const & itBegin,
-                              TMatchesIterator const & itEnd)
+template <typename TSpec, typename Traits, typename TMatches>
+inline void _writeMatchesImpl(MatchesWriter<TSpec, Traits> & me, TMatches const & matches)
 {
-    typedef typename Value<TMatchesIterator>::Type  TMatches;
     typedef typename Value<TMatches>::Type          TMatch;
 
     // The first match is supposed to be the best one.
-    TMatch const & primary = value(itBegin);
+    TMatch const & primary = front(matches);
 
     clear(me.record.tags);
     me.record.flag = 0;
