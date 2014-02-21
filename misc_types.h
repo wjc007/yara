@@ -49,7 +49,7 @@ using namespace seqan;
 
 struct CUDAStoreConfig
 {
-    typedef String<Dna5>            TReadSeq;
+    typedef String<Dna5Q>           TReadSeq;
     typedef String<Dna5>            TContigSeq;
     typedef Owner<ConcatDirect<> >  TContigSpec;
 
