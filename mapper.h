@@ -157,11 +157,10 @@ struct MapperTraits
     typedef typename Space<THostIndex, TExecSpace>::Type            TIndex;
     typedef typename Fibre<TIndex, FibreSA>::Type                   TSA;
 
-    typedef FragmentStore<void, TConfig>                            TStore;
-    typedef ReadsConfig<False, True, True, True, TConfig>           TReadsConfig;
+    typedef ReadsConfig<void>                                       TReadsConfig;
     typedef Reads<TSequencing, TReadsConfig>                        TReads;
     typedef ReadsLoader<TSequencing, TReadsConfig>                  TReadsLoader;
-    typedef typename TStore::TReadSeqStore                          THostReadSeqs;
+    typedef typename TReads::TReadSeqs                              THostReadSeqs;
     typedef typename Space<THostReadSeqs, TExecSpace>::Type         TReadSeqs;
     typedef typename Value<TReadSeqs>::Type                         TReadSeq;
     typedef typename Size<TReadSeqs>::Type                          TReadSeqSize;
@@ -209,7 +208,6 @@ struct Mapper
 
     typename Traits::TContigs           contigs;
     typename Traits::TIndex             index;
-    typename Traits::TStore             store;
     typename Traits::TReads             reads;
     typename Traits::TReadsLoader       readsLoader;
     typename Traits::TOutputStream      outputStream;
@@ -230,9 +228,8 @@ struct Mapper
         options(options),
         contigs(),
         index(),
-        store(),
-        reads(store),
-        readsLoader(reads),
+        reads(),
+        readsLoader(),
         outputStream(),
         outputCtx(contigs._contigNames, contigs._contigNamesCache),
         ctx(),
@@ -353,10 +350,10 @@ inline void loadReads(Mapper<TSpec, TConfig> & mapper)
     std::cout << "Loading reads:\t\t\t" << std::flush;
     start(mapper.timer);
     clear(mapper.reads);
-    load(mapper.readsLoader, mapper.options.mappingBlock);
+    load(mapper.reads, mapper.readsLoader, mapper.options.mappingBlock);
     stop(mapper.timer);
     std::cout << mapper.timer << std::endl;
-    std::cout << "Reads count:\t\t\t" << mapper.reads.readsCount << std::endl;
+    std::cout << "Reads count:\t\t\t" << getReadsCount(mapper.reads._readSeqs) << std::endl;
 }
 
 // ----------------------------------------------------------------------------
@@ -384,7 +381,7 @@ inline void initOutput(Mapper<TSpec, TConfig> & mapper)
         throw RuntimeError("Error while opening output file.");
 
     // Fill header.
-    _fillHeader(header, mapper.store);
+//    _fillHeader(header, mapper.store);
 
     // Write header to stream.
     write2(mapper.outputStream, header, mapper.outputCtx, typename TTraits::TOutputFormat());
@@ -689,9 +686,9 @@ inline void writeMatches(Mapper<TSpec, TConfig> & mapper)
 //    forEach(mapper.anchorsSet, sortMatches<TMatches, SortErrors>, typename TConfig::TThreading());
     iterate(mapper.anchorsSet, sortMatches<TMatchesIt, SortErrors>, Standard(), typename TConfig::TThreading());
 
-    TMatchesWriter writer(mapper.outputStream, mapper.outputCtx,
-                          mapper.ctx, mapper.store,
-                          mapper.anchorsSet, mapper.options);
+//    TMatchesWriter writer(mapper.outputStream, mapper.outputCtx,
+//                          mapper.ctx, mapper.store,
+//                          mapper.anchorsSet, mapper.options);
 
     stop(mapper.timer);
     std::cout << "Output time:\t\t\t" << mapper.timer << std::endl;
@@ -747,7 +744,7 @@ inline void writeHits(Mapper<TSpec, TConfig> const & mapper, TReadSeqs const & r
 template <typename TSpec, typename TConfig>
 inline void mapReads(Mapper<TSpec, TConfig> & mapper)
 {
-    _mapReadsImpl(mapper, getSeqs(mapper.reads), typename TConfig::TSequencing(), typename TConfig::TStrategy());
+    _mapReadsImpl(mapper, mapper.reads._readSeqs, typename TConfig::TSequencing(), typename TConfig::TStrategy());
 }
 
 // ----------------------------------------------------------------------------
