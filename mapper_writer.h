@@ -114,7 +114,7 @@ inline void _writeMatchesImpl(MatchesWriter<TSpec, Traits> & me, TMatches const 
 
     // Add primary alignment information.
     setName(me.record, me.store, primary);
-//    setSeqAndQual(me.record, me.store, primary);
+    setSeqAndQual(me.record, me.store, primary);
     setOrientation(me.record, me.store, primary);
 //    setPosition(me.record, me.store, primary);
 //    me.record.rID = getContigId(primary);
