@@ -188,11 +188,12 @@ void appendReverseComplement(Reads<TSpec, TConfig> & me)
     TReadSeqId readSeqsCount = length(me.seqs);
 
     reserve(me.seqs, 2 * readSeqsCount, Exact());
+    reserve(concat(me.seqs), 2 * lengthSum(me.seqs), Exact());
 
     for (TReadSeqId readSeqId = 0; readSeqId < readSeqsCount; ++readSeqId)
     {
         TReadSeq const & read = me.seqs[readSeqId];
-        appendValue(me.seqs, read, Exact());
+        appendValue(me.seqs, read);
         reverseComplement(back(me.seqs));
     }
 }
