@@ -85,9 +85,9 @@ struct Options
 template <typename TIndexSpec, typename TSpec = void>
 struct Indexer
 {
-    typedef Contigs<void, CUDAStoreConfig>                          TContigs;
-    typedef ContigsLoader<void, CUDAStoreConfig>                    TContigsLoader;
-    typedef Index<TFMContigs, TIndexSpec>                           TIndex;
+    typedef Contigs<TSpec>                         TContigs;
+    typedef ContigsLoader<TSpec>                   TContigsLoader;
+    typedef Index<TFMContigs, TIndexSpec>          TIndex;
 
     TContigs            contigs;
     TContigsLoader      contigsLoader;

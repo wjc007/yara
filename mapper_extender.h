@@ -49,7 +49,7 @@ using namespace seqan;
 template <typename TSpec, typename Traits>
 struct HitsExtender
 {
-    typedef typename Traits::TContigSeqs        TContigSeqs;
+    typedef typename Traits::TContigSeqs       TContigSeqs;
     typedef typename Traits::TContigsPos       TContigsPos;
     typedef typename Traits::TReadSeqs         TReadSeqs;
     typedef typename Traits::TReadSeq          TReadSeq;
@@ -134,10 +134,11 @@ inline void _extendHitImpl(HitsExtender<TSpec, Traits> & me, THitsIterator const
 {
     typedef HitsExtender<TSpec, Traits>                 THitsExtender;
 
-    typedef typename THitsExtender::TContigSeqs            TContigSeqs;
-    typedef typename Size<TContigSeqs>::Type               TContigId;
+    typedef typename THitsExtender::TContigSeqs         TContigSeqs;
+    typedef typename Size<TContigSeqs>::Type            TContigId;
     typedef typename THitsExtender::TContigsPos         TContigsPos;
 
+    typedef typename THitsExtender::TReadSeqs           TReadSeqs;
     typedef typename THitsExtender::TReadSeq            TReadSeq;
     typedef typename Id<TReadSeqs>::Type                TReadId;
     typedef Pair<typename Position<TReadSeq>::Type>     TReadPos;

@@ -122,7 +122,7 @@ template <typename TExecSpace_      = ExecHost,
           typename TStrategy_       = AnyBest,
           typename TAnchoring_      = Nothing,
           unsigned BUCKETS_         = 3>
-struct ReadMapperConfig : public CUDAStoreConfig
+struct ReadMapperConfig : public ContigsConfig<void>, public ReadsConfig<void>
 {
     typedef TExecSpace_     TExecSpace;
     typedef TThreading_     TThreading;
@@ -157,9 +157,8 @@ struct MapperTraits
     typedef typename Space<THostIndex, TExecSpace>::Type            TIndex;
     typedef typename Fibre<TIndex, FibreSA>::Type                   TSA;
 
-    typedef ReadsConfig<void>                                       TReadsConfig;
-    typedef Reads<TSequencing, TReadsConfig>                        TReads;
-    typedef ReadsLoader<TSequencing, TReadsConfig>                  TReadsLoader;
+    typedef Reads<TSequencing, TConfig>                             TReads;
+    typedef ReadsLoader<TSequencing, TConfig>                       TReadsLoader;
     typedef typename TReads::TReadSeqs                              THostReadSeqs;
     typedef typename Space<THostReadSeqs, TExecSpace>::Type         TReadSeqs;
     typedef typename Value<TReadSeqs>::Type                         TReadSeq;
@@ -381,7 +380,7 @@ inline void initOutput(Mapper<TSpec, TConfig> & mapper)
         throw RuntimeError("Error while opening output file.");
 
     // Fill header.
-    _fillHeader(header, mapper.contigs);
+//    _fillHeader(header, mapper.contigs);
 
     // Write header to stream.
     write2(mapper.outputStream, header, mapper.outputCtx, typename TTraits::TOutputFormat());

@@ -127,6 +127,7 @@ inline void _verifyAnchorImpl(AnchorsVerifier<TSpec, Traits> & me, TAnchorsItera
     typedef typename Traits::TContigSeqs                TContigSeqs;
     typedef typename Traits::TContigsPos                TContigsPos;
 
+    typedef typename Traits::TReadSeqs                  TReadSeqs;
     typedef typename Size<TReadSeqs>::Type              TReadId;
     typedef typename Value<TReadSeqs>::Type             TReadSeq;
     typedef typename Size<TReadSeq>::Type               TErrors;
