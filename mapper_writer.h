@@ -143,8 +143,7 @@ inline void _writeMatchesImpl(MatchesWriter<TSpec, Traits> & me, TMatches const 
     TMatch const & primary = front(matches);
 
     // Clear the record.
-    clear(me.record.tags);
-    me.record.flag = 0;
+    clear(me.record);
 
     // Set primary alignment information.
     me.record.qName = me.reads.names[getReadId(primary)];
@@ -162,15 +161,16 @@ inline void _writeMatchesImpl(MatchesWriter<TSpec, Traits> & me, TMatches const 
     // Set mapping quality.
     me.record.mapQ = getScore(primary);
 
-    // Fill number of errors.
+    // Set number of errors.
     appendTagValue(me.record.tags, "NM", getErrors(primary));
 
+    // Set alignment.
 //    setAlignment(record, me.contigs, primary, primary, alignFunctor);
 
     // Clear mate information.
-    clearMatePosition(me.record);
-    clearMateInfo(me.record);
-    clearMateOrientation(me.record);
+//    clearMatePosition(me.record);
+//    clearMateInfo(me.record);
+//    clearMateOrientation(me.record);
 
     // Add secondary match information.
 //    addSecondaryMatch(me.record, itBegin + 1, itEnd);
