@@ -75,14 +75,14 @@ struct Reads
 	typedef StringSet<CharString, TReadNameSpec>        TReadNames;
 	typedef NameStoreCache<TReadNames, CharString>      TReadNamesCache;
 
-    TReadSeqs           _readSeqs;
-    TReadNames          _readNames;
-    TReadNamesCache     _readNamesCache;
+    TReadSeqs           seqs;
+    TReadNames          names;
+    TReadNamesCache     namesCache;
 
     Reads() :
-        _readSeqs(),
-        _readNames(),
-		_readNamesCache(_readNames)
+        seqs(),
+        names(),
+		namesCache(names)
     {}
 };
 
@@ -128,9 +128,9 @@ struct ReadsLoader<PairedEnd, TConfig>
 template <typename TSpec, typename TConfig>
 void clear(Reads<TSpec, TConfig> & me)
 {
-    clear(me._readSeqs);
-    clear(me._readNames);
-//    clear(me._readNamesCache);
+    clear(me.seqs);
+    clear(me.names);
+//    clear(me.namesCache);
 }
 
 // ----------------------------------------------------------------------------
@@ -167,8 +167,8 @@ void _load(Reads<TSpec, TConfig> & me, TSize count, TReader & reader, TFormat & 
         if (readRecord(seqName, seq, reader, format) != 0)
             throw RuntimeError("Error while reading read record.");
 
-        appendValue(me._readSeqs, seq, Generous());
-        appendValue(me._readNames, seqName, Generous());
+        appendValue(me.seqs, seq, Generous());
+        appendValue(me.names, seqName, Generous());
     }
 }
 
@@ -185,15 +185,15 @@ void appendReverseComplement(Reads<TSpec, TConfig> & me)
     typedef typename Value<TReadSeqs>::Type TReadSeq;
     typedef typename Size<TReadSeqs>::Type  TReadSeqId;
 
-    TReadSeqId readSeqsCount = length(me._readSeqs);
+    TReadSeqId readSeqsCount = length(me.seqs);
 
-    reserve(me._readSeqs, 2 * readSeqsCount, Exact());
+    reserve(me.seqs, 2 * readSeqsCount, Exact());
 
     for (TReadSeqId readSeqId = 0; readSeqId < readSeqsCount; ++readSeqId)
     {
-        TReadSeq const & read = me._readSeqs[readSeqId];
-        appendValue(me._readSeqs, read, Exact());
-        reverseComplement(back(me._readSeqs));
+        TReadSeq const & read = me.seqs[readSeqId];
+        appendValue(me.seqs, read, Exact());
+        reverseComplement(back(me.seqs));
     }
 }
 

@@ -205,11 +205,11 @@ void buildIndex(Indexer<TIndexSpec, TSpec> & indexer)
 
     // Set the index text.
     // NOTE(esiragusa): this assignment implicitly assigns and converts the contigs to the index contigs.
-    setValue(indexer.index.text, indexer.contigs._contigSeqs);
+    setValue(indexer.index.text, indexer.contigs.seqs);
 
     // Clears the contigs.
     // NOTE(esiragusa): the index now owns its own contigs.
-//    shrinkToFit(indexer.contigs._contigSeqs);
+//    shrinkToFit(indexer.contigs.seqs);
 
     // Iterator instantiation calls automatic index construction.
     typename Iterator<TIndex, TopDown<> >::Type it(indexer.index);

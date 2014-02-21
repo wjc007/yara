@@ -230,7 +230,7 @@ struct Mapper
         reads(),
         readsLoader(),
         outputStream(),
-        outputCtx(contigs._contigNames, contigs._contigNamesCache),
+        outputCtx(contigs.names, contigs.namesCache),
         ctx(),
         seeds(),
         hits(),
@@ -352,7 +352,7 @@ inline void loadReads(Mapper<TSpec, TConfig> & mapper)
     load(mapper.reads, mapper.readsLoader, mapper.options.mappingBlock);
     stop(mapper.timer);
     std::cout << mapper.timer << std::endl;
-    std::cout << "Reads count:\t\t\t" << getReadsCount(mapper.reads._readSeqs) << std::endl;
+    std::cout << "Reads count:\t\t\t" << getReadsCount(mapper.reads.seqs) << std::endl;
 }
 
 // ----------------------------------------------------------------------------
@@ -538,7 +538,7 @@ inline void extendHits(Mapper<TSpec, TConfig> & mapper)
 
     for (unsigned bucketId = 0; bucketId < TConfig::BUCKETS; bucketId++)
     {
-        THitsExtender extender(mapper.ctx, mapper.anchors, mapper.contigs._contigSeqs,
+        THitsExtender extender(mapper.ctx, mapper.anchors, mapper.contigs.seqs,
                                mapper.seeds[bucketId], mapper.hits[bucketId],
                                indexSA(mapper.index), mapper.options);
     }
@@ -650,7 +650,7 @@ inline void _verifyAnchorsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & read
     reserve(mapper.mates, lengthSum(mapper.anchorsSet));
 
     TAnchorsVerifier verifier(mapper.ctx, mapper.mates,
-                              mapper.contigs._contigSeqs, readSeqs,
+                              mapper.contigs.seqs, readSeqs,
                               concat(mapper.anchorsSet), mapper.options);
 
     // Sort mates by readId.
@@ -743,7 +743,7 @@ inline void writeHits(Mapper<TSpec, TConfig> const & mapper, TReadSeqs const & r
 template <typename TSpec, typename TConfig>
 inline void mapReads(Mapper<TSpec, TConfig> & mapper)
 {
-    _mapReadsImpl(mapper, mapper.reads._readSeqs, typename TConfig::TSequencing(), typename TConfig::TStrategy());
+    _mapReadsImpl(mapper, mapper.reads.seqs, typename TConfig::TSequencing(), typename TConfig::TStrategy());
 }
 
 // ----------------------------------------------------------------------------

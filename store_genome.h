@@ -76,14 +76,14 @@ struct Contigs
 	typedef StringSet<CharString, TContigNameSpec>      TContigNames;
 	typedef NameStoreCache<TContigNames, CharString>    TContigNamesCache;
 
-    TContigSeqs             _contigSeqs;
-    TContigNames            _contigNames;
-    TContigNamesCache       _contigNamesCache;
+    TContigSeqs             seqs;
+    TContigNames            names;
+    TContigNamesCache       namesCache;
 
     Contigs() :
-        _contigSeqs(),
-        _contigNames(),
-		_contigNamesCache(_contigNames)
+        seqs(),
+        names(),
+		namesCache(names)
     {}
 };
 
@@ -118,9 +118,9 @@ struct ContigsLoader
 template <typename TSpec, typename TConfig>
 inline void clear(Contigs<TSpec, TConfig> & me)
 {
-    clear(me._contigSeqs);
-    clear(me._contigNames);
-    clear(me._contigNamesCache);
+    clear(me.seqs);
+    clear(me.names);
+    clear(me.namesCache);
 }
 
 // ----------------------------------------------------------------------------
@@ -130,7 +130,7 @@ inline void clear(Contigs<TSpec, TConfig> & me)
 template <typename TSpec, typename TConfig, typename TSize>
 inline void reserve(Contigs<TSpec, TConfig> & me, TSize newCapacity)
 {
-    reserve(me._contigSeqs, newCapacity, Exact());
+    reserve(me.seqs, newCapacity, Exact());
 }
 
 // ----------------------------------------------------------------------------
@@ -140,8 +140,8 @@ inline void reserve(Contigs<TSpec, TConfig> & me, TSize newCapacity)
 template <typename TSpec, typename TConfig>
 inline void reverse(Contigs<TSpec, TConfig> & me)
 {
-    for (unsigned contigId = 0; contigId < length(me._contigSeqs); ++contigId)
-        reverse(me._contigSeqs[contigId]);
+    for (unsigned contigId = 0; contigId < length(me.seqs); ++contigId)
+        reverse(me.seqs[contigId]);
 }
 
 // ----------------------------------------------------------------------------
@@ -157,8 +157,8 @@ inline void _removeNs(Contigs<TSpec, TConfig> & me, TContigId contigId, TRng & r
     typedef typename Value<TContigSeq>::Type                TAlphabet;
     typedef typename Iterator<TContigSeq, Standard>::Type   TContigIt;
 
-    TContigIt cIt = begin(me._contigSeqs[contigId], Standard());
-    TContigIt cEnd = end(me._contigSeqs[contigId], Standard());
+    TContigIt cIt = begin(me.seqs[contigId], Standard());
+    TContigIt cEnd = end(me.seqs[contigId], Standard());
 
     while (cIt != cEnd)
     {
@@ -176,7 +176,7 @@ inline void removeNs(Contigs<TSpec, TConfig> & me)
 {
     Rng<MersenneTwister> rng(0xDEADBEEF);
 
-    for (unsigned contigId = 0; contigId < length(me._contigSeqs); ++contigId)
+    for (unsigned contigId = 0; contigId < length(me.seqs); ++contigId)
         _removeNs(me, contigId, rng);
 }
 
@@ -190,12 +190,12 @@ inline bool open(Contigs<TSpec, TConfig> & me, TFileName const & fileName)
     CharString name;
 
     name = fileName;    append(name, ".txt");
-    if (!open(me._contigSeqs, toCString(name))) return false;
+    if (!open(me.seqs, toCString(name))) return false;
 
     name = fileName;    append(name, ".rid");
-    if (!open(me._contigNames, toCString(name))) return false;
+    if (!open(me.names, toCString(name))) return false;
 
-    refresh(me._contigNamesCache);
+    refresh(me.namesCache);
 
     return true;
 }
@@ -210,10 +210,10 @@ inline bool save(Contigs<TSpec, TConfig> const & me, TFileName const & fileName)
     CharString name;
 
     name = fileName;    append(name, ".txt");
-    if (!save(me._contigSeqs, toCString(name))) return false;
+    if (!save(me.seqs, toCString(name))) return false;
 
     name = fileName;    append(name, ".rid");
-    if (!save(me._contigNames, toCString(name))) return false;
+    if (!save(me.names, toCString(name))) return false;
 
     return true;
 }
@@ -237,11 +237,11 @@ inline void load(Contigs<TSpec, TConfig> & me, ContigsLoader<TSpec, TConfig> & l
         if (readRecord(contigName, contigSeq, *(loader._reader), loader._fileFormat) != 0)
             throw RuntimeError("Error while reading contigs contig.");
 
-        appendValue(me._contigSeqs, contigSeq);
-        appendValue(me._contigNames, contigName);
+        appendValue(me.seqs, contigSeq);
+        appendValue(me.names, contigName);
     }
 
-    refresh(me._contigNamesCache);
+    refresh(me.namesCache);
 }
 
 // ----------------------------------------------------------------------------
