@@ -135,7 +135,7 @@ getExtension(TString & string)
 // ----------------------------------------------------------------------------
 
 template <typename TString>
-inline typename Prefix<TString>::Type
+inline typename Prefix<TString const>::Type
 getPath(TString const & string)
 {
 #ifdef PLATFORM_WINDOWS
