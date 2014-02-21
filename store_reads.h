@@ -45,7 +45,7 @@
 using namespace seqan;
 
 // ============================================================================
-// Tags, Classes, Enums
+// Classes
 // ============================================================================
 
 // ----------------------------------------------------------------------------
@@ -168,7 +168,7 @@ void _load(Reads<TSpec, TConfig> & me, TSize count, TReader & reader, TFormat & 
             throw RuntimeError("Error while reading read record.");
 
         appendValue(me.seqs, seq, Generous());
-        appendValue(me.names, seqName, Generous());
+        appendValue(me.names, prefix(seqName, lastOf(seqName, IsSpace())), Generous());
     }
 }
 
@@ -349,7 +349,7 @@ template <typename TReadSeqs, typename TPairId>
 inline typename Size<TReadSeqs>::Type
 getFirstMateRevSeqId(TReadSeqs const & readSeqs, TPairId pairId)
 {
-    SEQAN_ASSERT_LT(pairId, getPairsCount(readSeqs));
+//    SEQAN_ASSERT_LT(pairId, getPairsCount(readSeqs));
     return getFirstMateFwdSeqId(readSeqs, pairId) + getReadsCount(readSeqs);
 }
 

@@ -57,6 +57,7 @@ struct Options;
 // ----------------------------------------------------------------------------
 
 #include "misc_tags.h"
+#include "misc_options.h"
 #include "store_reads.h"
 #include "store_genome.h"
 
@@ -65,7 +66,6 @@ struct Options;
 // ----------------------------------------------------------------------------
 
 #include "misc_timer.h"
-#include "misc_options.h"
 #include "misc_types.h"
 #include "index_fm.h"
 #include "bits_hits.h"
