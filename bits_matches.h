@@ -371,6 +371,28 @@ countMatches(TReadSeqs const & readSeqs, TMatches const & matches, TSequencing c
 }
 
 // ----------------------------------------------------------------------------
+// Function countBestMatches()
+// ----------------------------------------------------------------------------
+// Count the number of cooptimal matches - ordering by errors is required.
+
+template <typename TMatches>
+inline typename Size<TMatches>::Type
+countBestMatches(TMatches const & matches)
+{
+    typedef typename Iterator<TMatches const, Standard>::Type   TIter;
+    typedef typename Size<TMatches>::Type                       TCount;
+
+    TIter itBegin = begin(matches, Standard());
+    TIter itEnd = end(matches, Standard());
+
+    TCount count = 0;
+
+    for (TIter it = itBegin; it != itEnd && getErrors(*it) <= getErrors(*itBegin); it++, count++) ;
+
+    return count;
+}
+
+// ----------------------------------------------------------------------------
 // Function sortMatches()
 // ----------------------------------------------------------------------------
 

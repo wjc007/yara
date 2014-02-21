@@ -138,9 +138,11 @@ template <typename TSpec, typename Traits, typename TMatches>
 inline void _writeMatchesImpl(MatchesWriter<TSpec, Traits> & me, TMatches const & matches)
 {
     typedef typename Value<TMatches>::Type          TMatch;
+    typedef typename Size<TMatches>::Type           TSize;
 
     // The first match is supposed to be the best one.
     TMatch const & primary = front(matches);
+    TSize bestCount = countBestMatches(matches);
 
     // Clear the record.
     clear(me.record);
@@ -161,19 +163,21 @@ inline void _writeMatchesImpl(MatchesWriter<TSpec, Traits> & me, TMatches const 
     // Set mapping quality.
     me.record.mapQ = getScore(primary);
 
-    // Set number of errors.
-    appendTagValue(me.record.tags, "NM", getErrors(primary));
-
     // Set alignment.
 //    setAlignment(record, me.contigs, primary, primary, alignFunctor);
 
-    // Clear mate information.
-//    clearMatePosition(me.record);
-//    clearMateInfo(me.record);
-//    clearMateOrientation(me.record);
+    // Set number of errors.
+    appendTagValue(me.record.tags, "NM", getErrors(primary));
 
-    // Add secondary match information.
-//    addSecondaryMatch(me.record, itBegin + 1, itEnd);
+    // Set number of cooptimal and suboptimal hits.
+    appendTagValue(me.record.tags, "X0", bestCount, 'i');
+    appendTagValue(me.record.tags, "X1", length(matches) - bestCount, 'i');
+
+    // Set type as unique or repeat.
+    char type = (bestCount == 1) ? 'U' : 'R';
+    appendTagValue(me.record.tags, "XT", type, 'A');
+
+//    appendTagValue(me.record.tags, "XA", "chr,pos,CIGAR,NM;...", 'Z');
 
     // Write record to output stream.
     write2(me.outputStream, me.record, me.outputCtx, typename Traits::TOutputFormat());
