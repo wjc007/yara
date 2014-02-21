@@ -113,23 +113,35 @@ inline void _writeMatchesImpl(MatchesWriter<TSpec, Traits> & me, TMatches const 
     // The first match is supposed to be the best one.
     TMatch const & primary = front(matches);
 
+    // Clear the record.
     clear(me.record.tags);
     me.record.flag = 0;
 
-    // Add primary alignment information.
-    setName(me.record, me.reads, primary);
-    setSeqAndQual(me.record, me.reads, primary);
-    setOrientation(me.record, primary);
-//    setPosition(me.record, me.contigs, primary);
-//    me.record.rID = getContigId(primary);
+    // Set primary alignment information.
+    me.record.qName = me.reads.names[getReadId(primary)];
+    me.record.seq = me.reads.seqs[getReadSeqId(primary, me.reads.seqs)];
+//    me.record.qual = me.reads.seqs[getReadSeqId(primary)];
+
+    // Set orientation.
+    if (onReverseStrand(primary))
+        me.record.flag |= BAM_FLAG_RC;
+
+    // Set contig position.
+    me.record.rID = getContigId(primary);
     me.record.beginPos = getContigBegin(primary);
 
+    // Set mapping quality.
+    me.record.mapQ = getScore(primary);
+
+    // Fill number of errors.
+    appendTagValue(me.record.tags, "NM", getErrors(primary));
+
 //    setAlignment(record, me.contigs, primary, primary, alignFunctor);
-    setScore(me.record, primary);
 
     // Clear mate information.
-//    clearMateInfo(me.record, me.reads, primary);
-    clearMatePosition(me.record, me.contigs);
+    clearMatePosition(me.record);
+    clearMateInfo(me.record);
+    clearMateOrientation(me.record);
 
     // Add secondary match information.
 //    addSecondaryMatch(me.record, itBegin + 1, itEnd);

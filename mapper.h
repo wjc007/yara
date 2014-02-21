@@ -685,9 +685,9 @@ inline void writeMatches(Mapper<TSpec, TConfig> & mapper)
 //    forEach(mapper.anchorsSet, sortMatches<TMatches, SortErrors>, typename TConfig::TThreading());
     iterate(mapper.anchorsSet, sortMatches<TMatchesIt, SortErrors>, Standard(), typename TConfig::TThreading());
 
-//    TMatchesWriter writer(mapper.outputStream, mapper.outputCtx,
-//                          mapper.ctx, mapper.contigs, mapper.reads,
-//                          mapper.anchorsSet, mapper.options);
+    TMatchesWriter writer(mapper.outputStream, mapper.outputCtx,
+                          mapper.ctx, mapper.contigs, mapper.reads,
+                          mapper.anchorsSet, mapper.options);
 
     stop(mapper.timer);
     std::cout << "Output time:\t\t\t" << mapper.timer << std::endl;
