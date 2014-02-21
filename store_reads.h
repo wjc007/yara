@@ -52,43 +52,37 @@ using namespace seqan;
 // Class ReadsConfig
 // ----------------------------------------------------------------------------
 
-template <typename TUseReadStore_       = True,
-          typename TUseReadNameStore_   = True,
-          typename TForward_            = True,
-          typename TReverse_            = True,
-          typename TFragStoreConfig_    = void>
+template <typename TSpec = void>
 struct ReadsConfig
 {
-    typedef TUseReadStore_      TUseReadStore;
-    typedef TUseReadNameStore_  TUseReadNameStore;
-    typedef TForward_           TForward;
-    typedef TReverse_           TReverse;
-    typedef TFragStoreConfig_   TFragStoreConfig;
+    typedef String<Dna5Q>           TReadSeq;
+    typedef Owner<ConcatDirect<> >  TReadSpec;
+    typedef Owner<ConcatDirect<> >  TReadNameSpec;
 };
 
 // ----------------------------------------------------------------------------
 // Class Reads
 // ----------------------------------------------------------------------------
 
-template <typename TSpec = void, typename TConfig = ReadsConfig<> >
+template <typename TSpec = void, typename TConfig = ReadsConfig<TSpec> >
 struct Reads
 {
-    typedef typename TConfig::TFragStoreConfig      TFragStoreConfig_;
-    typedef FragmentStore<void, TFragStoreConfig_>  TFragmentStore_;
-    typedef typename TFragmentStore_::TReadSeqStore TReadSeqStore;
+    typedef typename TConfig::TReadSeq                  TReadSeq;
+    typedef typename TConfig::TReadSpec                 TReadSpec;
+    typedef typename TConfig::TReadNameSpec             TReadNameSpec;
 
-    Holder<TFragmentStore_>         _store;
-    unsigned                        readsCount;
+    typedef StringSet<TReadSeq, TReadSpec>              TReadSeqs;
+	typedef StringSet<CharString, TReadNameSpec>        TReadNames;
+	typedef NameStoreCache<TReadNames, CharString>      TReadNamesCache;
+
+    TReadSeqs           _readSeqs;
+    TReadNames          _readNames;
+    TReadNamesCache     _readNamesCache;
 
     Reads() :
-        _store(),
-        readsCount(0)
-    {}
-
-    template <typename TFragmentStore>
-    Reads(TFragmentStore & store) :
-        _store(store),
-        readsCount(0)
+        _readSeqs(),
+        _readNames(),
+		_readNamesCache(_readNames)
     {}
 };
 
@@ -101,22 +95,14 @@ struct ReadsLoader
 {
     typedef std::fstream                            TStream;
     typedef RecordReader<TStream, SinglePass<> >    TRecordReader;
-    typedef Reads<TSpec, TConfig>                   TReads;
 
     TStream                         _file;
     AutoSeqStreamFormat             _fileFormat;
     std::auto_ptr<TRecordReader>    _reader;
-    Holder<TReads>                  reads;
-
-    ReadsLoader() {}
-
-    ReadsLoader(TReads & reads) :
-        reads(reads)
-    {}
 };
 
 // ----------------------------------------------------------------------------
-// Class ReadsLoader; PaiedEnd
+// Class ReadsLoader; PairedEnd
 // ----------------------------------------------------------------------------
 
 template <typename TConfig>
@@ -124,42 +110,11 @@ struct ReadsLoader<PairedEnd, TConfig>
 {
     typedef std::fstream                            TStream;
     typedef RecordReader<TStream, SinglePass<> >    TRecordReader;
-    typedef Reads<PairedEnd, TConfig>               TReads;
 
     TStream                             _file1;
     TStream                             _file2;
     Pair<AutoSeqStreamFormat>           _fileFormat;
     Pair<std::auto_ptr<TRecordReader> > _reader;
-    Holder<TReads>                      reads;
-
-    ReadsLoader(TReads & reads) :
-        reads(reads)
-    {}
-};
-
-// ============================================================================
-// Metafunctions
-// ============================================================================
-
-// ----------------------------------------------------------------------------
-// Metafunction ReadsHost<T>::Type                                    [TObject]
-// ----------------------------------------------------------------------------
-
-template <typename TObject>
-struct ReadsHost {};
-
-template <typename TObject>
-struct ReadsHost<TObject const> :
-    ReadsHost<TObject> {};
-
-// ----------------------------------------------------------------------------
-// Metafunction ReadsHost<T>::Type                                [ReadsLoader]
-// ----------------------------------------------------------------------------
-
-template <typename TSpec, typename TConfig>
-struct ReadsHost<ReadsLoader<TSpec, TConfig> >
-{
-    typedef Reads<TSpec, TConfig>   Type;
 };
 
 // ============================================================================
@@ -167,148 +122,83 @@ struct ReadsHost<ReadsLoader<TSpec, TConfig> >
 // ============================================================================
 
 // ----------------------------------------------------------------------------
-// Function setReads()                                                [TObject]
-// ----------------------------------------------------------------------------
-
-template <typename TObject, typename TReads>
-inline void
-setReads(TObject & object, TReads /* const */ & reads)
-{
-    setValue(object.reads, reads);
-}
-
-// ----------------------------------------------------------------------------
-// Function getReads()                                                [TObject]
-// ----------------------------------------------------------------------------
-
-template <typename TObject>
-inline typename ReadsHost<TObject>::Type &
-getReads(TObject & object)
-{
-    return value(object.reads);
-}
-
-// ----------------------------------------------------------------------------
-// Function clear()                                                     [Reads]
+// Function clear()
 // ----------------------------------------------------------------------------
 
 template <typename TSpec, typename TConfig>
-void clear(Reads<TSpec, TConfig> & reads)
+void clear(Reads<TSpec, TConfig> & me)
 {
-    clearReads(value(reads._store));
-    reads.readsCount = 0;
+    clear(me._readSeqs);
+    clear(me._readNames);
+//    clear(me._readNamesCache);
 }
 
 // ----------------------------------------------------------------------------
-// Function appendSeq()                                                 [Reads]
+// Function load()
 // ----------------------------------------------------------------------------
 
-template <typename TSpec, typename TConfig, typename TReadSeq>
-inline void appendSeq(Reads<TSpec, TConfig> & reads, TReadSeq const & seq)
+template <typename TSpec, typename TConfig, typename TSize>
+void load(Reads<TSpec, TConfig> & me, ReadsLoader<TSpec, TConfig> & loader, TSize count)
 {
-    appendValue(getSeqs(reads), seq, Generous());
+    _load(me, count, *(loader._reader), loader._fileFormat);
+    appendReverseComplement(me);
+}
+
+template <typename TConfig, typename TSize>
+void load(Reads<PairedEnd, TConfig> & me, ReadsLoader<PairedEnd, TConfig> & loader, TSize count)
+{
+    _load(me, count, *(loader._reader.i1), loader._fileFormat.i1);
+    _load(me, count, *(loader._reader.i2), loader._fileFormat.i2);
+    appendReverseComplement(me);
+}
+
+template <typename TSpec, typename TConfig, typename TSize, typename TReader, typename TFormat>
+void _load(Reads<TSpec, TConfig> & me, TSize count, TReader & reader, TFormat & format)
+{
+    typedef Reads<TSpec, TConfig>           TReads;
+    typedef typename TReads::TReadSeq       TReadSeq;
+
+    CharString  seqName;
+    TReadSeq    seq;
+
+    // Read records.
+    for (; count > 0 && !atEnd(reader); count--)
+    {
+        if (readRecord(seqName, seq, reader, format) != 0)
+            throw RuntimeError("Error while reading read record.");
+
+        appendValue(me._readSeqs, seq, Generous());
+        appendValue(me._readNames, seqName, Generous());
+    }
 }
 
 // ----------------------------------------------------------------------------
-// Function appendName()                                                [Reads]
+// Function appendReverseComplement()
 // ----------------------------------------------------------------------------
-
-template <typename TSpec, typename TConfig, typename TReadName>
-inline void appendName(Reads<TSpec, TConfig> & /* reads */, TReadName const & /* seqName */, False const & /* tag */)
-{}
-
-template <typename TSpec, typename TConfig, typename TReadName>
-inline void appendName(Reads<TSpec, TConfig> & reads, TReadName const & seqName, True const & /* tag */)
-{
-    appendValue(getNames(reads), seqName, Generous());
-}
-
-// ----------------------------------------------------------------------------
-// Function appendId()                                                  [Reads]
-// ----------------------------------------------------------------------------
-
-template <typename TSpec, typename TConfig, typename TReadId>
-inline void appendId(Reads<TSpec, TConfig> & /* reads */, TReadId const & /* matePairId */, False const & /* tag */)
-{}
-
-template <typename TSpec, typename TConfig, typename TReadId>
-inline void appendId(Reads<TSpec, TConfig> & reads, TReadId const & matePairId, True const & /* tag */)
-{
-    typedef FragmentStore<TSpec, typename TConfig::TFragStoreConfig>    TFragmentStore;
-    typedef typename Value<typename TFragmentStore::TReadStore>::Type   TReadStoreElement;
-
-	TReadStoreElement r;
-	r.matePairId = matePairId;
-
-	appendValue(getIds(reads), r, Generous());
-}
-
-// ----------------------------------------------------------------------------
-// Function getSeqs()                                                   [Reads]
-// ----------------------------------------------------------------------------
+// Append reverse complemented reads.
 
 template <typename TSpec, typename TConfig>
-inline typename FragmentStore<TSpec, typename TConfig::TFragStoreConfig>::TReadSeqStore &
-getSeqs(Reads<TSpec, TConfig> const & reads)
+void appendReverseComplement(Reads<TSpec, TConfig> & me)
 {
-    return value(reads._store).readSeqStore;
+    typedef Reads<TSpec, TConfig>           TReads;
+    typedef typename TReads::TReadSeqs      TReadSeqs;
+    typedef typename Value<TReadSeqs>::Type TReadSeq;
+    typedef typename Size<TReadSeqs>::Type  TReadSeqId;
+
+    TReadSeqId readSeqsCount = length(me._readSeqs);
+
+    reserve(me._readSeqs, 2 * readSeqsCount, Exact());
+
+    for (TReadSeqId readSeqId = 0; readSeqId < readSeqsCount; ++readSeqId)
+    {
+        TReadSeq const & read = me._readSeqs[readSeqId];
+        appendValue(me._readSeqs, read, Exact());
+        reverseComplement(back(me._readSeqs));
+    }
 }
 
 // ----------------------------------------------------------------------------
-// Function getNames()                                                  [Reads]
-// ----------------------------------------------------------------------------
-
-template <typename TSpec, typename TConfig>
-inline typename FragmentStore<TSpec, typename TConfig::TFragStoreConfig>::TReadNameStore &
-getNames(Reads<TSpec, TConfig> const & reads)
-{
-    return value(reads._store).readNameStore;
-}
-
-// ----------------------------------------------------------------------------
-// Function getIds()                                                    [Reads]
-// ----------------------------------------------------------------------------
-
-template <typename TSpec, typename TConfig>
-inline typename FragmentStore<TSpec, typename TConfig::TFragStoreConfig>::TReadStore &
-getIds(Reads<TSpec, TConfig> const & reads)
-{
-    return value(reads._store).readStore;
-}
-
-// ----------------------------------------------------------------------------
-// Function getReadId()                                                 [Reads]
-// ----------------------------------------------------------------------------
-
-template <typename TSpec, typename TConfig, typename TSeqId>
-inline TSeqId getReadId(Reads<TSpec, TConfig> const & reads, TSeqId seqId)
-{
-    // Deal with reverse complemented reads.
-    return isForward(reads, seqId) ? seqId : seqId - reads.readsCount;
-}
-
-// ----------------------------------------------------------------------------
-// Function isForward()                                                 [Reads]
-// ----------------------------------------------------------------------------
-
-template <typename TSpec, typename TConfig, typename TSeqId>
-inline bool isForward(Reads<TSpec, TConfig> const & reads, TSeqId seqId)
-{
-    return seqId < reads.readsCount;
-}
-
-// ----------------------------------------------------------------------------
-// Function isReverse()                                                 [Reads]
-// ----------------------------------------------------------------------------
-
-template <typename TSpec, typename TConfig, typename TSeqId>
-inline bool isReverse(Reads<TSpec, TConfig> const & reads, TSeqId seqId)
-{
-    return seqId >= reads.readsCount;
-}
-
-// ----------------------------------------------------------------------------
-// Function open()                                                [ReadsLoader]
+// Function open()
 // ----------------------------------------------------------------------------
 
 template <typename TSpec, typename TConfig, typename TString>
@@ -321,14 +211,14 @@ void open(ReadsLoader<TSpec, TConfig> & loader, TString const & readsFile)
     loader._file.open(toCString(readsFile), std::ios::binary | std::ios::in);
 
     if (!loader._file.is_open())
-        throw std::runtime_error("Error while opening reads file.");
+        throw RuntimeError("Error while opening reads file.");
 
     // Initialize record reader.
     loader._reader.reset(new TRecordReader(loader._file));
 
     // Autodetect file format.
     if (!guessStreamFormat(*(loader._reader), loader._fileFormat))
-        throw std::runtime_error("Error while guessing reads file format.");
+        throw RuntimeError("Error while guessing reads file format.");
 }
 
 template <typename TConfig, typename TString>
@@ -342,7 +232,7 @@ void open(ReadsLoader<PairedEnd, TConfig> & loader, Pair<TString> const & readsF
     loader._file2.open(toCString(readsFile.i2), std::ios::binary | std::ios::in);
 
     if (!loader._file1.is_open() || !loader._file2.is_open())
-        throw std::runtime_error("Error while opening reads file.");
+        throw RuntimeError("Error while opening reads file.");
 
     // Initialize record reader.
     loader._reader.i1.reset(new TRecordReader(loader._file1));
@@ -351,11 +241,11 @@ void open(ReadsLoader<PairedEnd, TConfig> & loader, Pair<TString> const & readsF
     // Autodetect file format.
     if (!guessStreamFormat(*(loader._reader.i1), loader._fileFormat.i1) ||
         !guessStreamFormat(*(loader._reader.i2), loader._fileFormat.i2))
-        throw std::runtime_error("Error while guessing reads file format.");
+        throw RuntimeError("Error while guessing reads file format.");
 }
 
 // ----------------------------------------------------------------------------
-// Function close()                                               [ReadsLoader]
+// Function close()
 // ----------------------------------------------------------------------------
 
 template <typename TSpec, typename TConfig>
@@ -372,75 +262,7 @@ void close(ReadsLoader<PairedEnd, TConfig> & loader)
 }
 
 // ----------------------------------------------------------------------------
-// Function load()                                                [ReadsLoader]
-// ----------------------------------------------------------------------------
-
-template <typename TSpec, typename TConfig, typename TSize, typename TReader, typename TFormat>
-void _load(ReadsLoader<TSpec, TConfig> & loader, TSize count, TReader & reader, TFormat & format)
-{
-    typedef FragmentStore<TSpec, typename TConfig::TFragStoreConfig>    TFragmentStore;
-    typedef typename Value<typename TFragmentStore::TReadStore>::Type   TReadStoreElement;
-    typedef typename TConfig::TFragStoreConfig::TReadSeq                TReadSeq;
-
-    CharString  seqName;
-    TReadSeq    seq;
-
-    // Read records.
-    for (; count > 0 && !atEnd(reader); count--)
-    {
-        if (readRecord(seqName, seq, reader, format) != 0)
-            throw std::runtime_error("Error while reading read record.");
-
-        appendSeq(getReads(loader), seq);
-        appendName(getReads(loader), seqName, typename TConfig::TUseReadNameStore());
-        appendId(getReads(loader), TReadStoreElement::INVALID_ID, typename TConfig::TUseReadStore());
-    }
-}
-
-template <typename TSpec, typename TConfig, typename TSize>
-void load(ReadsLoader<TSpec, TConfig> & loader, TSize count)
-{
-    _load(loader, count, *(loader._reader), loader._fileFormat);
-
-    getReads(loader).readsCount = length(getSeqs(getReads(loader)));
-
-    // Append reverse complemented reads.
-    _loadReverseComplement(loader);
-}
-
-template <typename TConfig, typename TSize>
-void load(ReadsLoader<PairedEnd, TConfig> & loader, TSize count)
-{
-    _load(loader, count, *(loader._reader.i1), loader._fileFormat.i1);
-    _load(loader, count, *(loader._reader.i2), loader._fileFormat.i2);
-
-    getReads(loader).readsCount = length(getSeqs(getReads(loader)));
-
-    // Append reverse complemented reads.
-    _loadReverseComplement(loader);
-}
-
-// ----------------------------------------------------------------------------
-// Function _loadReverseComplement()                              [ReadsLoader]
-// ----------------------------------------------------------------------------
-
-template <typename TSpec, typename TConfig>
-void _loadReverseComplement(ReadsLoader<TSpec, TConfig> & loader)
-{
-    typedef FragmentStore<TSpec, typename TConfig::TFragStoreConfig>    TFragmentStore;
-    typedef typename Size<typename TFragmentStore::TReadSeqStore>::Type TReadSeqStoreSize;
-    typedef typename TConfig::TFragStoreConfig::TReadSeq                TReadSeq;
-
-    for (TReadSeqStoreSize readId = 0; readId < getReads(loader).readsCount; ++readId)
-    {
-        TReadSeq const & read = getSeqs(getReads(loader))[readId];
-        appendSeq(getReads(loader), read);
-        reverseComplement(back(getSeqs(getReads(loader))));
-    }
-}
-
-// ----------------------------------------------------------------------------
-// Function atEnd()                                               [ReadsLoader]
+// Function atEnd()
 // ----------------------------------------------------------------------------
 
 template <typename TSpec, typename TConfig>
