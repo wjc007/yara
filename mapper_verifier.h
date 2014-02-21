@@ -49,7 +49,7 @@ using namespace seqan;
 template <typename TSpec, typename Traits>
 struct AnchorsVerifier
 {
-    typedef typename Traits::TContigs          TContigs;
+    typedef typename Traits::TContigSeqs       TContigSeqs;
     typedef typename Traits::TContigsPos       TContigsPos;
     typedef typename Traits::TReadSeqs         TReadSeqs;
     typedef typename Traits::TReadSeq          TReadSeq;
@@ -59,7 +59,7 @@ struct AnchorsVerifier
 
     typedef Myers<>                                     TAlgorithm;
 //    typedef Filter<MultipleShiftAnd>                    TAlgorithm;
-    typedef Verifier<TContigs, TReadSeq, TAlgorithm>    TVerifier;
+    typedef Verifier<TContigSeqs, TReadSeq, TAlgorithm> TVerifier;
 
     // Thread-private data.
     TVerifier           verifier;
@@ -70,22 +70,22 @@ struct AnchorsVerifier
     TMatches &          mates;
 
     // Shared-memory read-only data.
-    TContigs const &    contigs;
+    TContigSeqs const & contigSeqs;
     TReadSeqs /*const*/ & readSeqs;
     TMatches const &    anchors;
     Options const &     options;
 
     AnchorsVerifier(TReadsContext & ctx,
                     TMatches & mates,
-                    TContigs const & contigs,
+                    TContigSeqs const & contigSeqs,
                     TReadSeqs /*const*/ & readSeqs,
                     TMatches const & anchors,
                     Options const & options) :
-        verifier(contigs),
+        verifier(contigSeqs),
         prototype(),
         ctx(ctx),
         mates(mates),
-        contigs(contigs),
+        contigSeqs(contigSeqs),
         readSeqs(readSeqs),
         anchors(anchors),
         options(options)
@@ -124,7 +124,7 @@ struct AnchorsVerifier
 template <typename TSpec, typename Traits, typename TAnchorsIterator>
 inline void _verifyAnchorImpl(AnchorsVerifier<TSpec, Traits> & me, TAnchorsIterator const & anchorsIt)
 {
-    typedef typename Traits::TContigs                   TContigs;
+    typedef typename Traits::TContigSeqs                TContigSeqs;
     typedef typename Traits::TContigsPos                TContigsPos;
 
     typedef typename Size<TReadSeqs>::Type              TReadId;
@@ -137,7 +137,7 @@ inline void _verifyAnchorImpl(AnchorsVerifier<TSpec, Traits> & me, TAnchorsItera
 
     typedef Myers<>                                     TAlgorithm;
 //    typedef Filter<MultipleShiftAnd>                    TAlgorithm;
-    typedef Verifier<TContigs, TReadSeq, TAlgorithm>    TVerifier;
+    typedef Verifier<TContigSeqs, TReadSeq, TAlgorithm> TVerifier;
 
     // Get anchor id.
     TMatchId anchorId = position(anchorsIt);
@@ -194,7 +194,7 @@ inline void _getMateContigPos(AnchorsVerifier<TSpec, Traits> const & me,
     typedef typename Traits::TContig                TContig;
     typedef typename Size<TContig>::Type            TContigSize;
 
-    TContigSize contigLength = length(me.contigs[getContigId(anchor)]);
+    TContigSize contigLength = length(me.contigSeqs[getContigId(anchor)]);
 
     setValueI1(contigBegin, getContigId(anchor));
     setValueI1(contigEnd, getContigId(anchor));

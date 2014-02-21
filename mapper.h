@@ -148,11 +148,10 @@ struct MapperTraits
     typedef typename TConfig::TStrategy                             TStrategy;
     typedef typename TConfig::TAnchoring                            TAnchoring;
 
-    typedef Genome<void, TConfig>                                   TGenome;
-//    typedef GenomeLoader<void, TConfig>                             TGenomeLoader;
-    typedef typename Contigs<TGenome>::Type                         TContigs;
-    typedef typename Value<TContigs>::Type                          TContig;
-    typedef typename StringSetPosition<TContigs>::Type              TContigsPos;
+    typedef Contigs<void, TConfig>                                  TContigs;
+    typedef typename TContigs::TContigSeqs                          TContigSeqs;
+    typedef typename Value<TContigSeqs>::Type                       TContig;
+    typedef typename StringSetPosition<TContigSeqs>::Type           TContigsPos;
 
     typedef Index<TFMContigs, TGenomeIndexSpec>                     THostIndex;
     typedef typename Space<THostIndex, TExecSpace>::Type            TIndex;
@@ -168,9 +167,10 @@ struct MapperTraits
     typedef typename Size<TReadSeqs>::Type                          TReadSeqSize;
     typedef String<TReadSeqSize>                                    TSeedsCount;
 
-    typedef typename TStore::TContigNameStore                       TContigNameStore;
+    typedef typename TContigs::TContigNames                         TContigNames;
+    typedef typename TContigs::TContigNamesCache                    TContigNamesCache;
     typedef Stream<FileStream<File<> > >                            TOutputStream;
-    typedef BamIOContext<TContigNameStore>                          TOutputContext;
+    typedef BamIOContext<TContigNames, TContigNamesCache>           TOutputContext;
 
     typedef ReadContext<TSpec, TConfig>                             TReadContext;
     typedef String<TReadContext>                                    TReadsContext;
@@ -207,8 +207,7 @@ struct Mapper
     Timer<double>                       timer;
     Options const &                     options;
 
-    typename Traits::TGenome            genome;
-//    typename Traits::TGenomeLoader      genomeLoader;
+    typename Traits::TContigs           contigs;
     typename Traits::TIndex             index;
     typename Traits::TStore             store;
     typename Traits::TReads             reads;
@@ -229,14 +228,13 @@ struct Mapper
 
     Mapper(Options const & options) :
         options(options),
-        genome(),
-//        genomeLoader(genome),
+        contigs(),
         index(),
         store(),
         reads(store),
         readsLoader(reads),
         outputStream(),
-        outputCtx(store.contigNameStore, store.contigNameStoreCache),
+        outputCtx(contigs._contigNames, contigs._contigNamesCache),
         ctx(),
         seeds(),
         hits(),
@@ -290,10 +288,7 @@ inline void loadGenome(Mapper<TSpec, TConfig> & mapper)
     std::cout << "Loading genome:\t\t\t" << std::flush;
     start(mapper.timer);
 
-    CharString genomeFile = mapper.options.genomeIndexFile;
-    append(genomeFile, ".txt");
-
-    if (!open(contigs(mapper.genome), toCString(genomeFile)))
+    if (!open(mapper.contigs, toCString(mapper.options.genomeIndexFile)))
         throw RuntimeError("Error while opening genome file.");
 
     stop(mapper.timer);
@@ -547,7 +542,7 @@ inline void extendHits(Mapper<TSpec, TConfig> & mapper)
 
     for (unsigned bucketId = 0; bucketId < TConfig::BUCKETS; bucketId++)
     {
-        THitsExtender extender(mapper.ctx, mapper.anchors, contigs(mapper.genome),
+        THitsExtender extender(mapper.ctx, mapper.anchors, mapper.contigs._contigSeqs,
                                mapper.seeds[bucketId], mapper.hits[bucketId],
                                indexSA(mapper.index), mapper.options);
     }
@@ -659,7 +654,7 @@ inline void _verifyAnchorsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & read
     reserve(mapper.mates, lengthSum(mapper.anchorsSet));
 
     TAnchorsVerifier verifier(mapper.ctx, mapper.mates,
-                              contigs(mapper.genome), readSeqs,
+                              mapper.contigs._contigSeqs, readSeqs,
                               concat(mapper.anchorsSet), mapper.options);
 
     // Sort mates by readId.
