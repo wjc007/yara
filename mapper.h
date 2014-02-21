@@ -381,7 +381,7 @@ inline void initOutput(Mapper<TSpec, TConfig> & mapper)
         throw RuntimeError("Error while opening output file.");
 
     // Fill header.
-//    _fillHeader(header, mapper.store);
+    _fillHeader(header, mapper.contigs);
 
     // Write header to stream.
     write2(mapper.outputStream, header, mapper.outputCtx, typename TTraits::TOutputFormat());
@@ -687,7 +687,7 @@ inline void writeMatches(Mapper<TSpec, TConfig> & mapper)
     iterate(mapper.anchorsSet, sortMatches<TMatchesIt, SortErrors>, Standard(), typename TConfig::TThreading());
 
 //    TMatchesWriter writer(mapper.outputStream, mapper.outputCtx,
-//                          mapper.ctx, mapper.store,
+//                          mapper.ctx, mapper.contigs, mapper.reads,
 //                          mapper.anchorsSet, mapper.options);
 
     stop(mapper.timer);

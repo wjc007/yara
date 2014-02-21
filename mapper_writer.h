@@ -48,7 +48,8 @@ using namespace seqan;
 template <typename TSpec, typename Traits>
 struct MatchesWriter
 {
-    typedef typename Traits::TStore            TStore;
+    typedef typename Traits::TContigs          TContigs;
+    typedef typename Traits::TReads            TReads;
     typedef typename Traits::TMatchesSet       TMatchesSet;
     typedef typename Traits::TOutputStream     TOutputStream;
     typedef typename Traits::TOutputContext    TOutputContext;
@@ -63,20 +64,23 @@ struct MatchesWriter
 
     // Shared-memory read-only data.
     TReadsContext const &   ctx;
-    TStore const &          store;
+    TContigs const &        contigs;
+    TReads const &          reads;
     TMatchesSet const &     matchesSet;
     Options const &         options;
 
     MatchesWriter(TOutputStream & outputStream,
                   TOutputContext & outputCtx,
                   TReadsContext const & ctx,
-                  TStore const & store,
+                  TContigs const & contigs,
+                  TReads const & reads,
                   TMatchesSet const & matchesSet,
                   Options const & options) :
         outputStream(outputStream),
         outputCtx(outputCtx),
         ctx(ctx),
-        store(store),
+        contigs(contigs),
+        reads(reads),
         matchesSet(matchesSet),
         options(options)
     {
@@ -113,22 +117,22 @@ inline void _writeMatchesImpl(MatchesWriter<TSpec, Traits> & me, TMatches const 
     me.record.flag = 0;
 
     // Add primary alignment information.
-    setName(me.record, me.store, primary);
-    setSeqAndQual(me.record, me.store, primary);
-    setOrientation(me.record, me.store, primary);
-//    setPosition(me.record, me.store, primary);
+    setName(me.record, me.reads, primary);
+    setSeqAndQual(me.record, me.reads, primary);
+    setOrientation(me.record, primary);
+//    setPosition(me.record, me.contigs, primary);
 //    me.record.rID = getContigId(primary);
     me.record.beginPos = getContigBegin(primary);
 
-//    setAlignment(record, store, primary, primary, alignFunctor);
-    setScore(me.record, me.store, primary);
+//    setAlignment(record, me.contigs, primary, primary, alignFunctor);
+    setScore(me.record, primary);
 
     // Clear mate information.
-//    clearMateInfo(me.record, me.store, primary);
-    clearMatePosition(me.record, me.store);
+//    clearMateInfo(me.record, me.reads, primary);
+    clearMatePosition(me.record, me.contigs);
 
     // Add secondary match information.
-//    addSecondaryMatch(me.record, me.store, itBegin + 1, itEnd);
+//    addSecondaryMatch(me.record, itBegin + 1, itEnd);
 
     // Write record to output stream.
     write2(me.outputStream, me.record, me.outputCtx, typename Traits::TOutputFormat());
