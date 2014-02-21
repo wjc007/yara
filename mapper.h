@@ -380,7 +380,7 @@ inline void initOutput(Mapper<TSpec, TConfig> & mapper)
         throw RuntimeError("Error while opening output file.");
 
     // Fill header.
-//    _fillHeader(header, mapper.contigs);
+    fillHeader(header, mapper.contigs.seqs, mapper.contigs.names);
 
     // Write header to stream.
     write2(mapper.outputStream, header, mapper.outputCtx, typename TTraits::TOutputFormat());

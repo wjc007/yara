@@ -115,6 +115,42 @@ struct QualityExtractor : public std::unary_function<TValue, char>
 // ============================================================================
 
 // ----------------------------------------------------------------------------
+// Function fillHeader()
+// ----------------------------------------------------------------------------
+
+template <typename TContigSeqs, typename TContigNames>
+inline void fillHeader(BamHeader & header, TContigSeqs const & seqs, TContigNames const & names)
+{
+    typedef typename Iterator<TContigSeqs const, Standard>::Type    TContigSeqsIter;
+    typedef typename Iterator<TContigNames const, Standard>::Type   TContigNamesIter;
+
+    typedef BamHeader::TSequenceInfo                                TSequenceInfo;
+    typedef BamHeaderRecord::TTag                                   TTag;
+
+    // Fill first header line.
+    BamHeaderRecord firstRecord;
+    firstRecord.type = BAM_HEADER_FIRST;
+    appendValue(firstRecord.tags, TTag("VN", "1.4"));
+    appendValue(firstRecord.tags, TTag("SO", "queryname"));
+    appendValue(header.records, firstRecord);
+
+    // Fill sequence info header line.
+    TContigSeqsIter sit = begin(seqs, Standard());
+    TContigSeqsIter sitEnd = end(seqs, Standard());
+    TContigNamesIter nit = begin(names, Standard());
+    TContigNamesIter nitEnd = end(names, Standard());
+
+    for (; sit != sitEnd && nit != nitEnd; ++sit, ++nit)
+        appendValue(header.sequenceInfos, TSequenceInfo(*nit, length(*sit)));
+
+    // Fill program header line.
+    BamHeaderRecord pgRecord;
+    pgRecord.type = BAM_HEADER_PROGRAM;
+    appendValue(pgRecord.tags, TTag("ID", "SeqAn"));
+    appendValue(header.records, pgRecord);
+}
+
+// ----------------------------------------------------------------------------
 // Function setQual()
 // ----------------------------------------------------------------------------
 
@@ -168,6 +204,12 @@ inline void _writeMatchesImpl(MatchesWriter<TSpec, Traits> & me, TMatches const 
 
     // Set number of errors.
     appendTagValue(me.record.tags, "NM", getErrors(primary));
+
+    // Set number of secondary alignments.
+//    appendTagValue(me.record.tags, "NH", 1, 'i');
+
+    // Set hit index.
+//    appendTagValue(me.record.tags, "HI", 1, 'i');
 
     // Set number of cooptimal and suboptimal hits.
     appendTagValue(me.record.tags, "X0", bestCount, 'i');
