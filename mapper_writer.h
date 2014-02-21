@@ -96,9 +96,38 @@ struct MatchesWriter
     }
 };
 
+// ----------------------------------------------------------------------------
+// Class QualityExtractor
+// ----------------------------------------------------------------------------
+// TODO(esiragusa): remove this when new tokenization gets into develop.
+
+template <typename TValue>
+struct QualityExtractor : public std::unary_function<TValue, char>
+{
+    inline char operator()(TValue const & x) const
+    {
+        return '!' + static_cast<char>(getQualityValue(x));
+    }
+};
+
 // ============================================================================
 // Functions
 // ============================================================================
+
+// ----------------------------------------------------------------------------
+// Function setQual()
+// ----------------------------------------------------------------------------
+
+template <typename TString>
+inline void setQual(BamAlignmentRecord & record, TString const & string)
+{
+    typedef typename Value<TString>::Type                               TAlphabet;
+    typedef QualityExtractor<TAlphabet>                                 TQualityExtractor;
+    typedef ModifiedString<TString const, ModView<TQualityExtractor> >  TQualities;
+
+    TQualities qual(string);
+    record.qual = qual;
+}
 
 // ----------------------------------------------------------------------------
 // Function _writeMatchesImpl()
@@ -120,7 +149,7 @@ inline void _writeMatchesImpl(MatchesWriter<TSpec, Traits> & me, TMatches const 
     // Set primary alignment information.
     me.record.qName = me.reads.names[getReadId(primary)];
     me.record.seq = me.reads.seqs[getReadSeqId(primary, me.reads.seqs)];
-//    me.record.qual = me.reads.seqs[getReadSeqId(primary)];
+    setQual(me.record, me.reads.seqs[getReadSeqId(primary, me.reads.seqs)]);
 
     // Set orientation.
     if (onReverseStrand(primary))
