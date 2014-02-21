@@ -256,7 +256,7 @@ struct DuplicateRemover
         typedef typename Value<TIterator>::Type     TMatches;
         typedef typename Value<TMatches>::Type      TMatch;
 
-        TMatches matches = value(it);
+        TMatches const & matches = value(it);
 
         sort(matches, MatchSorter<TMatch, TPosition>());
         unique[position(it) + 1] = compactUniqueMatches(matches, TPosition());

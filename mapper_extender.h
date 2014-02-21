@@ -173,7 +173,7 @@ inline void _extendHitImpl(HitsExtender<TSpec, Traits> & me, THitsIterator const
 
     // Get read.
     TReadId readSeqId = getReadSeqId(me.seeds, seedId);
-    TReadSeq readSeq = me.readSeqs[readSeqId];
+    TReadSeq const & readSeq = me.readSeqs[readSeqId];
 
     // Skip unseeded and mapped reads.
     if (getStatus(me.ctx, readSeqId) != STATUS_SEEDED) return;

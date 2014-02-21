@@ -145,7 +145,7 @@ inline void _verifyAnchorImpl(AnchorsVerifier<TSpec, Traits> & me, TAnchorsItera
 
     TMatch const & anchor = me.anchors[anchorId];
     TReadId mateSeqId = getMateSeqId(me.readSeqs, getReadSeqId(anchor, me.readSeqs));
-    TReadSeq mateSeq = me.readSeqs[mateSeqId];
+    TReadSeq const & mateSeq = me.readSeqs[mateSeqId];
 
     TContigsPos contigBegin;
     TContigsPos contigEnd;
