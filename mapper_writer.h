@@ -57,6 +57,7 @@ struct MatchesWriter
 
     // Thread-private data.
     BamAlignmentRecord      record;
+    CharString              xa;
 
     // Shared-memory read-write data.
     TOutputStream &         outputStream;
@@ -166,6 +167,61 @@ inline void setQual(BamAlignmentRecord & record, TString const & string)
 }
 
 // ----------------------------------------------------------------------------
+// Function append*()
+// ----------------------------------------------------------------------------
+
+template <typename TErrors>
+inline void appendErrors(BamAlignmentRecord & record, TErrors errors)
+{
+    appendTagValue(record.tags, "NM", errors, 'i');
+}
+
+template <typename TCount>
+inline void appendCooptimalCount(BamAlignmentRecord & record, TCount count)
+{
+    appendTagValue(record.tags, "X0", count, 'i');
+}
+
+template <typename TCount>
+inline void appendSuboptimalCount(BamAlignmentRecord & record, TCount count)
+{
+    appendTagValue(record.tags, "X1", count, 'i');
+}
+
+inline void appendType(BamAlignmentRecord & record, bool unique)
+{
+    appendTagValue(record.tags, "XT", unique ? 'U' : 'R', 'A');
+}
+
+template <typename TString>
+inline void appendAlignments(BamAlignmentRecord & record, TString const & xa)
+{
+    // XA:Z:(chr,pos,CIGAR,NM;)+
+    appendTagValue(record.tags, "XA", xa, 'Z');
+}
+
+template <typename TSpec, typename Traits, typename TMatches>
+inline void _fillXa(MatchesWriter<TSpec, Traits> & me, TMatches const & matches)
+{
+    typedef typename Iterator<TMatches const, Standard>::Type   TIter;
+
+    clear(me.xa);
+    TIter itEnd = end(matches, Standard());
+    for (TIter it = begin(matches, Standard()) + 1; it != itEnd; ++it)
+    {
+        append(me.xa, nameStore(me.outputCtx)[getContigId(value(it))]);
+        appendValue(me.xa, ',');
+//        append(me.xa, getContigBegin(value(it)) + 1);
+        appendValue(me.xa, '1');
+        appendValue(me.xa, ',');
+        appendValue(me.xa, '*');
+        appendValue(me.xa, ',');
+        appendValue(me.xa, '0' + getErrors(value(it)));
+        appendValue(me.xa, ';');
+    }
+}
+
+// ----------------------------------------------------------------------------
 // Function _writeMatchesImpl()
 // ----------------------------------------------------------------------------
 // Writes one block of matches.
@@ -203,7 +259,7 @@ inline void _writeMatchesImpl(MatchesWriter<TSpec, Traits> & me, TMatches const 
 //    setAlignment(record, me.contigs, primary, primary, alignFunctor);
 
     // Set number of errors.
-    appendTagValue(me.record.tags, "NM", getErrors(primary));
+    appendErrors(me.record, getErrors(primary));
 
     // Set number of secondary alignments.
 //    appendTagValue(me.record.tags, "NH", 1, 'i');
@@ -212,14 +268,18 @@ inline void _writeMatchesImpl(MatchesWriter<TSpec, Traits> & me, TMatches const 
 //    appendTagValue(me.record.tags, "HI", 1, 'i');
 
     // Set number of cooptimal and suboptimal hits.
-    appendTagValue(me.record.tags, "X0", bestCount, 'i');
-    appendTagValue(me.record.tags, "X1", length(matches) - bestCount, 'i');
+    appendCooptimalCount(me.record, bestCount);
+    appendSuboptimalCount(me.record, length(matches) - bestCount);
 
     // Set type as unique or repeat.
-    char type = (bestCount == 1) ? 'U' : 'R';
-    appendTagValue(me.record.tags, "XT", type, 'A');
+    appendType(me.record, bestCount == 1);
 
-//    appendTagValue(me.record.tags, "XA", "chr,pos,CIGAR,NM;...", 'Z');
+    // Append secondary matches.
+    if (length(matches) > 1)
+    {
+        _fillXa(me, matches);
+        appendAlignments(me.record, me.xa);
+    }
 
     // Write record to output stream.
     write2(me.outputStream, me.record, me.outputCtx, typename Traits::TOutputFormat());
