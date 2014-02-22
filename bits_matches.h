@@ -338,14 +338,14 @@ inline void removeDuplicates(TMatchesSet & matchesSet, TThreading const & thread
 
     // Exclude duplicate matches at the end.
     assign(stringSetLimits(matchesSet), newLimits);
-    _refreshStringSetLimits(matchesSet, Parallel());
+    _refreshStringSetLimits(matchesSet, threading);
 
     // Sort matches by begin position and move unique matches at the beginning.
     iterate(matchesSet, DuplicateRemover<TLimits, SortBeginPos>(newLimits), Rooted(), threading);
 
     // Exclude duplicate matches at the end.
     assign(stringSetLimits(matchesSet), newLimits);
-    _refreshStringSetLimits(matchesSet, Parallel());
+    _refreshStringSetLimits(matchesSet, threading);
 }
 
 // ----------------------------------------------------------------------------
