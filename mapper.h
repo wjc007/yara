@@ -184,6 +184,9 @@ struct MapperTraits
     typedef Match<void>                                             TMatch;
     typedef String<TMatch>                                          TMatches;
     typedef StringSet<TMatches, Segment<TMatches> >                 TMatchesSet;
+    typedef Pair<TMatch>                                            TPair;
+    typedef String<TPair>                                           TPairs;
+    typedef StringSet<TPairs, Owner<ConcatDirect<> > >              TPairsSet;
 
     typedef Multiple<FinderSTree>                                   TAlgorithmExt;
     typedef Multiple<Backtracking<HammingDistance> >                TAlgorithmApx;
@@ -219,6 +222,7 @@ struct Mapper
     typename Traits::TMatches           mates;
     typename Traits::TMatchesSet        anchorsSet;
     typename Traits::TMatchesSet        matesSet;
+    typename Traits::TPairsSet          pairsSet;
 
     typename Traits::TFinderExt         finderExt;
     typename Traits::TFinderApx         finderApx;
