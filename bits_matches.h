@@ -66,39 +66,97 @@ struct Match
 }
 __attribute__((packed));
 
-// ----------------------------------------------------------------------------
-// Class PairedMatches
-// ----------------------------------------------------------------------------
-
-template <typename THost, typename TSpec = void>
-struct PairedMatches
-{
-    typedef typename Value<PairedMatches>::Type TValue;
-    typedef typename Position<THost>::Type      TPos;
-    typedef Pair<TPos>                          TPair;
-
-    typename Pointer_<THost>::Type  _host;
-    String<TPair>                   _idx;
-
-    PairedMatches() :
-        _host()
-    {}
-
-    template <typename TPos>
-    inline typename Value<PairedMatches const>::Type
-    operator[](TPos pos) const 
-    {
-        TPair idx = _idx[pos];
-        return TValue(_dereference(_host)[idx.i1], _dereference(_host)[idx.i2]);
-    }
-};
-
-template <typename THost, typename TSpec>
-struct Value<PairedMatches<THost, TSpec> >
-{
-    typedef typename Value<THost>::Type TMatch_;
-    typedef Pair<TMatch_>               Type;
-};
+//// ----------------------------------------------------------------------------
+//// Class PairString
+//// ----------------------------------------------------------------------------
+//
+//template <typename THost, typename TSpec = void>
+//struct PairString
+//{
+//    typename Pointer_<THost>::Type                  _host;
+//    typename Member<PairString, Identifier_>::Type  _idx;
+//
+//    PairString() :
+//        _host()
+//    {}
+//
+//    template <typename TPos>
+//    inline typename Value<PairString const>::Type
+//    operator[](TPos pos) const 
+//    {
+//        typedef typename Value<PairString const>::Type    TValue;
+//
+//        return TValue(_dereference(_host)[_idx[pos].i1], _dereference(_host)[_idx[pos].i2]);
+//    }
+//};
+//
+//template <typename THost, typename TBinaryPredicate, typename TSpec = void>
+//struct PairStringSorter
+//{
+//    THost &             _host;
+//    TBinaryPredicate &  _pred;
+//
+//    PairStringSorter(THost & host, TBinaryPredicate & pred) :
+//        _host(host),
+//        _pred(pred)
+//    {}
+//
+//    template <typename TPos>
+//    bool operator() (TPos a, TPos b)
+//    {
+//        return _pred(_host[a], _host[b]);
+//    }
+//};
+//
+//template <typename THost, typename TSpec>
+//struct Member<PairString<THost, TSpec>, Identifier_>
+//{
+//    typedef Pair<typename Position<THost>::Type>    TPair_;
+//    typedef String<TPair_>                          Type;
+//};
+//
+//template <typename THost, typename TSSpec, typename TSpec>
+//struct Member<PairString<Segment<THost, TSSpec>, TSpec>, Identifier_>
+//{
+//    typedef Segment<typename Member<PairString<THost, TSpec>, Identifier_>::Type, TSSpec>   Type;
+//};
+//
+//template <typename THost, typename TSpec>
+//struct Value<PairString<THost, TSpec> >
+//{
+//    typedef Pair<typename Value<THost>::Type>       Type;
+//};
+//
+//template <typename THost, typename TSpec>
+//struct Infix<PairString<THost, TSpec> >
+//{
+//    typedef PairString<typename Infix<THost>::Type, TSpec>  Type;
+//};
+//
+//template <typename THost, typename TSpec>
+//inline void setHost(PairString<THost, TSpec> & me, THost & _host)
+//{
+//    me._host = _toPointer(_host);
+//}
+//
+//template <typename THost, typename TSpec, typename TPosBegin, typename TPosEnd>
+//inline typename Infix<PairString<THost, TSpec> >::Type
+//infix(PairString<THost, TSpec> & me, TPosBegin posBegin, TPosEnd posEnd)
+//{
+//    return typename Infix<PairString<THost, TSpec> >::Type(infix(me._idx, posBegin, posEnd));
+//}
+//
+//template <typename THost, typename TSpec, typename TPos>
+//inline void appendPos(PairString<THost, TSpec> & me, TPos pos)
+//{
+//    appendValue(me._idx, pos);
+//}
+//
+//template <typename THost, typename TSpec, typename TBinaryPredicate, typename TThreading>
+//inline void sort(PairString<THost, TSpec> & me, TBinaryPredicate p, Tag<TThreading> const & tag)
+//{
+//    sort(me._idx, PairStringSorter<THost, TBinaryPredicate>(me._host, p), tag);
+//}
 
 // ----------------------------------------------------------------------------
 // Class MatchReadId
