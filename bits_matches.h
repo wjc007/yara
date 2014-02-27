@@ -462,4 +462,186 @@ inline void sortMatches(TIterator & it)
     sort(matches, MatchSorter<TMatch, TKey>());
 }
 
+//// ----------------------------------------------------------------------------
+//// Function pairMatches()
+//// ----------------------------------------------------------------------------
+//
+//template <typename TMatches, typename TDelegate>
+//inline void pairMatches(TMatches const & left, TMatches const & right, TDelegate & delegate)
+//{
+//    typedef typename Value<TMatches const>::Type                TMatch;
+//    typedef typename Iterator<TMatches const, Standard>::Type   TIterator;
+//
+//    TIterator matchesLeftFwdBegin = begin(left, Standard());
+//    TIterator matchesLeftRevBegin = begin(left, Standard());
+//    TIterator matchesLeftFwdEnd = end(left, Standard());
+//    TIterator matchesLeftRevEnd = end(left, Standard());
+//
+//    TIterator matchesRightFwdBegin = begin(right, Standard());
+//    TIterator matchesRightRevBegin = begin(right, Standard());
+//    TIterator matchesRightFwdEnd = end(right, Standard());
+//    TIterator matchesRightRevEnd = end(right, Standard());
+//
+//    unsigned char leftContigId;
+//    unsigned char rightContigId;
+//
+//    while (_goNextContig(matchesLeftFwdBegin, matchesLeftFwdEnd,
+//                         matchesLeftRevBegin, matchesLeftRevEnd))
+//    {
+//        if (matchesLeftFwdEnd != matchesLeftFwdBegin)
+//            leftContigId = getContigId(*matchesLeftFwdBegin);
+//        else
+//            leftContigId = getContigId(*matchesLeftRevBegin);
+//
+//        while (_goNextContig(matchesRightFwdBegin, matchesRightFwdEnd,
+//                             matchesRightRevBegin, matchesRightRevEnd))
+//        {
+//            if (matchesRightFwdEnd != matchesRightFwdBegin)
+//                rightContigId = getContigId(*matchesRightFwdBegin);
+//            else
+//                rightContigId = getContigId(*matchesRightRevBegin);
+//
+//            if (leftContigId == rightContigId)
+//            {
+//                if (matchesLeftFwdEnd != matchesLeftFwdBegin && matchesRightRevEnd != matchesRightRevBegin)
+//                {
+////                    std::cout << "Left FWD vs Right REV" << std::endl;
+////                    printMatches(matchesLeft, matchesLeftFwdBegin, matchesLeftFwdEnd);
+////                    printMatches(matchesRight, matchesRightRevBegin, matchesRightRevEnd);
+////
+//                    _pairMatches(matchesLeftFwdBegin, matchesLeftFwdEnd,
+//                                 matchesRightRevBegin, matchesRightRevEnd,
+//                                 LeftFile(), RightFile());
+//                }
+//
+//                if (matchesRightFwdEnd != matchesRightFwdBegin && matchesLeftRevEnd != matchesLeftRevBegin)
+//                {
+////                    std::cout << "Left REV vs Right FWD" << std::endl;
+////                    printMatches(matchesLeft, matchesLeftRevBegin, matchesLeftRevEnd);
+////                    printMatches(matchesRight, matchesRightFwdBegin, matchesRightFwdEnd);
+////
+//                    _pairMatches(matchesRightFwdBegin, matchesRightFwdEnd,
+//                                 matchesLeftRevBegin, matchesLeftRevEnd,
+//                                 RightFile(), LeftFile());
+//                }
+//            }
+//            else if (leftContigId < rightContigId)
+//                break;
+//        }
+//    }
+//}
+//
+//// ----------------------------------------------------------------------------
+//// Function _goNextContig()
+//// ----------------------------------------------------------------------------
+//
+//template <typename TIterator>
+//inline bool _goNextContig(TIterator & matchesFwdBegin,
+//                          TIterator & matchesFwdEnd,
+//                          TIterator & matchesRevBegin,
+//                          TIterator & matchesRevEnd)
+//{
+//    TIterator matchesBegin;
+//    TIterator matchesEnd;
+//
+//    if (getNext(matchIt, matchesBegin, matchesEnd))
+//    {
+//        if (isReverse(*matchesBegin))
+//        {
+//            matchesFwdBegin = matchesEnd;
+//            matchesFwdEnd = matchesEnd;
+//
+//            matchesRevBegin = matchesBegin;
+//            matchesRevEnd = matchesEnd;
+//        }
+//        else
+//        {
+//            matchesFwdBegin = matchesBegin;
+//            matchesFwdEnd = matchesEnd;
+//
+//            if (!atEnd(matchIt) && (*matchesBegin).contigId == (*matchesEnd).contigId)
+//            {
+//                getNext(matchIt, matchesBegin, matchesEnd);
+//
+//                matchesRevBegin = matchesBegin;
+//                matchesRevEnd = matchesEnd;
+//            }
+//            else
+//            {
+//                matchesRevBegin = matchesEnd;
+//                matchesRevEnd = matchesEnd;
+//            }
+//        }
+//
+//        return true;
+//    }
+//
+//    return false;
+//}
+//
+//// ----------------------------------------------------------------------------
+//// Function _pairMatches()
+//// ----------------------------------------------------------------------------
+//
+//template <typename TIterator, typename TMateFwd, typename TMateRev, typename TDelegate>
+//inline void _pairMatches(TIterator mateFwdBegin, TIterator mateFwdEnd,
+//                         TIterator mateRevBegin, TIterator mateRevEnd,
+//                         TMateFwd const & /* tag */,
+//                         TMateRev const & /* tag */,
+//                         TDelegate & delegate)
+//{
+//    // NOTE mateFwd queue C= mateRev queue, i.e. mateFwdTail >= mateRevTail && mateFwdHead <= mateRevHead
+//
+//    SEQAN_ASSERT_NEQ(mateFwdBegin, mateFwdEnd);
+//    unsigned mateFwdId = readIdToPairId((*mateFwdBegin).readId, TMateFwd());
+//    TReadSeqSize mateFwdLength = length(getSeqs(getReads(pairer))[mateFwdId]);
+//
+//    TIterator mateFwdIt = mateFwdBegin;
+//
+//    // Get next mateRev match.
+//    for (TIterator mateRevIt = mateRevBegin; mateRevIt != mateRevEnd; ++mateRevIt)
+//    {
+//        // Compute mateRev match queue.
+//        TContigSeqSize mateRevHead = endPos(*mateRevIt) - pairer.libraryLength + pairer.libraryError + mateFwdLength;
+//        TContigSeqSize mateRevTail = endPos(*mateRevIt) - pairer.libraryLength - pairer.libraryError;
+//
+//        // Seek next mateFwd match after the tail of mateRev match queue.
+//        while (mateFwdIt != mateFwdEnd && (*mateFwdIt).beginPos < mateRevTail)
+//            ++mateFwdIt;
+//
+//        TIterator mateFwdTailIt = mateFwdIt;
+//        if (mateFwdTailIt == mateFwdEnd)
+//            break;
+//
+//        // Continue if mateFwd tail is beyond mateRev head.
+//        TContigSeqSize mateFwdTail = (*mateFwdTailIt).beginPos;
+//        if (mateFwdTail >= mateRevHead)
+//            continue;
+//
+//        // Seek next mateFwd match after the head of mateRev match queue.
+//        while (mateFwdIt != mateFwdEnd && endPos(*mateFwdIt) <= mateRevHead)
+//            ++mateFwdIt;
+//        TIterator mateFwdHeadIt = mateFwdIt;
+//
+//        // Couple all fwds mates vs rev mate.
+//        for (TIterator mateFwdQueueIt = mateFwdTailIt; mateFwdQueueIt != mateFwdHeadIt; ++mateFwdQueueIt)
+//        {
+//            // Convert readIds to pairIds
+////            TMatch mateFwd;
+////            TMatch mateRev;
+////            assign(mateFwd, *mateFwdQueueIt);
+////            assign(mateRev, *mateRevIt);
+////            mateFwd.readId = readIdToPairId((*mateFwdQueueIt).readId, TMateFwd());
+////            mateRev.readId = readIdToPairId((*mateRevIt).readId, TMateRev());
+////
+////            delegate(mateFwd, mateRev);
+//
+////            delegate(*mateFwdQueueIt, *mateRevIt);
+//        }
+//
+//        // Empty mateFwd queue.
+////        if (mateFwdTailIt == mateFwdHeadIt) continue;
+//    }
+//}
+
 #endif  // #ifndef APP_CUDAMAPPER_BITS_MATCHES_H_
