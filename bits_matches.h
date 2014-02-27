@@ -134,22 +134,18 @@ struct MatchSorter<TMatch, SortReadId>
 template <typename TMatch>
 struct MatchSorter<TMatch, SortBeginPos>
 {
-    // TODO(esiragusa): check orientation.
     inline bool operator()(TMatch const & a, TMatch const & b) const
     {
-        return (getContigId(a) <  getContigId(b)) ||
-               (getContigId(a) == getContigId(b)  && getContigBegin(a) < getContigBegin(b));
+        return contigLess(a, b) || (contigEqual(a, b) && getContigBegin(a) < getContigBegin(b));
     }
 };
 
 template <typename TMatch>
 struct MatchSorter<TMatch, SortEndPos>
 {
-    // TODO(esiragusa): check orientation.
     inline bool operator()(TMatch const & a, TMatch const & b) const
     {
-        return (getContigId(a) <  getContigId(b)) ||
-               (getContigId(a) == getContigId(b)  && getContigEnd(a) < getContigEnd(b));
+        return contigLess(a, b) || (contigEqual(a, b) && getContigEnd(a) < getContigEnd(b));
     }
 };
 
@@ -316,14 +312,53 @@ inline unsigned char getErrors(Match<TSpec> const & me)
 }
 
 // ----------------------------------------------------------------------------
+// Function strandEqual()
+// ----------------------------------------------------------------------------
+
+template <typename TSpec>
+inline bool strandEqual(Match<TSpec> const & a, Match<TSpec> const & b)
+{
+    return !(onForwardStrand(a) ^ onForwardStrand(b));
+}
+
+// ----------------------------------------------------------------------------
+// Function strandLess()
+// ----------------------------------------------------------------------------
+
+template <typename TSpec>
+inline bool strandLess(Match<TSpec> const & a, Match<TSpec> const & b)
+{
+    return onForwardStrand(a) && onReverseStrand(b);
+}
+
+// ----------------------------------------------------------------------------
+// Function contigEqual()
+// ----------------------------------------------------------------------------
+
+template <typename TSpec>
+inline bool contigEqual(Match<TSpec> const & a, Match<TSpec> const & b)
+{
+    return getContigId(a) == getContigId(b) && strandEqual(a, b);
+}
+
+// ----------------------------------------------------------------------------
+// Function contigLess()
+// ----------------------------------------------------------------------------
+
+template <typename TSpec>
+inline bool contigLess(Match<TSpec> const & a, Match<TSpec> const & b)
+{
+    return getContigId(a) < getContigId(b) || (getContigId(a) == getContigId(b) && strandLess(a, b));
+}
+
+// ----------------------------------------------------------------------------
 // Function isDuplicate(SortBeginPos)
 // ----------------------------------------------------------------------------
 
 template <typename TSpec>
 inline bool isDuplicate(Match<TSpec> const & a, Match<TSpec> const & b, SortBeginPos)
 {
-    // TODO(esiragusa): check orientation.
-    return getContigId(a) == getContigId(b) && getContigBegin(a) == getContigBegin(b);
+    return contigEqual(a, b) && getContigBegin(a) == getContigBegin(b);
 }
 
 // ----------------------------------------------------------------------------
@@ -333,8 +368,7 @@ inline bool isDuplicate(Match<TSpec> const & a, Match<TSpec> const & b, SortBegi
 template <typename TSpec>
 inline bool isDuplicate(Match<TSpec> const & a, Match<TSpec> const & b, SortEndPos)
 {
-    // TODO(esiragusa): check orientation.
-    return getContigId(a) == getContigId(b) && getContigEnd(a) == getContigEnd(b);
+    return contigEqual(a, b) && getContigEnd(a) == getContigEnd(b);
 }
 
 // ----------------------------------------------------------------------------
