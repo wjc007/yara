@@ -40,6 +40,13 @@
 using namespace seqan;
 
 // ============================================================================
+// Tags
+// ============================================================================
+
+struct SortErrors_;
+typedef Tag<SortErrors_> const SortErrors;
+
+// ============================================================================
 // Classes
 // ============================================================================
 
@@ -59,82 +66,45 @@ struct Match
 }
 __attribute__((packed));
 
-template <typename TSpec, typename TReadSeqs, typename TReadSeqId>
-inline void setReadId(Match<TSpec> & me, TReadSeqs const & readSeqs, TReadSeqId readSeqId)
-{
-    me.readId = getReadId(readSeqs, readSeqId);
-    me.isFwd = isFwdReadSeq(readSeqs, readSeqId);
-}
+// ----------------------------------------------------------------------------
+// Class PairedMatches
+// ----------------------------------------------------------------------------
 
-template <typename TSpec, typename TContigPos>
-inline void setContigPosition(Match<TSpec> & me, TContigPos contigBegin, TContigPos contigEnd)
+template <typename THost, typename TSpec = void>
+struct PairedMatches
 {
-    SEQAN_ASSERT_EQ(getValueI1(contigBegin), getValueI1(contigEnd));
-    SEQAN_ASSERT_LT(getValueI2(contigBegin), getValueI2(contigEnd));
+    typedef typename Value<PairedMatches>::Type TValue;
+    typedef typename Position<THost>::Type      TPos;
+    typedef Pair<TPos>                          TPair;
 
-    me.contigId = getValueI1(contigBegin);
-    me.contigBegin = getValueI2(contigBegin);
-    me.contigEnd = getValueI2(contigEnd) - getValueI2(contigBegin);
-}
+    typename Pointer_<THost>::Type  _host;
+    String<TPair>                   _idx;
 
-template <typename TReadSeqs, typename TSpec>
-inline typename Size<TReadSeqs>::Type
-getReadSeqId(Match<TSpec> const & me, TReadSeqs const & readSeqs)
+    PairedMatches() :
+        _host()
+    {}
+
+    template <typename TPos>
+    inline typename Value<PairedMatches const>::Type
+    operator[](TPos pos) const 
+    {
+        TPair idx = _idx[pos];
+        return TValue(_dereference(_host)[idx.i1], _dereference(_host)[idx.i2]);
+    }
+};
+
+template <typename THost, typename TSpec>
+struct Value<PairedMatches<THost, TSpec> >
 {
-    return onForwardStrand(me) ? getFirstMateFwdSeqId(readSeqs, me.readId) : getFirstMateRevSeqId(readSeqs, me.readId);
-}
-
-template <typename TSpec>
-inline unsigned getReadId(Match<TSpec> const & me)
-{
-    return me.readId;
-}
-
-template <typename TSpec>
-inline unsigned getContigId(Match<TSpec> const & me)
-{
-    return me.contigId;
-}
-
-template <typename TSpec>
-inline unsigned getContigBegin(Match<TSpec> const & me)
-{
-    return me.contigBegin;
-}
-
-template <typename TSpec>
-inline unsigned getContigEnd(Match<TSpec> const & me)
-{
-    return me.contigBegin + me.contigEnd;
-}
-
-template <typename TSpec>
-inline bool onForwardStrand(Match<TSpec> const & me)
-{
-    return me.isFwd;
-}
-
-template <typename TSpec>
-inline bool onReverseStrand(Match<TSpec> const & me)
-{
-    return !onForwardStrand(me);
-}
-
-template <typename TSpec>
-inline unsigned char getScore(Match<TSpec> const & /* me */)
-{
-    return 254;
-}
-
-template <typename TSpec>
-inline unsigned char getErrors(Match<TSpec> const & me)
-{
-    return me.errors;
-}
+    typedef typename Value<THost>::Type TMatch_;
+    typedef Pair<TMatch_>               Type;
+};
 
 // ----------------------------------------------------------------------------
 // Class MatchReadId
 // ----------------------------------------------------------------------------
+// NOTE(esiragusa): MatchReadId<TMatch> functor could be MemberGetter<TMatch, TMember>
+// NOTE(esiragusa): getReadId<TMatch>() could be getMember(TMatch, TMember())
 
 template <typename TMatch>
 struct MatchReadId
@@ -182,9 +152,6 @@ struct MatchSorter<TMatch, SortEndPos>
                (getContigId(a) == getContigId(b)  && getContigEnd(a) < getContigEnd(b));
     }
 };
-
-struct SortErrors_;
-typedef Tag<SortErrors_> const SortErrors;
 
 template <typename TMatch>
 struct MatchSorter<TMatch, SortErrors>
@@ -266,6 +233,87 @@ struct DuplicateRemover
 // ============================================================================
 // Functions
 // ============================================================================
+
+// ----------------------------------------------------------------------------
+// Match Setters
+// ----------------------------------------------------------------------------
+
+template <typename TSpec, typename TReadSeqs, typename TReadSeqId>
+inline void setReadId(Match<TSpec> & me, TReadSeqs const & readSeqs, TReadSeqId readSeqId)
+{
+    me.readId = getReadId(readSeqs, readSeqId);
+    me.isFwd = isFwdReadSeq(readSeqs, readSeqId);
+}
+
+template <typename TSpec, typename TContigPos>
+inline void setContigPosition(Match<TSpec> & me, TContigPos contigBegin, TContigPos contigEnd)
+{
+    SEQAN_ASSERT_EQ(getValueI1(contigBegin), getValueI1(contigEnd));
+    SEQAN_ASSERT_LT(getValueI2(contigBegin), getValueI2(contigEnd));
+
+    me.contigId = getValueI1(contigBegin);
+    me.contigBegin = getValueI2(contigBegin);
+    me.contigEnd = getValueI2(contigEnd) - getValueI2(contigBegin);
+}
+
+// ----------------------------------------------------------------------------
+// Match Getters
+// ----------------------------------------------------------------------------
+
+template <typename TReadSeqs, typename TSpec>
+inline typename Size<TReadSeqs>::Type
+getReadSeqId(Match<TSpec> const & me, TReadSeqs const & readSeqs)
+{
+    return onForwardStrand(me) ? getFirstMateFwdSeqId(readSeqs, me.readId) : getFirstMateRevSeqId(readSeqs, me.readId);
+}
+
+template <typename TSpec>
+inline unsigned getReadId(Match<TSpec> const & me)
+{
+    return me.readId;
+}
+
+template <typename TSpec>
+inline unsigned getContigId(Match<TSpec> const & me)
+{
+    return me.contigId;
+}
+
+template <typename TSpec>
+inline unsigned getContigBegin(Match<TSpec> const & me)
+{
+    return me.contigBegin;
+}
+
+template <typename TSpec>
+inline unsigned getContigEnd(Match<TSpec> const & me)
+{
+    return me.contigBegin + me.contigEnd;
+}
+
+template <typename TSpec>
+inline bool onForwardStrand(Match<TSpec> const & me)
+{
+    return me.isFwd;
+}
+
+template <typename TSpec>
+inline bool onReverseStrand(Match<TSpec> const & me)
+{
+    return !onForwardStrand(me);
+}
+
+template <typename TSpec>
+inline unsigned char getScore(Match<TSpec> const & /* me */)
+{
+    return 254;
+}
+
+template <typename TSpec>
+inline unsigned char getErrors(Match<TSpec> const & me)
+{
+    return me.errors;
+}
 
 // ----------------------------------------------------------------------------
 // Function isDuplicate(SortBeginPos)
