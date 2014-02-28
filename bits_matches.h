@@ -463,58 +463,42 @@ inline void sortMatches(TIterator & it)
 }
 
 // ----------------------------------------------------------------------------
-// Function goSameContig()
+// Function findSameContig()
 // ----------------------------------------------------------------------------
 
 template <typename TMatchesIterator, typename TMatches>
-inline void goSameContig(TMatchesIterator & leftIt, TMatchesIterator & rightIt,
-                         TMatches const & left, TMatches const & right)
+inline void findSameContig(TMatchesIterator & leftIt, TMatchesIterator & rightIt,
+                           TMatches const & left, TMatches const & right)
 {
     while (!atEnd(leftIt, left) && !atEnd(rightIt, right))
     {
         if (getContigId(*leftIt) < getContigId(*rightIt))
-            goNextContig(leftIt, left);
+            findNextContig(leftIt, left, getContigId(*leftIt));
         else if (getContigId(*leftIt) > getContigId(*rightIt))
-            endNextContig(rightIt, right);
+            findNextContig(rightIt, right, getContigId(*rightIt));
         else
             break;
     }
 }
 
 // ----------------------------------------------------------------------------
-// Function goNextContig()
+// Function findNextContig()
 // ----------------------------------------------------------------------------
 
-template <typename TMatchesIterator, typename TMatches>
-inline void goNextContig(TMatchesIterator & it, TMatches const & matches)
+template <typename TMatchesIterator, typename TMatches, typename TContigId>
+inline void findNextContig(TMatchesIterator & it, TMatches const & matches, TContigId contigId)
 {
-    unsigned contigId = getContigId(*it);
-
-    while (!atEnd(it, matches) && getContigId(*it) == contigId) ++it;
+    while (!atEnd(it, matches) && getContigId(*it) <= contigId) ++it;
 }
 
 // ----------------------------------------------------------------------------
-// Function endForwardStrand()
+// Function findReverseStrand()
 // ----------------------------------------------------------------------------
 
-template <typename TMatchesIterator, typename TMatches>
-inline void endForwardStrand(TMatchesIterator & it, TMatches const & matches)
+template <typename TMatchesIterator, typename TMatches, typename TContigId>
+inline void goDifferentStrand(TMatchesIterator & it, TMatches const & matches, TContigId contigId)
 {
-    unsigned contigId = getContigId(*it);
-
-    while (!atEnd(it, matches) && (getContigId(*it) == contigId) && onForwardStrand(*it)) ++it;
-}
-
-// ----------------------------------------------------------------------------
-// Function endReverseStrand()
-// ----------------------------------------------------------------------------
-
-template <typename TMatchesIterator, typename TMatches>
-inline void endReverseStrand(TMatchesIterator & it, TMatches const & matches)
-{
-    unsigned contigId = getContigId(*it);
-
-    while (!atEnd(it, matches) && (getContigId(*it) == contigId) && onReverseStrand(*it)) ++it;
+    while (!atEnd(it, matches) && (getContigId(*it) <= contigId) && onForwardStrand(*it)) ++it;
 }
 
 // ----------------------------------------------------------------------------
@@ -535,19 +519,22 @@ inline void pairMatches(TMatches const & left, TMatches const & right, TDelegate
         TIterator leftBegin;
         TIterator rightBegin;
 
-        goSameContig(leftIt, rightIt, left, right);
+        // Find matches on the same contig.
+        findSameContig(leftIt, rightIt, left, right);
 
+        // Find matches on forward strand.
         leftBegin = leftIt;
         rightBegin = rightIt;
-        endForwardStrand(leftIt, left);
-        endForwardStrand(rightIt, right);
+        findReverseStrand(leftIt, left, getContigId(*leftBegin));
+        findReverseStrand(rightIt, right, getContigId(*rightBegin));
         TInfix leftFwd = infix(left, leftBegin, leftIt);
         TInfix rightFwd = infix(right, rightBegin, rightIt);
 
+        // Find matches on reverse strand.
         leftBegin = leftIt;
         rightBegin = rightIt;
-        endReverseStrand(leftIt, left);
-        endReverseStrand(rightIt, right);
+        findNextContig(leftIt, left, getContigId(*leftBegin));
+        findNextContig(rightIt, right, getContigId(*rightBegin));
         TInfix leftRev = infix(left, leftBegin, leftIt);
         TInfix rightRev = infix(right, rightBegin, rightIt);
 
