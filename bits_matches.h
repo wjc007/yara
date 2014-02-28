@@ -505,8 +505,10 @@ inline void goDifferentStrand(TMatchesIterator & it, TMatches const & matches, T
 // Function pairMatches()
 // ----------------------------------------------------------------------------
 
-template <typename TMatches, typename TDelegate>
-inline void pairMatches(TMatches const & left, TMatches const & right, TDelegate & delegate)
+template <typename TMatches, typename TLibraryLength, typename TLibraryError, typename TDelegate>
+inline void pairMatches(TMatches const & left, TMatches const & right,
+                        TLibraryLength libraryLength, TLibraryError libraryError,
+                        TDelegate & delegate)
 {
     typedef typename Iterator<TMatches const, Standard>::Type   TIterator;
     typedef typename Infix<TMatches const>::Type                TInfix;
@@ -538,8 +540,8 @@ inline void pairMatches(TMatches const & left, TMatches const & right, TDelegate
         TInfix leftRev = infix(left, leftBegin, leftIt);
         TInfix rightRev = infix(right, rightBegin, rightIt);
 
-        enumeratePairs(leftFwd, rightRev, LeftFile(), RightFile(), delegate);
-        enumeratePairs(rightFwd, leftRev, RightFile(), LeftFile(), delegate);
+        enumeratePairs(leftFwd, rightRev, libraryLength, libraryError, delegate);
+        enumeratePairs(rightFwd, leftRev, libraryLength, libraryError, delegate);
     }
     while (!atEnd(leftIt, left) && !atEnd(rightIt, right));
 }
@@ -548,55 +550,51 @@ inline void pairMatches(TMatches const & left, TMatches const & right, TDelegate
 // Function enumeratePairs()
 // ----------------------------------------------------------------------------
 
-template <typename TMatches, typename TMateFwd, typename TMateRev, typename TDelegate>
+template <typename TMatches, typename TLibraryLength, typename TLibraryError, typename TDelegate>
 inline void enumeratePairs(TMatches const & matchesFwd, TMatches const & matchesRev,
-                           TMateFwd const & /* tag */, TMateRev const & /* tag */,
+                           TLibraryLength libraryLength, TLibraryError libraryError,
                            TDelegate & delegate)
 {
     typedef typename Iterator<TMatches const, Standard>::Type TIterator;
-
-    unsigned libraryLength = 200;
-    unsigned libraryError = 100;
 
     TIterator matchesFwdBegin = begin(matchesFwd, Standard());
     TIterator matchesFwdEnd = end(matchesFwd, Standard());
     TIterator matchesRevBegin = begin(matchesRev, Standard());
     TIterator matchesRevEnd = end(matchesRev, Standard());
 
-    // NOTE matchesFwd queue C= matchesRev queue, i.e. matchesFwdTail >= matchesRevTail && matchesFwdHead <= matchesRevHead
-
     TIterator matchesFwdIt = matchesFwdBegin;
 
     if (matchesFwdIt == matchesFwdEnd) return;
 
-    unsigned matchesFwdLength = getContigEnd(*matchesFwdBegin) - getContigBegin(*matchesFwdBegin);
+    // matchesFwd queue C= matchesRev queue, i.e. matchesFwdTail >= matchesRevTail && matchesFwdHead <= matchesRevHead
 
-    // Get next matchesRev match.
+    // Get next rev match.
     for (TIterator matchesRevIt = matchesRevBegin; matchesRevIt != matchesRevEnd; ++matchesRevIt)
     {
-        // Compute matchesRev match queue.
-        unsigned matchesRevHead = getContigEnd(*matchesRevIt) - libraryLength + libraryError + matchesFwdLength;
+        // Compute the interval of feasible fwd matches from current rev match.
+        unsigned matchesRevHead = getContigEnd(*matchesRevIt) - libraryLength + libraryError;
         unsigned matchesRevTail = getContigEnd(*matchesRevIt) - libraryLength - libraryError;
 
-        // Seek next matchesFwd match after the tail of matchesRev match queue.
+        // Seek first feasible fwd match - beyond the rev tail.
         while (matchesFwdIt != matchesFwdEnd && getContigBegin(*matchesFwdIt) < matchesRevTail)
             ++matchesFwdIt;
 
+        // No fwd matches anymore.
         TIterator matchesFwdTailIt = matchesFwdIt;
         if (matchesFwdTailIt == matchesFwdEnd)
             break;
 
-        // Continue if matchesFwd tail is beyond matchesRev head.
+        // Continue with next rev match if there are no feasible fwd matches anymore.
         unsigned matchesFwdTail = getContigBegin(*matchesFwdTailIt);
         if (matchesFwdTail >= matchesRevHead)
             continue;
 
-        // Seek next matchesFwd match after the head of matchesRev match queue.
-        while (matchesFwdIt != matchesFwdEnd && getContigEnd(*matchesFwdIt) <= matchesRevHead)
+        // Seek first infeasible fwd match - beyond the rev head.
+        while (matchesFwdIt != matchesFwdEnd && getContigBegin(*matchesFwdIt) < matchesRevHead)
             ++matchesFwdIt;
         TIterator matchesFwdHeadIt = matchesFwdIt;
 
-        // Couple all fwds mates vs rev mate.
+        // Couple all fwds matches in the queue with current rev match.
         for (TIterator matchesFwdQueueIt = matchesFwdTailIt; matchesFwdQueueIt != matchesFwdHeadIt; ++matchesFwdQueueIt)
             delegate(*matchesFwdQueueIt, *matchesRevIt);
 
