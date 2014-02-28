@@ -558,37 +558,22 @@ inline void extendHits(Mapper<TSpec, TConfig> & mapper)
 // ----------------------------------------------------------------------------
 // Aggregate anchors by readId.
 
-template <typename TSpec, typename TConfig>
-inline void aggregateAnchors(Mapper<TSpec, TConfig> & mapper)
+template <typename TSpec, typename TConfig, typename TReadSeqs>
+inline void aggregateAnchors(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs)
 {
     typedef MapperTraits<TSpec, TConfig>    TTraits;
     typedef typename TTraits::TMatch        TMatch;
 
-    start(mapper.timer);
-
     // Bucket sort anchors by readId.
+    start(mapper.timer);
     setHost(mapper.anchorsSet, mapper.anchors);
     sort(mapper.anchors, MatchSorter<TMatch, SortReadId>(), typename TConfig::TThreading());
     bucket(mapper.anchorsSet, Getter<TMatch, SortReadId>(), typename TConfig::TThreading());
-
     stop(mapper.timer);
-
     std::cout << "Sorting time:\t\t\t" << mapper.timer << std::endl;
-}
-
-// ----------------------------------------------------------------------------
-// Function compactAnchors()
-// ----------------------------------------------------------------------------
-
-template <typename TSpec, typename TConfig, typename TReadSeqs>
-inline void compactAnchors(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs)
-{
-    typedef MapperTraits<TSpec, TConfig>    TTraits;
 
     start(mapper.timer);
-
     removeDuplicates(mapper.anchorsSet, typename TConfig::TThreading());
-
     stop(mapper.timer);
     std::cout << "Compaction time:\t\t" << mapper.timer << std::endl;
     std::cout << "Anchors count:\t\t\t" << lengthSum(mapper.anchorsSet) << std::endl;
@@ -735,8 +720,7 @@ inline void _mapReadsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs,
     findSeeds<1>(mapper, 1);
     findSeeds<2>(mapper, 2);
     extendHits(mapper);
-    aggregateAnchors(mapper);
-    compactAnchors(mapper, readSeqs);
+    aggregateAnchors(mapper, readSeqs);
     verifyAnchors(mapper, readSeqs);
     writeMatches(mapper);
 }
@@ -781,9 +765,6 @@ inline void _mapReadsByStrata(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readS
     for (unsigned bucketId = 0; bucketId < TConfig::BUCKETS; ++bucketId)
         stableSort(mapper.hits[bucketId], HitsSorterByCount<THit>());
 
-    extendHits(mapper);
-    aggregateAnchors(mapper);
-
 //    std::cout << "Mapped reads:\t\t\t" << countMapped(mapper.ctx, typename TConfig::TThreading()) << std::endl;
 
 //    clearHits(mapper);
@@ -799,9 +780,9 @@ inline void _mapReadsByStrata(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readS
 //    findSeeds<2>(mapper, 2);
 ////    sortHits(mapper);
 //    extendHits(mapper);
-//
-//    extendHits(mapper);
-//    removeDuplicates(mapper, readSeqs);
+
+    extendHits(mapper);
+    aggregateAnchors(mapper, readSeqs);
 }
 
 // ----------------------------------------------------------------------------
