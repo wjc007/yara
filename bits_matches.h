@@ -112,6 +112,7 @@ struct KeyCounter
 // --------------------------------------------------------------------------
 // Bucket elements in the concat of a ConcatDirect StringSet.
 // Remarks: the concat string must be already sorted by key.
+// TODO(esiragusa): get max key value.
 
 template <typename TString, typename TSpec, typename TKey, typename TThreading>
 inline void bucket(StringSet<TString, Owner<ConcatDirect<TSpec > > > & me, TKey const & key, Tag<TThreading> const & tag)
@@ -141,6 +142,7 @@ inline void bucket(StringSet<TString, Owner<ConcatDirect<TSpec > > > & me, TKey 
 // --------------------------------------------------------------------------
 // Bucket elements in the host of a Segment StringSet.
 // Remarks: the host string must be already sorted by key.
+// TODO(esiragusa): get max key value.
 
 template <typename THost, typename TSpec, typename TKey, typename TThreading>
 inline void bucket(StringSet<THost, Segment<TSpec> > & me, TKey const & key, Tag<TThreading> const & tag)
@@ -563,7 +565,7 @@ inline void sortMatches(TIterator & it)
 // Find the first pair of matches on the same contig.
 
 template <typename TMatchesIterator, typename TMatches>
-inline void findSameContig(TMatchesIterator & leftIt, TMatchesIterator & rightIt,
+inline bool findSameContig(TMatchesIterator & leftIt, TMatchesIterator & rightIt,
                            TMatches const & left, TMatches const & right)
 {
     while (!atEnd(leftIt, left) && !atEnd(rightIt, right))
@@ -573,8 +575,10 @@ inline void findSameContig(TMatchesIterator & leftIt, TMatchesIterator & rightIt
         else if (getContigId(*leftIt) > getContigId(*rightIt))
             findNextContig(rightIt, right, getContigId(*rightIt));
         else
-            break;
+            return true;
     }
+
+    return false;
 }
 
 // ----------------------------------------------------------------------------
@@ -614,34 +618,33 @@ inline void pairMatches(TMatches const & left, TMatches const & right,
     TIterator leftIt = begin(left, Standard());
     TIterator rightIt = begin(right, Standard());
 
-    do
+    // Find matches on the same contig.
+    while (findSameContig(leftIt, rightIt, left, right))
     {
+        unsigned contigId = getContigId(*leftIt);
+
         TIterator leftBegin;
         TIterator rightBegin;
-
-        // Find matches on the same contig.
-        findSameContig(leftIt, rightIt, left, right);
 
         // Find matches on forward strand.
         leftBegin = leftIt;
         rightBegin = rightIt;
-        findReverseStrand(leftIt, left, getContigId(*leftBegin));
-        findReverseStrand(rightIt, right, getContigId(*rightBegin));
-        TInfix leftFwd = infix(left, leftBegin, leftIt);
-        TInfix rightFwd = infix(right, rightBegin, rightIt);
+        findReverseStrand(leftIt, left, contigId);
+        findReverseStrand(rightIt, right, contigId);
+        TInfix leftFwd = infix(left, position(leftBegin, left), position(leftIt, left));
+        TInfix rightFwd = infix(right, position(rightBegin, right), position(rightIt, right));
 
         // Find matches on reverse strand.
         leftBegin = leftIt;
         rightBegin = rightIt;
-        findNextContig(leftIt, left, getContigId(*leftBegin));
-        findNextContig(rightIt, right, getContigId(*rightBegin));
-        TInfix leftRev = infix(left, leftBegin, leftIt);
-        TInfix rightRev = infix(right, rightBegin, rightIt);
+        findNextContig(leftIt, left, contigId);
+        findNextContig(rightIt, right, contigId);
+        TInfix leftRev = infix(left, position(leftBegin, left), position(leftIt, left));
+        TInfix rightRev = infix(right, position(rightBegin, right), position(rightIt, right));
 
         enumeratePairs(leftFwd, rightRev, libraryLength, libraryError, delegate);
         enumeratePairs(rightFwd, leftRev, libraryLength, libraryError, delegate);
     }
-    while (!atEnd(leftIt, left) && !atEnd(rightIt, right));
 }
 
 // ----------------------------------------------------------------------------
