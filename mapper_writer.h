@@ -98,52 +98,6 @@ struct MatchesWriter
 };
 
 // ----------------------------------------------------------------------------
-// Class UnmappedWriter
-// ----------------------------------------------------------------------------
-
-template <typename TSpec, typename Traits>
-struct UnmappedWriter
-{
-    typedef typename Traits::TReads            TReads;
-    typedef typename Traits::TOutputStream     TOutputStream;
-    typedef typename Traits::TOutputContext    TOutputContext;
-    typedef typename Traits::TReadsContext     TReadsContext;
-
-    // Thread-private data.
-    BamAlignmentRecord      record;
-
-    // Shared-memory read-write data.
-    TOutputStream &         outputStream;
-    TOutputContext &        outputCtx;
-
-    // Shared-memory read-only data.
-    TReadsContext const &   ctx;
-    TReads const &          reads;
-    Options const &         options;
-
-    UnmappedWriter(TOutputStream & outputStream,
-                   TOutputContext & outputCtx,
-                   TReadsContext const & ctx,
-                   TReads const & reads,
-                   Options const & options) :
-        outputStream(outputStream),
-        outputCtx(outputCtx),
-        ctx(ctx),
-        reads(reads),
-        options(options)
-    {
-        // Process all reads.
-        iterate(ctx, *this, Standard(), Serial());
-    }
-
-    template <typename TIterator>
-    void operator() (TIterator const & it)
-    {
-        _writeUnmappedImpl(*this, it);
-    }
-};
-
-// ----------------------------------------------------------------------------
 // Class QualityExtractor
 // ----------------------------------------------------------------------------
 // TODO(esiragusa): remove this when new tokenization gets into develop.
@@ -273,14 +227,12 @@ inline void _fillXa(MatchesWriter<TSpec, Traits> & me, TMatches const & matches)
 // Writes one unmapped read.
 
 template <typename TSpec, typename Traits, typename TIterator>
-inline void _writeUnmappedImpl(UnmappedWriter<TSpec, Traits> & me, TIterator const & it)
+inline void _writeUnmappedImpl(MatchesWriter<TSpec, Traits> & me, TIterator const & it)
 {
     typedef typename Position<TIterator const>::Type  TReadId;
 
-   if (ctxIsMapped(value(it))) return;
-
     // Read id equals the context id.
-    TReadId readId = position(it, me.ctx);
+    TReadId readId = position(it, me.matchesSet);
 
     // Set primary alignment information.
     me.record.qName = me.reads.names[readId];
@@ -304,6 +256,8 @@ inline void _writeMatchesImpl(MatchesWriter<TSpec, Traits> & me, TMatches const 
 {
     typedef typename Value<TMatches>::Type          TMatch;
     typedef typename Size<TMatches>::Type           TSize;
+
+    if (empty(matches)) return;
 
     // The first match is supposed to be the best one.
     TMatch const & primary = front(matches);
