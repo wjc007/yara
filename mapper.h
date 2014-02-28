@@ -566,6 +566,7 @@ inline void aggregateAnchors(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSe
 
     // Bucket sort anchors by readId.
     start(mapper.timer);
+    clear(mapper.anchorsSet);
     setHost(mapper.anchorsSet, mapper.anchors);
     sort(mapper.anchors, MatchSorter<TMatch, SortReadId>(), typename TConfig::TThreading());
     bucket(mapper.anchorsSet, Getter<TMatch, SortReadId>(), typename TConfig::TThreading());
