@@ -35,6 +35,140 @@
 #ifndef APP_CUDAMAPPER_MAPPER_H_
 #define APP_CUDAMAPPER_MAPPER_H_
 
+// ============================================================================
+// Extras
+// ============================================================================
+
+namespace seqan {
+
+// ----------------------------------------------------------------------------
+// Class Adder
+// ----------------------------------------------------------------------------
+
+template <typename TUnaryFunction, unsigned DELTA>
+struct Adder
+{
+    TUnaryFunction const & f;
+
+    Adder(TUnaryFunction const & f) : f(f) {}
+
+    template <typename TValue>
+    unsigned operator() (TValue const & val) const
+    {
+        return f(val) + DELTA;
+    }
+};
+
+// ----------------------------------------------------------------------------
+// Class KeyIndicator
+// ----------------------------------------------------------------------------
+
+template <typename TTarget, typename TKey, typename TSpec = void>
+struct KeyIndicator
+{
+    TTarget &       target;
+    TKey const &    key;
+
+    KeyIndicator(TTarget & target, TKey const & key) :
+        target(target),
+        key(key)
+    {}
+
+    template <typename TValue>
+    void operator() (TValue const & val) const
+    {
+        SEQAN_ASSERT_LT(key(val), length(target));
+        target[key(val)] = true;
+    }
+};
+
+// ----------------------------------------------------------------------------
+// Class KeyCounter
+// ----------------------------------------------------------------------------
+
+template <typename TTarget, typename TKey, typename TThreading = Serial, typename TSpec = void>
+struct KeyCounter
+{
+    TTarget &       target;
+    TKey const &    key;
+
+    KeyCounter(TTarget & target, TKey const & key) :
+        target(target),
+        key(key)
+    {}
+
+    template <typename TValue>
+    void operator() (TValue const & val) const
+    {
+        SEQAN_ASSERT_LT(key(val), length(target));
+        atomicInc(target[key(val)], TThreading());
+    }
+};
+
+// --------------------------------------------------------------------------
+// Function bucket()
+// --------------------------------------------------------------------------
+// Bucket elements in the concat of a ConcatDirect StringSet.
+// Remarks: the concat string must be already sorted by key.
+
+template <typename TString, typename TSpec, typename TKey, typename TThreading>
+inline void bucket(StringSet<TString, Owner<ConcatDirect<TSpec > > > & me, TKey const & key, Tag<TThreading> const & tag)
+{
+    typedef StringSet<TString, Owner<ConcatDirect<TSpec > > >    TStringSet;
+    typedef typename StringSetLimits<TStringSet>::Type           TLimits;
+    typedef Adder<TKey, 1u>                                      TNextKey;
+    typedef KeyCounter<TLimits, TNextKey, Tag<TThreading> const> TCounter;
+
+    if (empty(concat(me))) return;
+
+    // Shift the counts by one.
+    TNextKey nextKey(key);
+
+    // Resize the limits string to count all keys.
+    resize(me.limits, nextKey(back(concat(me))), 0, Exact());
+
+    // Count the number of keys present in the concat string.
+    forEach(concat(me), TCounter(me.limits, nextKey), tag);
+
+    // Build the limits string from the key counts.
+    partialSum(me.limits, tag);
+}
+
+// --------------------------------------------------------------------------
+// Function bucket()
+// --------------------------------------------------------------------------
+// Bucket elements in the host of a Segment StringSet.
+// Remarks: the host string must be already sorted by key.
+
+template <typename THost, typename TSpec, typename TKey, typename TThreading>
+inline void bucket(StringSet<THost, Segment<TSpec> > & me, TKey const & key, Tag<TThreading> const & tag)
+{
+    typedef StringSet<THost, Segment<TSpec> >                    TStringSet;
+    typedef typename StringSetLimits<TStringSet>::Type           TLimits;
+    typedef Adder<TKey, 1u>                                      TNextKey;
+    typedef KeyCounter<TLimits, TNextKey, Tag<TThreading> const> TCounter;
+
+    if (empty(host(me))) return;
+
+    // Shift the key counts by one.
+    TNextKey nextKey(key);
+
+    // Resize the limits string to accomodate counts for all keys.
+    resize(me.limits, nextKey(back(host(me))) + 1, 0, Exact());
+
+    // Count the number of keys present in the host string.
+    forEach(host(me), TCounter(me.limits, nextKey), tag);
+
+    // Limits are the cumulated key counts.
+    partialSum(me.limits, tag);
+
+    // Positions are the shifted limits.
+    assign(me.positions, prefix(me.limits, length(me.limits) - 1));
+}
+
+}
+
+
 using namespace seqan;
 
 // ============================================================================
@@ -554,131 +688,6 @@ inline void extendHits(Mapper<TSpec, TConfig> & mapper)
 }
 
 // ----------------------------------------------------------------------------
-// Class Adder
-// ----------------------------------------------------------------------------
-
-template <typename TUnaryFunction, unsigned DELTA>
-struct Adder
-{
-    TUnaryFunction const & f;
-
-    Adder(TUnaryFunction const & f) : f(f) {}
-
-    template <typename TValue>
-    unsigned operator() (TValue const & val) const
-    {
-        return f(val) + DELTA;
-    }
-};
-
-// ----------------------------------------------------------------------------
-// Class Indicator
-// ----------------------------------------------------------------------------
-
-template <typename TTarget, typename TKey, typename TSpec = void>
-struct Indicator
-{
-    TTarget &       target;
-    TKey const &    key;
-
-    Indicator(TTarget & target, TKey const & key) :
-        target(target),
-        key(key)
-    {}
-
-    template <typename TValue>
-    void operator() (TValue const & val) const
-    {
-        SEQAN_ASSERT_LT(key(val), length(target));
-        target[key(val)] = true;
-    }
-};
-
-// ----------------------------------------------------------------------------
-// Class Counter
-// ----------------------------------------------------------------------------
-
-template <typename TTarget, typename TKey, typename TThreading = Serial, typename TSpec = void>
-struct Counter
-{
-    TTarget &       target;
-    TKey const &    key;
-
-    Counter(TTarget & target, TKey const & key) :
-        target(target),
-        key(key)
-    {}
-
-    template <typename TValue>
-    void operator() (TValue const & val) const
-    {
-        SEQAN_ASSERT_LT(key(val), length(target));
-        atomicInc(target[key(val)], TThreading());
-    }
-};
-
-// --------------------------------------------------------------------------
-// Function bucket()
-// --------------------------------------------------------------------------
-// Bucket elements in the concat of a ConcatDirect StringSet.
-// Remarks: the concat string must be already sorted by key.
-
-template <typename TString, typename TSpec, typename TKey, typename TThreading>
-inline void bucket(StringSet<TString, Owner<ConcatDirect<TSpec > > > & me, TKey const & key, Tag<TThreading> const & tag)
-{
-    typedef StringSet<TString, Owner<ConcatDirect<TSpec > > >   TStringSet;
-    typedef typename StringSetLimits<TStringSet>::Type          TLimits;
-    typedef Adder<TKey, 1u>                                     TNextKey;
-    typedef Counter<TLimits, TNextKey, Tag<TThreading> const>   TCounter;
-
-    if (empty(concat(me))) return;
-
-    // Shift the counts by one.
-    TNextKey nextKey(key);
-
-    // Resize the limits string to count all keys.
-    resize(me.limits, nextKey(back(concat(me))), 0, Exact());
-
-    // Count the number of keys present in the concat string.
-    forEach(concat(me), TCounter(me.limits, nextKey), tag);
-
-    // Build the limits string from the key counts.
-    partialSum(me.limits, tag);
-}
-
-// --------------------------------------------------------------------------
-// Function bucket()
-// --------------------------------------------------------------------------
-// Bucket elements in the host of a Segment StringSet.
-// Remarks: the host string must be already sorted by key.
-
-template <typename THost, typename TSpec, typename TKey, typename TThreading>
-inline void bucket(StringSet<THost, Segment<TSpec> > & me, TKey const & key, Tag<TThreading> const & tag)
-{
-    typedef StringSet<THost, Segment<TSpec> >                   TStringSet;
-    typedef typename StringSetLimits<TStringSet>::Type          TLimits;
-    typedef Adder<TKey, 1u>                                     TNextKey;
-    typedef Counter<TLimits, TNextKey, Tag<TThreading> const>   TCounter;
-
-    if (empty(host(me))) return;
-
-    // Shift the key counts by one.
-    TNextKey nextKey(key);
-
-    // Resize the limits string to accomodate counts for all keys.
-    resize(me.limits, nextKey(back(host(me))) + 1, 0, Exact());
-
-    // Count the number of keys present in the host string.
-    forEach(host(me), TCounter(me.limits, nextKey), tag);
-
-    // Limits are the cumulated key counts.
-    partialSum(me.limits, tag);
-
-    // Positions are the shifted limits.
-    assign(me.positions, prefix(me.limits, length(me.limits) - 1));
-}
-
-// ----------------------------------------------------------------------------
 // Function aggregateAnchors()
 // ----------------------------------------------------------------------------
 // Aggregate anchors by readId.
@@ -709,10 +718,6 @@ template <typename TSpec, typename TConfig, typename TReadSeqs>
 inline void compactAnchors(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs)
 {
     typedef MapperTraits<TSpec, TConfig>    TTraits;
-
-    std::cout << "Anchored pairs:\t\t\t" << countMatches(readSeqs, concat(mapper.anchorsSet),
-                                                         typename TConfig::TSequencing(),
-                                                         typename TConfig::TThreading()) << std::endl;
 
     start(mapper.timer);
 
