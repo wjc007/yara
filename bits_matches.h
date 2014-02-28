@@ -40,6 +40,13 @@
 using namespace seqan;
 
 // ============================================================================
+// Forwards
+// ============================================================================
+
+template <typename TObject, typename TMember>
+struct Getter;
+
+// ============================================================================
 // Tags
 // ============================================================================
 
@@ -67,15 +74,13 @@ struct Match
 __attribute__((packed));
 
 // ----------------------------------------------------------------------------
-// Class MatchReadId
+// Class Match Getter
 // ----------------------------------------------------------------------------
-// NOTE(esiragusa): MatchReadId<TMatch> functor could be MemberGetter<TMatch, TMember>
-// NOTE(esiragusa): getReadId<TMatch>() could be getMember(TMatch, TMember())
 
-template <typename TMatch>
-struct MatchReadId
+template <typename TSpec>
+struct Getter<Match<TSpec>, SortReadId>
 {
-    inline unsigned operator()(TMatch const & me) const
+    inline unsigned operator()(Match<TSpec> const & me) const
     {
         return getReadId(me);
     }
@@ -221,6 +226,7 @@ inline void setContigPosition(Match<TSpec> & me, TContigPos contigBegin, TContig
 // ----------------------------------------------------------------------------
 // Match Getters
 // ----------------------------------------------------------------------------
+// NOTE(esiragusa): getReadId<TMatch>() could be getValue(Match<TSpec>, TMember())
 
 template <typename TReadSeqs, typename TSpec>
 inline typename Size<TReadSeqs>::Type
@@ -499,7 +505,7 @@ inline void findNextContig(TMatchesIterator & it, TMatches const & matches, TCon
 // Find the first match on the reverse strand of the given contigId.
 
 template <typename TMatchesIterator, typename TMatches, typename TContigId>
-inline void goDifferentStrand(TMatchesIterator & it, TMatches const & matches, TContigId contigId)
+inline void findReverseStrand(TMatchesIterator & it, TMatches const & matches, TContigId contigId)
 {
     while (!atEnd(it, matches) && (getContigId(*it) <= contigId) && onForwardStrand(*it)) ++it;
 }
