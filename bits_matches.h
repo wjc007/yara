@@ -37,6 +37,139 @@
 #ifndef APP_CUDAMAPPER_BITS_MATCHES_H_
 #define APP_CUDAMAPPER_BITS_MATCHES_H_
 
+// ============================================================================
+// Extras
+// ============================================================================
+
+namespace seqan {
+
+// ----------------------------------------------------------------------------
+// Class Adder
+// ----------------------------------------------------------------------------
+
+template <typename TUnaryFunction, unsigned DELTA>
+struct Adder
+{
+    TUnaryFunction const & f;
+
+    Adder(TUnaryFunction const & f) : f(f) {}
+
+    template <typename TValue>
+    unsigned operator() (TValue const & val) const
+    {
+        return f(val) + DELTA;
+    }
+};
+
+// ----------------------------------------------------------------------------
+// Class KeyIndicator
+// ----------------------------------------------------------------------------
+
+template <typename TTarget, typename TKey, typename TSpec = void>
+struct KeyIndicator
+{
+    TTarget &       target;
+    TKey const &    key;
+
+    KeyIndicator(TTarget & target, TKey const & key) :
+        target(target),
+        key(key)
+    {}
+
+    template <typename TValue>
+    void operator() (TValue const & val) const
+    {
+        SEQAN_ASSERT_LT(key(val), length(target));
+        target[key(val)] = true;
+    }
+};
+
+// ----------------------------------------------------------------------------
+// Class KeyCounter
+// ----------------------------------------------------------------------------
+
+template <typename TTarget, typename TKey, typename TThreading = Serial, typename TSpec = void>
+struct KeyCounter
+{
+    TTarget &       target;
+    TKey const &    key;
+
+    KeyCounter(TTarget & target, TKey const & key) :
+        target(target),
+        key(key)
+    {}
+
+    template <typename TValue>
+    void operator() (TValue const & val) const
+    {
+        SEQAN_ASSERT_LT(key(val), length(target));
+        atomicInc(target[key(val)], TThreading());
+    }
+};
+
+// --------------------------------------------------------------------------
+// Function bucket()
+// --------------------------------------------------------------------------
+// Bucket elements in the concat of a ConcatDirect StringSet.
+// Remarks: the concat string must be already sorted by key.
+
+template <typename TString, typename TSpec, typename TKey, typename TThreading>
+inline void bucket(StringSet<TString, Owner<ConcatDirect<TSpec > > > & me, TKey const & key, Tag<TThreading> const & tag)
+{
+    typedef StringSet<TString, Owner<ConcatDirect<TSpec > > >    TStringSet;
+    typedef typename StringSetLimits<TStringSet>::Type           TLimits;
+    typedef Adder<TKey, 1u>                                      TNextKey;
+    typedef KeyCounter<TLimits, TNextKey, Tag<TThreading> const> TCounter;
+
+    if (empty(concat(me))) return;
+
+    // Shift the counts by one.
+    TNextKey nextKey(key);
+
+    // Resize the limits string to count all keys.
+    resize(me.limits, nextKey(back(concat(me))), 0, Exact());
+
+    // Count the number of keys present in the concat string.
+    forEach(concat(me), TCounter(me.limits, nextKey), tag);
+
+    // Build the limits string from the key counts.
+    partialSum(me.limits, tag);
+}
+
+// --------------------------------------------------------------------------
+// Function bucket()
+// --------------------------------------------------------------------------
+// Bucket elements in the host of a Segment StringSet.
+// Remarks: the host string must be already sorted by key.
+
+template <typename THost, typename TSpec, typename TKey, typename TThreading>
+inline void bucket(StringSet<THost, Segment<TSpec> > & me, TKey const & key, Tag<TThreading> const & tag)
+{
+    typedef StringSet<THost, Segment<TSpec> >                    TStringSet;
+    typedef typename StringSetLimits<TStringSet>::Type           TLimits;
+    typedef Adder<TKey, 1u>                                      TNextKey;
+    typedef KeyCounter<TLimits, TNextKey, Tag<TThreading> const> TCounter;
+
+    if (empty(host(me))) return;
+
+    // Shift the key counts by one.
+    TNextKey nextKey(key);
+
+    // Resize the limits string to accomodate counts for all keys.
+    resize(me.limits, nextKey(back(host(me))) + 1, 0, Exact());
+
+    // Count the number of keys present in the host string.
+    forEach(host(me), TCounter(me.limits, nextKey), tag);
+
+    // Limits are the cumulated key counts.
+    partialSum(me.limits, tag);
+
+    // Positions are the shifted limits.
+    assign(me.positions, prefix(me.limits, length(me.limits) - 1));
+}
+
+}
+
 using namespace seqan;
 
 // ============================================================================
@@ -130,57 +263,15 @@ struct MatchSorter<TMatch, SortErrors>
 };
 
 // ----------------------------------------------------------------------------
-// Class MatchesCounter
-// ----------------------------------------------------------------------------
-
-template <typename TReadSeqs, typename TSequencing = SingleEnd>
-struct MatchesCounter
-{
-    TReadSeqs const &   readSeqs;
-    String<bool>        matched;
-
-    MatchesCounter(TReadSeqs const & readSeqs) :
-        readSeqs(readSeqs)
-    {
-        resize(matched, getReadsCount(readSeqs), false, Exact());
-    }
-
-    template <typename TMatch>
-    void operator() (TMatch const & match)
-    {
-        matched[getReadId(match)] = true;
-    }
-};
-
-template <typename TReadSeqs>
-struct MatchesCounter<TReadSeqs, PairedEnd>
-{
-    TReadSeqs const &   readSeqs;
-    String<bool>        matched;
-
-    MatchesCounter(TReadSeqs const & readSeqs) :
-        readSeqs(readSeqs)
-    {
-        resize(matched, getPairsCount(readSeqs), false, Exact());
-    }
-
-    template <typename TMatch>
-    void operator() (TMatch const & match)
-    {
-        matched[getPairId(readSeqs, getReadId(match))] = true;
-    }
-};
-
-// ----------------------------------------------------------------------------
-// Class DuplicateRemover
+// Class MatchesCompactor
 // ----------------------------------------------------------------------------
 
 template <typename TCounts, typename TPosition>
-struct DuplicateRemover
+struct MatchesCompactor
 {
     TCounts &    unique;
 
-    DuplicateRemover(TCounts & unique) :
+    MatchesCompactor(TCounts & unique) :
         unique(unique)
     {}
 
@@ -388,14 +479,14 @@ inline void removeDuplicates(TMatchesSet & matchesSet, TThreading const & thread
     front(newLimits) = 0;
 
     // Sort matches by end position and move unique matches at the beginning.
-    iterate(matchesSet, DuplicateRemover<TLimits, SortEndPos>(newLimits), Rooted(), threading);
+    iterate(matchesSet, MatchesCompactor<TLimits, SortEndPos>(newLimits), Rooted(), threading);
 
     // Exclude duplicate matches at the end.
     assign(stringSetLimits(matchesSet), newLimits);
     _refreshStringSetLimits(matchesSet, threading);
 
     // Sort matches by begin position and move unique matches at the beginning.
-    iterate(matchesSet, DuplicateRemover<TLimits, SortBeginPos>(newLimits), Rooted(), threading);
+    iterate(matchesSet, MatchesCompactor<TLimits, SortBeginPos>(newLimits), Rooted(), threading);
 
     // Exclude duplicate matches at the end.
     assign(stringSetLimits(matchesSet), newLimits);
@@ -403,25 +494,23 @@ inline void removeDuplicates(TMatchesSet & matchesSet, TThreading const & thread
 }
 
 // ----------------------------------------------------------------------------
-// Function getCount()
+// Function countMappedReads()
 // ----------------------------------------------------------------------------
 
-template <typename TReadSeqs, typename TSequencing, typename TThreading>
+template <typename TReadSeqs, typename TMatches, typename TThreading>
 inline typename Size<TReadSeqs>::Type
-getCount(MatchesCounter<TReadSeqs, TSequencing> const & counter, TThreading const & threading)
+countMappedReads(TReadSeqs const & readSeqs, TMatches const & matches, TThreading const & threading)
 {
-    return count(counter.matched, true, threading);
-}
+    typedef String<bool>                            TIndicators;
+    typedef typename Value<TMatches const>::Type    TMatch;
+    typedef Getter<TMatch, SortReadId>              TGetter;
+    typedef KeyIndicator<TIndicators, TGetter>      TIndicator;
 
-// ----------------------------------------------------------------------------
-// Function countMatches()
-// ----------------------------------------------------------------------------
+    TIndicators isMapped;
+    resize(isMapped, getReadsCount(readSeqs), false, Exact());
+    forEach(matches, TIndicator(isMapped, TGetter()), threading);
 
-template <typename TReadSeqs, typename TMatches, typename TSequencing, typename TThreading>
-inline typename Size<TReadSeqs>::Type
-countMatches(TReadSeqs const & readSeqs, TMatches const & matches, TSequencing const & /* tag */, TThreading const & threading)
-{
-    return getCount(forEach(matches, MatchesCounter<TReadSeqs, TSequencing>(readSeqs), threading), threading);
+    return count(isMapped, true, threading);
 }
 
 // ----------------------------------------------------------------------------
