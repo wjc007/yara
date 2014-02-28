@@ -465,6 +465,7 @@ inline void sortMatches(TIterator & it)
 // ----------------------------------------------------------------------------
 // Function findSameContig()
 // ----------------------------------------------------------------------------
+// Find the first pair of matches on the same contig.
 
 template <typename TMatchesIterator, typename TMatches>
 inline void findSameContig(TMatchesIterator & leftIt, TMatchesIterator & rightIt,
@@ -484,6 +485,7 @@ inline void findSameContig(TMatchesIterator & leftIt, TMatchesIterator & rightIt
 // ----------------------------------------------------------------------------
 // Function findNextContig()
 // ----------------------------------------------------------------------------
+// Find the first match after given contigId.
 
 template <typename TMatchesIterator, typename TMatches, typename TContigId>
 inline void findNextContig(TMatchesIterator & it, TMatches const & matches, TContigId contigId)
@@ -494,6 +496,7 @@ inline void findNextContig(TMatchesIterator & it, TMatches const & matches, TCon
 // ----------------------------------------------------------------------------
 // Function findReverseStrand()
 // ----------------------------------------------------------------------------
+// Find the first match on the reverse strand of the given contigId.
 
 template <typename TMatchesIterator, typename TMatches, typename TContigId>
 inline void goDifferentStrand(TMatchesIterator & it, TMatches const & matches, TContigId contigId)
