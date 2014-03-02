@@ -141,7 +141,8 @@ inline void _verifyAnchorsImpl(AnchorsVerifier<TSpec, Traits> & me, AnchorBoth)
     reserve(concat(me.pairsSet), lengthSum(me.anchorsSet) / 4);
 
     // Iterate over all pairs.
-    iterate(pairs, me, Rooted(), typename Traits::TThreading());
+    // TODO(esiragusa): parallelize.
+    iterate(pairs, me, Rooted(), Serial());
 }
 
 // ----------------------------------------------------------------------------
