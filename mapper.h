@@ -566,7 +566,7 @@ inline void aggregateAnchors(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSe
     clear(mapper.anchorsSet);
     setHost(mapper.anchorsSet, mapper.anchors);
     sort(mapper.anchors, MatchSorter<TMatch, SortReadId>(), typename TConfig::TThreading());
-    bucket(mapper.anchorsSet, Getter<TMatch, SortReadId>(), typename TConfig::TThreading());
+    bucket(mapper.anchorsSet, Getter<TMatch, SortReadId>(), getReadsCount(readSeqs), typename TConfig::TThreading());
     stop(mapper.timer);
     std::cout << "Sorting time:\t\t\t" << mapper.timer << std::endl;
 

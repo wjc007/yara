@@ -112,15 +112,14 @@ struct KeyCounter
 // --------------------------------------------------------------------------
 // Bucket elements in the concat of a ConcatDirect StringSet.
 // Remarks: the concat string must be already sorted by key.
-// TODO(esiragusa): get max key value.
 
-template <typename TString, typename TSpec, typename TKey, typename TThreading>
-inline void bucket(StringSet<TString, Owner<ConcatDirect<TSpec > > > & me, TKey const & key, Tag<TThreading> const & tag)
+template <typename TString, typename TSpec, typename TKeyGetter, typename TMaxKey, typename TThreading>
+inline void bucket(StringSet<TString, Owner<ConcatDirect<TSpec > > > & me, TKeyGetter const & key, TMaxKey maxKey, TThreading const & tag)
 {
     typedef StringSet<TString, Owner<ConcatDirect<TSpec > > >    TStringSet;
     typedef typename StringSetLimits<TStringSet>::Type           TLimits;
-    typedef Adder<TKey, 1u>                                      TNextKey;
-    typedef KeyCounter<TLimits, TNextKey, Tag<TThreading> const> TCounter;
+    typedef Adder<TKeyGetter, 1u>                                TNextKey;
+    typedef KeyCounter<TLimits, TNextKey, TThreading>            TCounter;
 
     if (empty(concat(me))) return;
 
@@ -128,7 +127,7 @@ inline void bucket(StringSet<TString, Owner<ConcatDirect<TSpec > > > & me, TKey 
     TNextKey nextKey(key);
 
     // Resize the limits string to count all keys.
-    resize(me.limits, nextKey(back(concat(me))), 0, Exact());
+    resize(me.limits, maxKey, 0, Exact());
 
     // Count the number of keys present in the concat string.
     forEach(concat(me), TCounter(me.limits, nextKey), tag);
@@ -142,15 +141,14 @@ inline void bucket(StringSet<TString, Owner<ConcatDirect<TSpec > > > & me, TKey 
 // --------------------------------------------------------------------------
 // Bucket elements in the host of a Segment StringSet.
 // Remarks: the host string must be already sorted by key.
-// TODO(esiragusa): get max key value.
 
-template <typename THost, typename TSpec, typename TKey, typename TThreading>
-inline void bucket(StringSet<THost, Segment<TSpec> > & me, TKey const & key, Tag<TThreading> const & tag)
+template <typename THost, typename TSpec, typename TKeyGetter, typename TMaxKey, typename TThreading>
+inline void bucket(StringSet<THost, Segment<TSpec> > & me, TKeyGetter const & key, TMaxKey maxKey, TThreading const & tag)
 {
     typedef StringSet<THost, Segment<TSpec> >                    TStringSet;
     typedef typename StringSetLimits<TStringSet>::Type           TLimits;
-    typedef Adder<TKey, 1u>                                      TNextKey;
-    typedef KeyCounter<TLimits, TNextKey, Tag<TThreading> const> TCounter;
+    typedef Adder<TKeyGetter, 1u>                                TNextKey;
+    typedef KeyCounter<TLimits, TNextKey, TThreading>            TCounter;
 
     if (empty(host(me))) return;
 
@@ -158,7 +156,7 @@ inline void bucket(StringSet<THost, Segment<TSpec> > & me, TKey const & key, Tag
     TNextKey nextKey(key);
 
     // Resize the limits string to accomodate counts for all keys.
-    resize(me.limits, nextKey(back(host(me))) + 1, 0, Exact());
+    resize(me.limits, maxKey + 1, 0, Exact());
 
     // Count the number of keys present in the host string.
     forEach(host(me), TCounter(me.limits, nextKey), tag);
