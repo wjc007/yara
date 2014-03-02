@@ -54,7 +54,8 @@ struct AnchorsVerifier
     typedef typename Traits::TReadSeqs         TReadSeqs;
     typedef typename Traits::TReadSeq          TReadSeq;
     typedef typename Traits::TReadsContext     TReadsContext;
-    typedef typename Traits::TMatches          TMatches;
+    typedef typename Traits::TMatchesSet       TMatchesSet;
+    typedef typename Traits::TPairsSet         TPairsSet;
     typedef typename Traits::TMatch            TMatch;
 
     typedef Myers<>                                     TAlgorithm;
@@ -67,37 +68,43 @@ struct AnchorsVerifier
 
     // Shared-memory read-write data.
     TReadsContext &     ctx;
-    TMatches &          mates;
+    TPairsSet &         pairsSet;
 
     // Shared-memory read-only data.
     TContigSeqs const & contigSeqs;
     TReadSeqs /*const*/ & readSeqs;
-    TMatches const &    anchors;
+    TMatchesSet const & anchorsSet;
     Options const &     options;
 
     AnchorsVerifier(TReadsContext & ctx,
-                    TMatches & mates,
+                    TPairsSet & pairsSet,
                     TContigSeqs const & contigSeqs,
                     TReadSeqs /*const*/ & readSeqs,
-                    TMatches const & anchors,
+                    TMatchesSet const & anchorsSet,
                     Options const & options) :
         verifier(contigSeqs),
         prototype(),
         ctx(ctx),
-        mates(mates),
+        pairsSet(pairsSet),
         contigSeqs(contigSeqs),
         readSeqs(readSeqs),
-        anchors(anchors),
+        anchorsSet(anchorsSet),
         options(options)
     {
-        // Iterate over all anchors.
-        iterate(anchors, *this, Rooted(), typename Traits::TThreading());
+        _verifyAnchorsImpl(*this, typename Traits::TAnchoring());
     }
 
-    template <typename TAnchorsIterator>
-    void operator() (TAnchorsIterator const & anchorsIt)
+    // AnchorOne
+    void operator() (TMatch const & anchor)
     {
-        _verifyAnchorImpl(*this, anchorsIt);
+        _findMateImpl(*this, anchor);
+    }
+
+    // AnchorBoth
+    template <typename TIterator>
+    void operator() (TIterator const & it)
+    {
+        _pairAnchorsImpl(*this, it);
     }
 
     template <typename TMatchPos, typename TMatchErrors>
@@ -106,10 +113,10 @@ struct AnchorsVerifier
         _addMatchImpl(*this, matchBegin, matchEnd, matchErrors);
     }
 
-//    void operator() (TVerifier const & /* verifier */)
-//    {
-//        _addMatchImpl(*this);
-//    }
+    void operator() (TMatch const & left, TMatch const & right)
+    {
+        appendValue(concat(pairsSet), Pair<TMatch>(left, right));
+    }
 };
 
 // ============================================================================
@@ -117,12 +124,62 @@ struct AnchorsVerifier
 // ============================================================================
 
 // ----------------------------------------------------------------------------
-// Function _verifyAnchorImpl()
+// Function _verifyAnchorsImpl()
+// ----------------------------------------------------------------------------
+// Verifies all anchors.
+
+template <typename TSpec, typename Traits>
+inline void _verifyAnchorsImpl(AnchorsVerifier<TSpec, Traits> & me, AnchorBoth)
+{
+    typedef typename Traits::TReadSeqs              TReadSeqs;
+    typedef Segment<TReadSeqs const, PrefixSegment> TPrefix;
+
+    TPrefix pairs(me.readSeqs, getPairsCount(me.readSeqs));
+
+    // Iterate over all pairs.
+    iterate(pairs, me, Rooted(), typename Traits::TThreading());
+}
+
+template <typename TSpec, typename Traits>
+inline void _verifyAnchorsImpl(AnchorsVerifier<TSpec, Traits> & me, AnchorOne)
+{
+    // TODO(esiragusa): guess the number of pairs.
+    reserve(stringSetLimits(me.pairsSet), length(me.anchorsSet), Exact());
+    reserve(concat(me.pairsSet), lengthSum(me.anchorsSet));
+
+    // Iterate over all anchors.
+    forEach(concat(me.anchorsSet), me, typename Traits::TThreading());
+}
+
+// ----------------------------------------------------------------------------
+// Function _pairAnchorsImpl()
+// ----------------------------------------------------------------------------
+// Pairs anchors.
+
+template <typename TSpec, typename Traits, typename TIterator>
+inline void _pairAnchorsImpl(AnchorsVerifier<TSpec, Traits> & me, TIterator const & it)
+{
+    typedef typename Traits::TReadSeqs                  TReadSeqs;
+    typedef typename Size<TReadSeqs>::Type              TReadId;
+
+    // Get pairId.
+    TReadId pairId = position(it);
+
+    // TODO(esiragusa): remove workaround for length < max key.
+    if (length(me.anchorsSet) <= getSecondMateFwdSeqId(me.readSeqs, pairId)) return;
+
+    pairMatches(me.anchorsSet[getFirstMateFwdSeqId(me.readSeqs, pairId)],
+                me.anchorsSet[getSecondMateFwdSeqId(me.readSeqs, pairId)],
+                me.options.libraryLength, me.options.libraryError, me);
+}
+
+// ----------------------------------------------------------------------------
+// Function _findMateImpl()
 // ----------------------------------------------------------------------------
 // Verifies one anchor.
 
-template <typename TSpec, typename Traits, typename TAnchorsIterator>
-inline void _verifyAnchorImpl(AnchorsVerifier<TSpec, Traits> & me, TAnchorsIterator const & anchorsIt)
+template <typename TSpec, typename Traits, typename TMatch>
+inline void _findMateImpl(AnchorsVerifier<TSpec, Traits> & me, TMatch const & anchor)
 {
     typedef typename Traits::TContigSeqs                TContigSeqs;
     typedef typename Traits::TContigsPos                TContigsPos;
@@ -132,18 +189,11 @@ inline void _verifyAnchorImpl(AnchorsVerifier<TSpec, Traits> & me, TAnchorsItera
     typedef typename Value<TReadSeqs>::Type             TReadSeq;
     typedef typename Size<TReadSeq>::Type               TErrors;
 
-    typedef typename Traits::TMatches                   TMatches;
-    typedef typename Size<TMatches>::Type               TMatchId;
-    typedef typename Value<TMatches>::Type              TMatch;
-
     typedef Myers<>                                     TAlgorithm;
 //    typedef Filter<MultipleShiftAnd>                    TAlgorithm;
     typedef Verifier<TContigSeqs, TReadSeq, TAlgorithm> TVerifier;
 
-    // Get anchor id.
-    TMatchId anchorId = position(anchorsIt);
-
-    TMatch const & anchor = me.anchors[anchorId];
+    // Get mate seq.
     TReadId mateSeqId = getMateSeqId(me.readSeqs, getReadSeqId(anchor, me.readSeqs));
     TReadSeq const & mateSeq = me.readSeqs[mateSeqId];
 
@@ -177,7 +227,7 @@ inline void _addMatchImpl(AnchorsVerifier<TSpec, Traits> & me,
 {
     setContigPosition(me.prototype, matchBegin, matchEnd);
     me.prototype.errors = matchErrors;
-    appendValue(me.mates, me.prototype, Insist(), typename Traits::TThreading());
+//    appendValue(concat(me.pairsSet), me.prototype, Insist(), typename Traits::TThreading());
 }
 
 // ----------------------------------------------------------------------------
