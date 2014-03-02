@@ -124,7 +124,7 @@ struct AnchorsVerifier
 // ============================================================================
 
 // ----------------------------------------------------------------------------
-// Function _verifyAnchorsImpl()
+// Function _verifyAnchorsImpl(AnchorBoth)
 // ----------------------------------------------------------------------------
 // Verifies all anchors.
 
@@ -136,15 +136,24 @@ inline void _verifyAnchorsImpl(AnchorsVerifier<TSpec, Traits> & me, AnchorBoth)
 
     TPrefix pairs(me.readSeqs, getPairsCount(me.readSeqs));
 
+    // TODO(esiragusa): fill pairs in two steps.
+    reserve(stringSetLimits(me.pairsSet), getPairsCount(me.readSeqs) + 1, Exact());
+    reserve(concat(me.pairsSet), lengthSum(me.anchorsSet) / 4);
+
     // Iterate over all pairs.
     iterate(pairs, me, Rooted(), typename Traits::TThreading());
 }
+
+// ----------------------------------------------------------------------------
+// Function _verifyAnchorsImpl(AnchorOne)
+// ----------------------------------------------------------------------------
+// Verifies all anchors.
 
 template <typename TSpec, typename Traits>
 inline void _verifyAnchorsImpl(AnchorsVerifier<TSpec, Traits> & me, AnchorOne)
 {
     // TODO(esiragusa): guess the number of pairs.
-    reserve(stringSetLimits(me.pairsSet), length(me.anchorsSet), Exact());
+    reserve(stringSetLimits(me.pairsSet), length(me.anchorsSet) + 1, Exact());
     reserve(concat(me.pairsSet), lengthSum(me.anchorsSet));
 
     // Iterate over all anchors.
@@ -166,11 +175,14 @@ inline void _pairAnchorsImpl(AnchorsVerifier<TSpec, Traits> & me, TIterator cons
     TReadId pairId = position(it);
 
     // TODO(esiragusa): remove workaround for length < max key.
-    if (length(me.anchorsSet) <= getSecondMateFwdSeqId(me.readSeqs, pairId)) return;
+    if (getSecondMateFwdSeqId(me.readSeqs, pairId) < length(me.anchorsSet))
+    {
+        pairMatches(me.anchorsSet[getFirstMateFwdSeqId(me.readSeqs, pairId)],
+                    me.anchorsSet[getSecondMateFwdSeqId(me.readSeqs, pairId)],
+                    me.options.libraryLength, me.options.libraryError, me);
+    }
 
-    pairMatches(me.anchorsSet[getFirstMateFwdSeqId(me.readSeqs, pairId)],
-                me.anchorsSet[getSecondMateFwdSeqId(me.readSeqs, pairId)],
-                me.options.libraryLength, me.options.libraryError, me);
+    appendValue(stringSetLimits(me.pairsSet), length(concat(me.pairsSet)));
 }
 
 // ----------------------------------------------------------------------------
