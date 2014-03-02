@@ -280,8 +280,10 @@ inline void _fillMatePosition(MatchesWriter<TSpec, Traits> & me, TMatch const & 
 
     if (getContigId(match) == getContigId(mate))
     {
-        me.record.tLen = std::max(getContigEnd(match), getContigEnd(mate)) -
-                         std::min(getContigBegin(match), getContigBegin(mate));
+        if (getContigBegin(match) < getContigBegin(mate))
+            me.record.tLen = getContigEnd(mate) - getContigBegin(match);
+        else
+            me.record.tLen = getContigBegin(mate) - getContigEnd(match);
     }
 }
 
@@ -347,7 +349,7 @@ inline void _writeAllMatchesImpl(MatchesWriter<TSpec, Traits> & me, PairedEnd)
     typedef typename Traits::TPairsSet                      TPairsSet;
     typedef typename Iterator<TPairsSet, Standard>::Type    TPairsIt;
 
-    // Sort each set of pairs by errors and insert size deviation.
+    // TODO(esiragusa): Sort each set of pairs by errors and insert size deviation.
 //    iterate(me.pairsSet, sortPairs<TPairsIt, SortErrors>, Standard(), typename Traits::TThreading());
 
     // Sort each set of unpaired matches by errors.
