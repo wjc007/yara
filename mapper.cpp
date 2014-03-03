@@ -121,31 +121,35 @@ void setupArgumentParser(ArgumentParser & parser, Options const & options)
     // Setup mapping options.
     addSection(parser, "Mapping Options");
 
-    addOption(parser, ArgParseOption("mm", "mapping-mode", "Selects a mapping strategy.", ArgParseOption::STRING));
-    setValidValues(parser, "mapping-mode", options.mappingModeList);
-    setDefaultValue(parser, "mapping-mode", options.mappingModeList[options.mappingMode]);
-
-    addOption(parser, ArgParseOption("e", "error-rate", "Considers mapping locations up to this specified error rate.", ArgParseOption::INTEGER));
+    addOption(parser, ArgParseOption("e", "error-rate", "Consider mapping locations within this error rate.", ArgParseOption::INTEGER));
     setMinValue(parser, "error-rate", "0");
     setMaxValue(parser, "error-rate", "10");
     setDefaultValue(parser, "error-rate", options.errorRate);
 
+//    addOption(parser, ArgParseOption("s", "strata-rate", "Report found suboptimal mapping locations within this error rate from the optimal one. Note that strata-rate << error-rate.", ArgParseOption::STRING));
+//    setMinValue(parser, "strata-rate", "0");
+//    setMaxValue(parser, "strata-rate", "10");
+//    setDefaultValue(parser, "strata-rate", options.strataRate);
+
+//    addOption(parser, ArgParseOption("a", "all", "Report all suboptimal mapping locations."));// Shortcut for strata-rate = error-rate."));
+    addOption(parser, ArgParseOption("s", "stratum", "Report only cooptimal mapping locations."));
+
     // Setup paired-end mapping options.
     addSection(parser, "Paired-End / Mate-Pairs Options");
 
-    addOption(parser, ArgParseOption("ll", "library-length", "Mean library length.", ArgParseOption::INTEGER));
+    addOption(parser, ArgParseOption("ll", "library-length", "Mean template length.", ArgParseOption::INTEGER));
     setMinValue(parser, "library-length", "1");
     setDefaultValue(parser, "library-length", options.libraryLength);
 
-    addOption(parser, ArgParseOption("le", "library-error", "Library length tolerance.", ArgParseOption::INTEGER));
+    addOption(parser, ArgParseOption("le", "library-error", "Deviation from the mean template length.", ArgParseOption::INTEGER));
     setMinValue(parser, "library-error", "0");
     setDefaultValue(parser, "library-error", options.libraryError);
 
-    addOption(parser, ArgParseOption("lo", "library-orientation", "Expected library orientation.", ArgParseOption::STRING));
-    setValidValues(parser, "library-orientation", options.mappingModeList);
-    setDefaultValue(parser, "library-orientation", options.mappingModeList[options.mappingMode]);
+    addOption(parser, ArgParseOption("lo", "library-orientation", "Expected orientation of segments in the template.", ArgParseOption::STRING));
+    setValidValues(parser, "library-orientation", options.libraryOrientationList);
+    setDefaultValue(parser, "library-orientation", options.libraryOrientationList[options.libraryOrientation]);
 
-    addOption(parser, ArgParseOption("a", "anchor", "Anchor one read and verify its mate."));
+    addOption(parser, ArgParseOption("la", "anchor", "Anchor one read and verify its mate."));
 
     // Setup output options.
     addSection(parser, "Output Options");
@@ -214,8 +218,12 @@ parseCommandLine(Options & options, ArgumentParser & parser, int argc, char cons
     getOutputFormat(options, options.outputFile);
 
     // Parse mapping options.
-    getOptionValue(options.mappingMode, parser, "mapping-mode", options.mappingModeList);
     getOptionValue(options.errorRate, parser, "error-rate");
+//    getOptionValue(options.strataRate, parser, "strata-rate");
+
+    bool strata = false;
+    getOptionValue(strata, parser, "strata");
+    if (strata) options.mappingMode = Options::STRATA;
 
     // Parse paired-end mapping options.
     getOptionValue(options.libraryLength, parser, "library-length");
@@ -269,11 +277,8 @@ void configureStrategy(Options const & options, TExecSpace const & execSpace, TT
 {
     switch (options.mappingMode)
     {
-    case Options::ANY_BEST:
-        return spawnMapper(options, execSpace, threading, format, sequencing, AnyBest(), Nothing());
-
-    case Options::ALL_BEST:
-        return spawnMapper(options, execSpace, threading, format, sequencing, AllBest(), Nothing());
+    case Options::STRATA:
+        return spawnMapper(options, execSpace, threading, format, sequencing, Strata(), Nothing());
 
     case Options::ALL:
         return spawnMapper(options, execSpace, threading, format, sequencing, All(), Nothing());

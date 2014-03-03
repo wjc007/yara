@@ -52,7 +52,7 @@ struct Options
 
     enum MappingMode
     {
-        ALL, ALL_BEST, ANY_BEST
+        STRATA, ALL
     };
 
     enum LibraryOrientation
@@ -73,9 +73,9 @@ struct Options
     TList               outputFormatList;
     TList               outputFormatExtensions;
 
-    TList               mappingModeList;
     MappingMode         mappingMode;
     unsigned            errorRate;
+//    unsigned            strataRate;
 
     bool                singleEnd;
     unsigned            libraryLength;
@@ -94,6 +94,7 @@ struct Options
         outputFormat(SAM),
         mappingMode(ALL),
         errorRate(5),
+//        strataRate(0),
         singleEnd(true),
         libraryLength(220),
         libraryError(50),
@@ -112,10 +113,6 @@ struct Options
         outputFormatExtensions.push_back("bam");
 #endif
 
-        mappingModeList.push_back("all");
-        mappingModeList.push_back("all-best");
-        mappingModeList.push_back("any-best");
-
         libraryOrientationList.push_back("fwd-rev");
         libraryOrientationList.push_back("fwd-fwd");
         libraryOrientationList.push_back("rev-rev");
@@ -130,7 +127,7 @@ template <typename TExecSpace_      = ExecHost,
           typename TThreading_      = Parallel,
           typename TOutputFormat_   = Sam,
           typename TSequencing_     = SingleEnd,
-          typename TStrategy_       = AnyBest,
+          typename TStrategy_       = All,
           typename TAnchoring_      = Nothing,
           unsigned BUCKETS_         = 3>
 struct ReadMapperConfig : public ContigsConfig<void>, public ReadsConfig<void>
@@ -723,23 +720,11 @@ inline void _mapReadsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs,
 }
 
 // ----------------------------------------------------------------------------
-// Function _mapReadsImpl(); SingleEnd, AnyBest or AllBest
+// Function _mapReadsImpl(); SingleEnd, Strata
 // ----------------------------------------------------------------------------
 
 template <typename TSpec, typename TConfig, typename TReadSeqs>
-inline void _mapReadsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, SingleEnd, AnyBest)
-{
-    _mapReadsByStrata(mapper, readSeqs);
-}
-
-template <typename TSpec, typename TConfig, typename TReadSeqs>
-inline void _mapReadsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, SingleEnd, AllBest)
-{
-    _mapReadsByStrata(mapper, readSeqs);
-}
-
-template <typename TSpec, typename TConfig, typename TReadSeqs>
-inline void _mapReadsByStrata(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs)
+inline void _mapReadsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, SingleEnd, Strata)
 {
     typedef MapperTraits<TSpec, TConfig>    TTraits;
     typedef typename TTraits::THit          THit;

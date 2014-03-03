@@ -69,12 +69,10 @@ struct Space<TObject, ExecDevice>
 // Mapping Strategy Tags
 // ----------------------------------------------------------------------------
 
-struct AnyBest_;
-struct AllBest_;
+struct Strata_;
 struct All_;
 
-typedef Tag<AnyBest_>   AnyBest;
-typedef Tag<AllBest_>   AllBest;
+typedef Tag<Strata_>    Strata;
 typedef Tag<All_>       All;
 
 // ----------------------------------------------------------------------------
@@ -93,11 +91,9 @@ typedef Tag<AnchorOne_>     AnchorBoth;
 
 struct SingleEnd_;
 struct PairedEnd_;
-struct MatePairs_;
 
 typedef Tag<SingleEnd_>     SingleEnd;
 typedef Tag<PairedEnd_>     PairedEnd;
-typedef Tag<MatePairs_>     MatePairs;
 
 // ----------------------------------------------------------------------------
 // File Tags
