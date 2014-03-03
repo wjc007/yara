@@ -99,7 +99,7 @@ struct HitsExtender
         options(options)
     {
         // Iterate over all hits.
-        iterate(hits, *this, Rooted(), typename Traits::TThreading());
+        iterate(hits, *this, Standard(), typename Traits::TThreading());
     }
 
     template <typename THitsIterator>
@@ -164,7 +164,7 @@ inline void _extendHitImpl(HitsExtender<TSpec, Traits> & me, THitsIterator const
     typedef typename THitsExtender::TReadsContext       TReadsContext;
 
     // Get hit id.
-    THitId hitId = position(hitsIt);
+    THitId hitId = position(hitsIt, me.hits);
 
     // Extract hit info.
     TSeedId seedId = getSeedId(me.hits, hitId);
