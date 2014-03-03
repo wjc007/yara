@@ -114,7 +114,7 @@ void setupArgumentParser(ArgumentParser & parser, Options const & options)
 
     addArgument(parser, ArgParseArgument(ArgParseArgument::INPUTFILE, "READS", true));
     setValidValues(parser, 1, "fastq fasta fa");
-    setHelpText(parser, 1, "Either one single-end or two paired-end read files.");
+    setHelpText(parser, 1, "Either one single-end or two paired-end / mate-pairs read files.");
 
     addOption(parser, ArgParseOption("v", "verbose", "Displays verbose output."));
 
@@ -130,13 +130,20 @@ void setupArgumentParser(ArgumentParser & parser, Options const & options)
     setMaxValue(parser, "error-rate", "10");
     setDefaultValue(parser, "error-rate", options.errorRate);
 
-    addOption(parser, ArgParseOption("ll", "library-length", "Paired-end library length.", ArgParseOption::INTEGER));
+    // Setup paired-end mapping options.
+    addSection(parser, "Paired-End / Mate-Pairs Options");
+
+    addOption(parser, ArgParseOption("ll", "library-length", "Mean library length.", ArgParseOption::INTEGER));
     setMinValue(parser, "library-length", "1");
     setDefaultValue(parser, "library-length", options.libraryLength);
 
-    addOption(parser, ArgParseOption("le", "library-error", "Paired-end library length tolerance.", ArgParseOption::INTEGER));
+    addOption(parser, ArgParseOption("le", "library-error", "Library length tolerance.", ArgParseOption::INTEGER));
     setMinValue(parser, "library-error", "0");
     setDefaultValue(parser, "library-error", options.libraryError);
+
+    addOption(parser, ArgParseOption("lo", "library-orientation", "Expected library orientation.", ArgParseOption::STRING));
+    setValidValues(parser, "library-orientation", options.mappingModeList);
+    setDefaultValue(parser, "library-orientation", options.mappingModeList[options.mappingMode]);
 
     addOption(parser, ArgParseOption("a", "anchor", "Anchor one read and verify its mate."));
 
@@ -209,8 +216,11 @@ parseCommandLine(Options & options, ArgumentParser & parser, int argc, char cons
     // Parse mapping options.
     getOptionValue(options.mappingMode, parser, "mapping-mode", options.mappingModeList);
     getOptionValue(options.errorRate, parser, "error-rate");
+
+    // Parse paired-end mapping options.
     getOptionValue(options.libraryLength, parser, "library-length");
     getOptionValue(options.libraryError, parser, "library-error");
+    getOptionValue(options.libraryOrientation, parser, "library-orientation", options.libraryOrientationList);
     getOptionValue(options.anchorOne, parser, "anchor");
 
     // Parse genome index prefix.

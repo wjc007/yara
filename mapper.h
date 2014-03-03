@@ -55,6 +55,11 @@ struct Options
         ALL, ALL_BEST, ANY_BEST
     };
 
+    enum LibraryOrientation
+    {
+        FWD_REV, FWD_FWD, REV_REV
+    };
+
     enum OutputFormat
     {
         SAM, BAM
@@ -65,18 +70,19 @@ struct Options
     Pair<CharString>    readsFile;
     CharString          outputFile;
     OutputFormat        outputFormat;
-
-    TList               mappingModeList;
-    MappingMode         mappingMode;
-
     TList               outputFormatList;
     TList               outputFormatExtensions;
 
+    TList               mappingModeList;
+    MappingMode         mappingMode;
     unsigned            errorRate;
+
     bool                singleEnd;
-    bool                anchorOne;
     unsigned            libraryLength;
     unsigned            libraryError;
+    TList               libraryOrientationList;
+    LibraryOrientation  libraryOrientation;
+    bool                anchorOne;
 
     unsigned            mappingBlock;
     bool                noCuda;
@@ -89,25 +95,30 @@ struct Options
         mappingMode(ALL),
         errorRate(5),
         singleEnd(true),
-        anchorOne(false),
         libraryLength(220),
         libraryError(50),
+        libraryOrientation(FWD_REV),
+        anchorOne(false),
         mappingBlock(200000),
         noCuda(false),
         threadsCount(1),
         hitsThreshold(300),
         verbose(true)
     {
-        mappingModeList.push_back("all");
-        mappingModeList.push_back("all-best");
-        mappingModeList.push_back("any-best");
-
         outputFormatList.push_back("sam");
         outputFormatExtensions.push_back("sam");
 #ifdef SEQAN_HAS_ZLIB
         outputFormatList.push_back("bam");
         outputFormatExtensions.push_back("bam");
 #endif
+
+        mappingModeList.push_back("all");
+        mappingModeList.push_back("all-best");
+        mappingModeList.push_back("any-best");
+
+        libraryOrientationList.push_back("fwd-rev");
+        libraryOrientationList.push_back("fwd-fwd");
+        libraryOrientationList.push_back("rev-rev");
     }
 };
 
