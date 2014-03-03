@@ -487,8 +487,10 @@ inline void classifyReads(Mapper<TSpec, TConfig> & mapper)
     typedef MapperTraits<TSpec, TConfig>                TTraits;
     typedef ReadsClassifier<TSpec, TTraits>             TClassifier;
 
+    start(mapper.timer);
     TClassifier classifier(mapper.ctx, mapper.hits[0], mapper.seeds[0], mapper.options);
-
+    stop(mapper.timer);
+    std::cout << "Classification time:\t\t" << mapper.timer << std::endl;
     std::cout << "Hits count:\t\t\t" << countHits<unsigned long>(mapper.hits[0], typename TConfig::TThreading()) << std::endl;
 }
 
