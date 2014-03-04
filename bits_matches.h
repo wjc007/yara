@@ -374,6 +374,12 @@ inline unsigned char getErrors(Match<TSpec> const & me)
     return me.errors;
 }
 
+template <typename TSpec>
+inline unsigned getErrors(Match<TSpec> const & a, Match<TSpec> const & b)
+{
+    return (unsigned)a.errors + b.errors;
+}
+
 // ----------------------------------------------------------------------------
 // Function strandEqual()
 // ----------------------------------------------------------------------------
