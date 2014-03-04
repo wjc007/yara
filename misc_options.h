@@ -47,6 +47,31 @@ using namespace seqan;
 // ============================================================================
 
 // ----------------------------------------------------------------------------
+// Functor EqualsChar
+// ----------------------------------------------------------------------------
+// TODO(esiragusa): remove this when new tokenization gets into develop.
+
+template <char VALUE>
+struct EqualsChar
+{
+    template <typename TValue>
+    bool operator() (TValue const & val) const
+    {
+        return val == VALUE;
+    }
+};
+
+// ----------------------------------------------------------------------------
+// Composite Functors
+// ----------------------------------------------------------------------------
+// TODO(esiragusa): remove this when new tokenization gets into develop.
+
+typedef EqualsChar<'.'>        IsDot;
+typedef EqualsChar<' '>        IsSpace;
+typedef EqualsChar<'/'>        IsSlash;
+typedef EqualsChar<'\\'>       IsBackSlash;
+
+// ----------------------------------------------------------------------------
 // Function setEnv()
 // ----------------------------------------------------------------------------
 
@@ -67,17 +92,18 @@ bool setEnv(TString & key, TValue & value)
 // Function lastOf()
 // ----------------------------------------------------------------------------
 
-template <typename TString, typename TToken>
-typename Iterator<TString const, Standard>::Type
-lastOf(TString const & string, TToken const & token)
+template <typename TString, typename TFunctor>
+inline typename Iterator<TString const, Standard>::Type
+lastOf(TString const & string, TFunctor const & f)
 {
     typedef typename Iterator<TString const, Standard>::Type TIterator;
 
-    TIterator it = end(string, Standard()) - length(token);
+    TIterator itBegin = begin(string, Standard());
+    TIterator it = end(string, Standard());
 
-    for (TIterator itBegin = begin(string, Standard());
-         it != itBegin && !isEqual(infix(string, it, it + length(token)), token);
-         goPrevious(it)) ;
+    while (it != itBegin)
+        if (f(value(--it)))
+            break;
 
     return it;
 }
@@ -87,10 +113,10 @@ lastOf(TString const & string, TToken const & token)
 // ----------------------------------------------------------------------------
 
 template <typename TString>
-Segment<TString, PrefixSegment>
+inline typename Prefix<TString>::Type
 trimExtension(TString & string)
 {
-    return prefix(string, lastOf(string, '.'));
+    return prefix(string, lastOf(string, IsDot()));
 }
 
 // ----------------------------------------------------------------------------
@@ -98,10 +124,10 @@ trimExtension(TString & string)
 // ----------------------------------------------------------------------------
 
 template <typename TString>
-Segment<TString, SuffixSegment>
+inline typename Suffix<TString>::Type
 getExtension(TString & string)
 {
-    return suffix(string, lastOf(string, '.') + 1);
+    return suffix(string, lastOf(string, IsDot()) + 1);
 }
 
 // ----------------------------------------------------------------------------
@@ -109,13 +135,13 @@ getExtension(TString & string)
 // ----------------------------------------------------------------------------
 
 template <typename TString>
-Segment<TString const, PrefixSegment>
+inline typename Prefix<TString const>::Type
 getPath(TString const & string)
 {
 #ifdef PLATFORM_WINDOWS
-    return prefix(string, lastOf(string, '\\'));
+    return prefix(string, lastOf(string, IsBackSlash()));
 #else
-    return prefix(string, lastOf(string, '/'));
+    return prefix(string, lastOf(string, IsSlash()));
 #endif
 }
 
@@ -124,13 +150,13 @@ getPath(TString const & string)
 // ----------------------------------------------------------------------------
 
 template <typename TString>
-Segment<TString, SuffixSegment>
+inline typename Suffix<TString>::Type
 getFilename(TString & string)
 {
 #ifdef PLATFORM_WINDOWS
-    return suffix(string, lastOf(string, '\\'));
+    return suffix(string, lastOf(string, IsBackSlash()));
 #else
-    return suffix(string, lastOf(string, '/'));
+    return suffix(string, lastOf(string, IsSlash()));
 #endif
 }
 

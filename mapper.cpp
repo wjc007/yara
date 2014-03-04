@@ -57,6 +57,7 @@ struct Options;
 // ----------------------------------------------------------------------------
 
 #include "misc_tags.h"
+#include "misc_options.h"
 #include "store_reads.h"
 #include "store_genome.h"
 
@@ -65,7 +66,6 @@ struct Options;
 // ----------------------------------------------------------------------------
 
 #include "misc_timer.h"
-#include "misc_options.h"
 #include "misc_types.h"
 #include "index_fm.h"
 #include "bits_hits.h"
@@ -114,31 +114,42 @@ void setupArgumentParser(ArgumentParser & parser, Options const & options)
 
     addArgument(parser, ArgParseArgument(ArgParseArgument::INPUTFILE, "READS", true));
     setValidValues(parser, 1, "fastq fasta fa");
-    setHelpText(parser, 1, "Either one single-end or two paired-end read files.");
+    setHelpText(parser, 1, "Either one single-end or two paired-end / mate-pairs read files.");
 
     addOption(parser, ArgParseOption("v", "verbose", "Displays verbose output."));
 
     // Setup mapping options.
     addSection(parser, "Mapping Options");
 
-    addOption(parser, ArgParseOption("mm", "mapping-mode", "Selects a mapping strategy.", ArgParseOption::STRING));
-    setValidValues(parser, "mapping-mode", options.mappingModeList);
-    setDefaultValue(parser, "mapping-mode", options.mappingModeList[options.mappingMode]);
-
-    addOption(parser, ArgParseOption("e", "error-rate", "Considers mapping locations up to this specified error rate.", ArgParseOption::INTEGER));
+    addOption(parser, ArgParseOption("e", "error-rate", "Consider mapping locations within this error rate.", ArgParseOption::INTEGER));
     setMinValue(parser, "error-rate", "0");
     setMaxValue(parser, "error-rate", "10");
     setDefaultValue(parser, "error-rate", options.errorRate);
 
-    addOption(parser, ArgParseOption("ll", "library-length", "Paired-end library length.", ArgParseOption::INTEGER));
+//    addOption(parser, ArgParseOption("s", "strata-rate", "Report found suboptimal mapping locations within this error rate from the optimal one. Note that strata-rate << error-rate.", ArgParseOption::STRING));
+//    setMinValue(parser, "strata-rate", "0");
+//    setMaxValue(parser, "strata-rate", "10");
+//    setDefaultValue(parser, "strata-rate", options.strataRate);
+
+//    addOption(parser, ArgParseOption("a", "all", "Report all suboptimal mapping locations."));// Shortcut for strata-rate = error-rate."));
+    addOption(parser, ArgParseOption("s", "strata", "Report only cooptimal mapping locations."));
+
+    // Setup paired-end mapping options.
+    addSection(parser, "Paired-End / Mate-Pairs Options");
+
+    addOption(parser, ArgParseOption("ll", "library-length", "Mean template length.", ArgParseOption::INTEGER));
     setMinValue(parser, "library-length", "1");
     setDefaultValue(parser, "library-length", options.libraryLength);
 
-    addOption(parser, ArgParseOption("le", "library-error", "Paired-end library length tolerance.", ArgParseOption::INTEGER));
+    addOption(parser, ArgParseOption("le", "library-error", "Deviation from the mean template length.", ArgParseOption::INTEGER));
     setMinValue(parser, "library-error", "0");
     setDefaultValue(parser, "library-error", options.libraryError);
 
-    addOption(parser, ArgParseOption("a", "anchor", "Anchor one read and verify its mate."));
+    addOption(parser, ArgParseOption("lo", "library-orientation", "Expected orientation of segments in the template.", ArgParseOption::STRING));
+    setValidValues(parser, "library-orientation", options.libraryOrientationList);
+    setDefaultValue(parser, "library-orientation", options.libraryOrientationList[options.libraryOrientation]);
+
+    addOption(parser, ArgParseOption("la", "anchor", "Anchor one read and verify its mate."));
 
     // Setup output options.
     addSection(parser, "Output Options");
@@ -207,10 +218,17 @@ parseCommandLine(Options & options, ArgumentParser & parser, int argc, char cons
     getOutputFormat(options, options.outputFile);
 
     // Parse mapping options.
-    getOptionValue(options.mappingMode, parser, "mapping-mode", options.mappingModeList);
     getOptionValue(options.errorRate, parser, "error-rate");
+//    getOptionValue(options.strataRate, parser, "strata-rate");
+
+    bool strata = false;
+    getOptionValue(strata, parser, "strata");
+    if (strata) options.mappingMode = STRATA;
+
+    // Parse paired-end mapping options.
     getOptionValue(options.libraryLength, parser, "library-length");
     getOptionValue(options.libraryError, parser, "library-error");
+    getOptionValue(options.libraryOrientation, parser, "library-orientation", options.libraryOrientationList);
     getOptionValue(options.anchorOne, parser, "anchor");
 
     // Parse genome index prefix.
@@ -259,13 +277,10 @@ void configureStrategy(Options const & options, TExecSpace const & execSpace, TT
 {
     switch (options.mappingMode)
     {
-    case Options::ANY_BEST:
-        return spawnMapper(options, execSpace, threading, format, sequencing, AnyBest(), Nothing());
+    case STRATA:
+        return spawnMapper(options, execSpace, threading, format, sequencing, Strata(), Nothing());
 
-    case Options::ALL_BEST:
-        return spawnMapper(options, execSpace, threading, format, sequencing, AllBest(), Nothing());
-
-    case Options::ALL:
+    case ALL:
         return spawnMapper(options, execSpace, threading, format, sequencing, All(), Nothing());
 
     default:
@@ -296,11 +311,11 @@ void configureOutputFormat(Options const & options, TExecSpace const & execSpace
 {
     switch (options.outputFormat)
     {
-    case Options::SAM:
+    case SAM:
         return configureSequencing(options, execSpace, threading, Sam());
 
 #ifdef SEQAN_HAS_ZLIB
-    case Options::BAM:
+    case BAM:
         return configureSequencing(options, execSpace, threading, Bam());
 #endif
 

@@ -85,20 +85,14 @@ struct Options
 template <typename TIndexSpec, typename TSpec = void>
 struct Indexer
 {
-    typedef Genome<void, CUDAStoreConfig>                           TGenome;
-    typedef GenomeLoader<void, CUDAStoreConfig>                     TGenomeLoader;
-    typedef Index<TFMContigs, TIndexSpec>                           TIndex;
+    typedef Contigs<TSpec>                         TContigs;
+    typedef ContigsLoader<TSpec>                   TContigsLoader;
+    typedef Index<TFMContigs, TIndexSpec>          TIndex;
 
-    TGenome             genome;
-    TGenomeLoader       genomeLoader;
+    TContigs            contigs;
+    TContigsLoader      contigsLoader;
     TIndex              index;
     Timer<double>       timer;
-
-    Indexer() :
-        genome(),
-        genomeLoader(genome),
-        index()
-    {};
 };
 
 // ============================================================================
@@ -145,10 +139,10 @@ parseCommandLine(Options & options, ArgumentParser & parser, int argc, char cons
     if (res != seqan::ArgumentParser::PARSE_OK)
         return res;
 
-    // Parse genome input file.
+    // Parse contigs input file.
     getArgumentValue(options.genomeFile, parser, 0);
 
-    // Parse genome index prefix.
+    // Parse contigs index prefix.
     getIndexPrefix(options, parser);
 
     // Parse tmp folder.
@@ -167,8 +161,8 @@ void loadGenome(Indexer<TIndexSpec, TSpec> & indexer, Options const & options)
     std::cout << "Loading genome:\t\t\t" << std::flush;
     start(indexer.timer);
 
-    open(indexer.genomeLoader, options.genomeFile);
-    load(indexer.genomeLoader);
+    open(indexer.contigsLoader, options.genomeFile);
+    load(indexer.contigs, indexer.contigsLoader);
 
     stop(indexer.timer);
     std::cout << indexer.timer << std::endl;
@@ -184,10 +178,7 @@ void saveGenome(Indexer<TIndexSpec, TSpec> & indexer, Options const & options)
     std::cout << "Dumping genome:\t\t\t" << std::flush;
     start(indexer.timer);
 
-    CharString genomeFile = options.genomeIndexFile;
-    append(genomeFile, ".txt");
-
-    if (!save(contigs(indexer.genome), toCString(genomeFile)))
+    if (!save(indexer.contigs, toCString(options.genomeIndexFile)))
         throw RuntimeError("Error while dumping genome file.");
 
     stop(indexer.timer);
@@ -206,25 +197,25 @@ void buildIndex(Indexer<TIndexSpec, TSpec> & indexer)
     std::cout << "Building genome index:\t\t" << std::flush;
     start(indexer.timer);
 
-    // Remove Ns from genome.
-    removeNs(indexer.genome);
+    // Remove Ns from contigs.
+    removeNs(indexer.contigs);
 
-    // IndexFM is built on the reversed genome.
-    reverse(contigs(indexer.genome));
+    // IndexFM is built on the reversed contigs.
+    reverse(indexer.contigs);
 
     // Set the index text.
     // NOTE(esiragusa): this assignment implicitly assigns and converts the contigs to the index contigs.
-    setValue(indexer.index.text, contigs(indexer.genome));
+    setValue(indexer.index.text, indexer.contigs.seqs);
 
-    // Clears the genome.
+    // Clears the contigs.
     // NOTE(esiragusa): the index now owns its own contigs.
-//    shrinkToFit(contigs(indexer.genome));
+//    shrinkToFit(indexer.contigs.seqs);
 
     // Iterator instantiation calls automatic index construction.
     typename Iterator<TIndex, TopDown<> >::Type it(indexer.index);
     ignoreUnusedVariableWarning(it);
 
-//    reverse(contigs(indexer.genome));
+//    reverse(indexer.contigs);
 
     stop(indexer.timer);
     std::cout << indexer.timer << std::endl;

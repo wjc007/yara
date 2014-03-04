@@ -43,54 +43,14 @@ using namespace seqan;
 // Global Types
 // ============================================================================
 
-// ----------------------------------------------------------------------------
-// Fragment Store Configuration
-// ----------------------------------------------------------------------------
-
-struct CUDAStoreConfig
-{
-    typedef String<Dna5>            TReadSeq;
-    typedef String<Dna5>            TContigSeq;
-    typedef Owner<ConcatDirect<> >  TContigSpec;
-
-    typedef double                  TMean;
-    typedef double                  TStd;
-    typedef signed char             TMappingQuality;
-
-    typedef void                    TReadStoreElementSpec;
-    typedef Owner<ConcatDirect<> >  TReadSeqStoreSpec;
-    typedef Alloc<>                 TReadNameSpec;
-    typedef Owner<ConcatDirect<> >  TReadNameStoreSpec;
-    typedef void                    TMatePairStoreElementSpec;
-    typedef void                    TLibraryStoreElementSpec;
-    typedef void                    TContigStoreElementSpec;
-    typedef void                    TContigFileSpec;
-    typedef void                    TAlignedReadStoreElementSpec;
-    typedef Owner<ConcatDirect<> >  TAlignedReadTagStoreSpec;
-    typedef void                    TAnnotationStoreElementSpec;
-};
-
-// ----------------------------------------------------------------------------
-// Fragment Store Configuration for FMIndex Text
-// ----------------------------------------------------------------------------
-
-struct FMIndexStoreConfig
-{
-    typedef String<Dna>             TContigSeq;
-    typedef Owner<ConcatDirect<> >  TContigSpec;
-};
-
-// ----------------------------------------------------------------------------
-// Typedefs
-// ----------------------------------------------------------------------------
-
-typedef StringSet<FMIndexStoreConfig::TContigSeq, FMIndexStoreConfig::TContigSpec>  TFMContigs;
-typedef StringSet<CUDAStoreConfig::TReadSeq, CUDAStoreConfig::TReadSeqStoreSpec>    TReadSeqs;
+typedef StringSet<DnaString, Owner<ConcatDirect<> > >           TFMContigs;
 
 // ----------------------------------------------------------------------------
 // ReadSeqs Size
 // ----------------------------------------------------------------------------
 // NOTE(esiragusa): Register usage does not decrease.
+
+//typedef StringSet<String<Dna5Q>, Owner<ConcatDirect<> > >       TReadSeqs;
 
 //namespace seqan {
 //template <>

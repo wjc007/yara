@@ -62,6 +62,25 @@ struct Space<TObject, ExecDevice>
 };
 
 // ============================================================================
+// Enums
+// ============================================================================
+
+enum MappingMode
+{
+    STRATA, ALL
+};
+
+enum LibraryOrientation
+{
+    FWD_REV, FWD_FWD, REV_REV
+};
+
+enum OutputFormat
+{
+    SAM, BAM
+};
+
+// ============================================================================
 // Tags
 // ============================================================================
 
@@ -69,12 +88,10 @@ struct Space<TObject, ExecDevice>
 // Mapping Strategy Tags
 // ----------------------------------------------------------------------------
 
-struct AnyBest_;
-struct AllBest_;
+struct Strata_;
 struct All_;
 
-typedef Tag<AnyBest_>   AnyBest;
-typedef Tag<AllBest_>   AllBest;
+typedef Tag<Strata_>    Strata;
 typedef Tag<All_>       All;
 
 // ----------------------------------------------------------------------------
@@ -93,14 +110,12 @@ typedef Tag<AnchorOne_>     AnchorBoth;
 
 struct SingleEnd_;
 struct PairedEnd_;
-struct MatePairs_;
 
 typedef Tag<SingleEnd_>     SingleEnd;
 typedef Tag<PairedEnd_>     PairedEnd;
-typedef Tag<MatePairs_>     MatePairs;
 
 // ----------------------------------------------------------------------------
-// File Tags
+// Paired-End / Mate-Pairs Tags
 // ----------------------------------------------------------------------------
 
 struct LeftMate_;
@@ -109,10 +124,14 @@ struct RightMate_;
 typedef Tag<LeftMate_>      LeftMate;
 typedef Tag<RightMate_>     RightMate;
 
-struct LeftFile_;
-struct RightFile_;
+struct FwdRev_;
+struct RevFwd_;
+struct FwdFwd_;
+struct RevRev_;
 
-typedef Tag<LeftFile_>      LeftFile;
-typedef Tag<RightFile_>     RightFile;
+typedef Tag<FwdRev_>        FwdRev;
+typedef Tag<RevFwd_>        RevFwd;
+typedef Tag<FwdFwd_>        FwdFwd;
+typedef Tag<RevRev_>        RevRev;
 
 #endif  // #ifndef APP_CUDAMAPPER_MISC_TAGS_H_

@@ -49,7 +49,7 @@ using namespace seqan;
 template <typename TSpec, typename Traits>
 struct HitsExtender
 {
-    typedef typename Traits::TContigs          TContigs;
+    typedef typename Traits::TContigSeqs       TContigSeqs;
     typedef typename Traits::TContigsPos       TContigsPos;
     typedef typename Traits::TReadSeqs         TReadSeqs;
     typedef typename Traits::TReadSeq          TReadSeq;
@@ -62,7 +62,7 @@ struct HitsExtender
 
     typedef AlignTextBanded<FindPrefix, NMatchesNone_, NMatchesNone_> TMyersSpec;
     typedef Myers<TMyersSpec, True, void>               TAlgorithm;
-    typedef Extender<TContigs, TReadSeq, TAlgorithm>    TExtender;
+    typedef Extender<TContigSeqs, TReadSeq, TAlgorithm> TExtender;
 
     // Thread-private data.
     TExtender           extender;
@@ -73,7 +73,7 @@ struct HitsExtender
     TMatches &          matches;
 
     // Shared-memory read-only data.
-    TContigs const &    contigs;
+    TContigSeqs const & contigSeqs;
     TReadSeqs &         readSeqs;
     TSeeds const &      seeds;
     THits const &       hits;
@@ -82,16 +82,16 @@ struct HitsExtender
 
     HitsExtender(TReadsContext & ctx,
                  TMatches & matches,
-                 TContigs const & contigs,
+                 TContigSeqs const & contigSeqs,
                  TSeeds const & seeds,
                  THits const & hits,
                  TSA const & sa,
                  Options const & options) :
-        extender(contigs),
+        extender(contigSeqs),
         prototype(),
         ctx(ctx),
         matches(matches),
-        contigs(contigs),
+        contigSeqs(contigSeqs),
         readSeqs(host(seeds)),
         seeds(seeds),
         hits(hits),
@@ -99,7 +99,7 @@ struct HitsExtender
         options(options)
     {
         // Iterate over all hits.
-        iterate(hits, *this, Rooted(), typename Traits::TThreading());
+        iterate(hits, *this, Standard(), typename Traits::TThreading());
     }
 
     template <typename THitsIterator>
@@ -134,10 +134,11 @@ inline void _extendHitImpl(HitsExtender<TSpec, Traits> & me, THitsIterator const
 {
     typedef HitsExtender<TSpec, Traits>                 THitsExtender;
 
-    typedef typename THitsExtender::TContigs            TContigs;
-    typedef typename Size<TContigs>::Type               TContigId;
+    typedef typename THitsExtender::TContigSeqs         TContigSeqs;
+    typedef typename Size<TContigSeqs>::Type            TContigId;
     typedef typename THitsExtender::TContigsPos         TContigsPos;
 
+    typedef typename THitsExtender::TReadSeqs           TReadSeqs;
     typedef typename THitsExtender::TReadSeq            TReadSeq;
     typedef typename Id<TReadSeqs>::Type                TReadId;
     typedef Pair<typename Position<TReadSeq>::Type>     TReadPos;
@@ -163,7 +164,7 @@ inline void _extendHitImpl(HitsExtender<TSpec, Traits> & me, THitsIterator const
     typedef typename THitsExtender::TReadsContext       TReadsContext;
 
     // Get hit id.
-    THitId hitId = position(hitsIt);
+    THitId hitId = position(hitsIt, me.hits);
 
     // Extract hit info.
     TSeedId seedId = getSeedId(me.hits, hitId);
@@ -172,7 +173,7 @@ inline void _extendHitImpl(HitsExtender<TSpec, Traits> & me, THitsIterator const
 
     // Get read.
     TReadId readSeqId = getReadSeqId(me.seeds, seedId);
-    TReadSeq readSeq = me.readSeqs[readSeqId];
+    TReadSeq const & readSeq = me.readSeqs[readSeqId];
 
     // Skip unseeded and mapped reads.
     if (getStatus(me.ctx, readSeqId) != STATUS_SEEDED) return;
@@ -188,9 +189,9 @@ inline void _extendHitImpl(HitsExtender<TSpec, Traits> & me, THitsIterator const
     {
         // Invert SA value.
         TSAValue saValue = me.sa[saPos];
-        SEQAN_ASSERT_GEQ(suffixLength(saValue, me.contigs), seedLength);
-        if (suffixLength(saValue, me.contigs) < seedLength) continue;
-        setSeqOffset(saValue, suffixLength(saValue, me.contigs) - seedLength);
+        SEQAN_ASSERT_GEQ(suffixLength(saValue, me.contigSeqs), seedLength);
+        if (suffixLength(saValue, me.contigSeqs) < seedLength) continue;
+        setSeqOffset(saValue, suffixLength(saValue, me.contigSeqs) - seedLength);
 
         // Compute position in contig.
         TContigsPos contigBegin = saValue;
