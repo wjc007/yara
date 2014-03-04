@@ -544,8 +544,8 @@ template <typename TReadSeqs, typename TMatches>
 inline typename Size<TReadSeqs>::Type
 countMappedPairs(TReadSeqs const & readSeqs, TMatches const & matches)
 {
-    typedef typename Size<TReadSeqs>::Type              TSize;
-    typedef typename Iterator<TMatches, Standard>::Type TIter;
+    typedef typename Size<TReadSeqs>::Type                      TSize;
+    typedef typename Iterator<TMatches const, Standard>::Type   TIter;
 
     TSize pairedReads = 0;
 
