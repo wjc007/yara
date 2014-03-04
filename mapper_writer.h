@@ -51,7 +51,7 @@ struct MatchesWriter
     typedef typename Traits::TContigs          TContigs;
     typedef typename Traits::TReads            TReads;
     typedef typename Traits::TMatchesSet       TMatchesSet;
-    typedef typename Traits::TPairsSet         TPairsSet;
+    typedef typename Traits::TMatches          TMatches;
     typedef typename Traits::TOutputStream     TOutputStream;
     typedef typename Traits::TOutputContext    TOutputContext;
     typedef typename Traits::TReadsContext     TReadsContext;
@@ -64,7 +64,7 @@ struct MatchesWriter
     TOutputStream &         outputStream;
     TOutputContext &        outputCtx;
     TMatchesSet &           matchesSet;
-    TPairsSet &             pairsSet;
+    TMatches const &        pairs;
 
     // Shared-memory read-only data.
     TReadsContext const &   ctx;
@@ -75,7 +75,7 @@ struct MatchesWriter
     MatchesWriter(TOutputStream & outputStream,
                   TOutputContext & outputCtx,
                   TMatchesSet & matchesSet,
-                  TPairsSet & pairsSet,
+                  TMatches const & pairs,
                   TReadsContext const & ctx,
                   TContigs const & contigs,
                   TReads const & reads,
@@ -83,19 +83,19 @@ struct MatchesWriter
         outputStream(outputStream),
         outputCtx(outputCtx),
         matchesSet(matchesSet),
-        pairsSet(pairsSet),
+        pairs(pairs),
         ctx(ctx),
         contigs(contigs),
         reads(reads),
         options(options)
     {
-        _writeAllMatchesImpl(*this, typename Traits::TSequencing());
+        _writeAllMatchesImpl(*this);
     }
 
     template <typename TIterator>
     void operator() (TIterator const & it)
     {
-        _writeMatchesImpl(*this, it, typename Traits::TSequencing());
+        _writeMatchesImpl(*this, it);
     }
 };
 
@@ -319,11 +319,11 @@ inline void _fillXa(MatchesWriter<TSpec, Traits> & me, TMatches const & matches)
 }
 
 // ----------------------------------------------------------------------------
-// Function _writeAllMatchesImpl(SingleEnd)
+// Function _writeAllMatchesImpl()
 // ----------------------------------------------------------------------------
 
 template <typename TSpec, typename Traits>
-inline void _writeAllMatchesImpl(MatchesWriter<TSpec, Traits> & me, SingleEnd)
+inline void _writeAllMatchesImpl(MatchesWriter<TSpec, Traits> & me)
 {
     typedef typename Traits::TMatchesSet                    TMatchesSet;
     typedef typename Iterator<TMatchesSet, Standard>::Type  TMatchesIt;
@@ -338,34 +338,12 @@ inline void _writeAllMatchesImpl(MatchesWriter<TSpec, Traits> & me, SingleEnd)
 }
 
 // ----------------------------------------------------------------------------
-// Function _writeAllMatchesImpl(PairedEnd)
-// ----------------------------------------------------------------------------
-
-template <typename TSpec, typename Traits>
-inline void _writeAllMatchesImpl(MatchesWriter<TSpec, Traits> & me, PairedEnd)
-{
-    typedef typename Traits::TMatchesSet                    TMatchesSet;
-    typedef typename Iterator<TMatchesSet, Standard>::Type  TMatchesIt;
-    typedef typename Traits::TPairsSet                      TPairsSet;
-    typedef typename Iterator<TPairsSet, Standard>::Type    TPairsIt;
-
-    // TODO(esiragusa): Sort each set of pairs by errors and insert size deviation.
-//    iterate(me.pairsSet, sortPairs<TPairsIt, SortErrors>, Standard(), typename Traits::TThreading());
-
-    // Sort each set of unpaired matches by errors.
-    iterate(me.matchesSet, sortMatches<TMatchesIt, SortErrors>, Standard(), typename Traits::TThreading());
-
-    // Process all pairs.
-    iterate(me.pairsSet, me, Standard(), Serial());
-}
-
-// ----------------------------------------------------------------------------
-// Function _writeMatchesImpl(SingleEnd)
+// Function _writeMatchesImpl()
 // ----------------------------------------------------------------------------
 // Writes one block of matches.
 
 template <typename TSpec, typename Traits, typename TMatchesIt>
-inline void _writeMatchesImpl(MatchesWriter<TSpec, Traits> & me, TMatchesIt const & it, SingleEnd)
+inline void _writeMatchesImpl(MatchesWriter<TSpec, Traits> & me, TMatchesIt const & it)
 {
     typedef typename Value<TMatchesIt const>::Type  TMatches;
     typedef typename Value<TMatches>::Type          TMatch;
@@ -375,38 +353,7 @@ inline void _writeMatchesImpl(MatchesWriter<TSpec, Traits> & me, TMatchesIt cons
     if (empty(matches))
         _writeUnmappedRead(me, position(it, me.matchesSet));
     else
-        _writeMappedRead(me, matches);
-}
-
-// ----------------------------------------------------------------------------
-// Function _writeMatchesImpl(PairedEnd)
-// ----------------------------------------------------------------------------
-// Writes one block of pairs.
-
-template <typename TSpec, typename Traits, typename TPairsIt>
-inline void _writeMatchesImpl(MatchesWriter<TSpec, Traits> & me, TPairsIt const & it, PairedEnd)
-{
-    typedef typename Traits::TMatchesSet                    TMatchesSet;
-    typedef typename Iterator<TMatchesSet, Standard>::Type  TMatchesIt;
-    typedef typename Value<TPairsIt const>::Type            TPairs;
-    typedef typename Value<TPairs>::Type                    TPair;
-    typedef typename Traits::TReadSeqs                      TReadSeqs;
-    typedef typename Size<TReadSeqs>::Type                  TReadId;
-
-    TPairs const & pairs = value(it);
-
-    if (empty(pairs))
-    {
-        TReadId firstId = getFirstMateFwdSeqId(me.reads.seqs, position(it, me.pairsSet));
-        TReadId secondId = getSecondMateFwdSeqId(me.reads.seqs, position(it, me.pairsSet));
-
-        _writeMatchesImpl(me, begin(me.matchesSet, Standard()) + firstId, SingleEnd());
-        _writeMatchesImpl(me, begin(me.matchesSet, Standard()) + secondId, SingleEnd());
-    }
-    else
-    {
-        _writePairedReads(me, pairs);
-    }
+        _writeMappedRead(me, position(it, me.matchesSet), matches);
 }
 
 // ----------------------------------------------------------------------------
@@ -430,13 +377,19 @@ inline void _writeUnmappedRead(MatchesWriter<TSpec, Traits> & me, TReadId readId
 // ----------------------------------------------------------------------------
 // Writes one block of matches.
 
-template <typename TSpec, typename Traits, typename TMatches>
-inline void _writeMappedRead(MatchesWriter<TSpec, Traits> & me, TMatches const & matches)
+template <typename TSpec, typename Traits, typename TReadId, typename TMatches>
+inline void _writeMappedRead(MatchesWriter<TSpec, Traits> & me, TReadId readId, TMatches const & matches)
+{
+    _writeMappedReadImpl(me, readId, matches, typename Traits::TSequencing());
+}
+
+template <typename TSpec, typename Traits, typename TReadId, typename TMatches>
+inline void _writeMappedReadImpl(MatchesWriter<TSpec, Traits> & me, TReadId readId, TMatches const & matches, SingleEnd)
 {
     typedef typename Value<TMatches>::Type          TMatch;
     typedef typename Size<TMatches>::Type           TSize;
 
-    // The first match is supposed to be the best one.
+    // The first match is the primary one.
     TMatch const & primary = front(matches);
     TSize bestCount = countBestMatches(matches);
 
@@ -444,7 +397,8 @@ inline void _writeMappedRead(MatchesWriter<TSpec, Traits> & me, TMatches const &
     me.record.flag = 0;
     _fillReadInfo(me, getReadSeqId(primary, me.reads.seqs));
     _fillReadAlignment(me, primary);
-    _fillMateInfo(me, getReadId(primary));
+    _fillMateInfo(me, readId);
+
     appendCooptimalCount(me.record, bestCount);
     appendSuboptimalCount(me.record, length(matches) - bestCount);
     appendType(me.record, bestCount == 1);
@@ -457,39 +411,36 @@ inline void _writeMappedRead(MatchesWriter<TSpec, Traits> & me, TMatches const &
 //    appendTagValue(me.record.tags, "HI", 1, 'i');
 }
 
-// ----------------------------------------------------------------------------
-// Function _writePairedReads()
-// ----------------------------------------------------------------------------
-// Writes one block of pairs.
-
-template <typename TSpec, typename Traits, typename TPairs>
-inline void _writePairedReads(MatchesWriter<TSpec, Traits> & me, TPairs const & pairs)
+template <typename TSpec, typename Traits, typename TReadId, typename TMatches>
+inline void _writeMappedReadImpl(MatchesWriter<TSpec, Traits> & me, TReadId readId, TMatches const & matches, PairedEnd)
 {
-    typedef typename Value<TPairs>::Type          TPair;
-    typedef typename Value<TPair, 1>::Type        TMatch;
+    typedef typename Value<TMatches>::Type          TMatch;
+    typedef typename Size<TMatches>::Type           TSize;
 
-    // The first pair is supposed to be the best one.
-    TPair const & primary = front(pairs);
-    TMatch first = getValueI1(primary);
-    TMatch second = getValueI2(primary);
+    // Check for paired match.
+    TMatch const & mate = me.pairs[readId];
+    bool paired = getReadId(mate) == readId;
 
-    clear(me.record);
-    me.record.flag = 0;
-    _fillReadInfo(me, getReadSeqId(first, me.reads.seqs));
-    _fillReadAlignment(me, first);
-    _fillMateInfo(me, getReadId(first));
-    _fillMatePosition(me, first, second);
-    appendPairsCount(me.record, length(pairs));
-    write2(me.outputStream, me.record, me.outputCtx, typename Traits::TOutputFormat());
+    // If the read is paired, the paired match is the primary one.
+    TMatch const & primary = paired ? me.pairs[getMateSeqId(me.reads.seqs, readId)] : front(matches);
+    TSize bestCount = countBestMatches(matches);
 
     clear(me.record);
     me.record.flag = 0;
-    _fillReadInfo(me, getReadSeqId(second, me.reads.seqs));
-    _fillReadAlignment(me, second);
-    _fillMateInfo(me, getReadId(second));
-    _fillMatePosition(me, second, first);
-    appendPairsCount(me.record, length(pairs));
+    _fillReadInfo(me, getReadSeqId(primary, me.reads.seqs));
+    _fillReadAlignment(me, primary);
+    _fillMateInfo(me, getReadId(primary));
+    if (paired) _fillMatePosition(me, primary, mate);
+    appendCooptimalCount(me.record, bestCount);
+    appendSuboptimalCount(me.record, length(matches) - bestCount);
+    appendType(me.record, bestCount == 1);
+    _fillXa(me, matches);
     write2(me.outputStream, me.record, me.outputCtx, typename Traits::TOutputFormat());
+
+    // Set number of secondary alignments.
+//    appendTagValue(me.record.tags, "NH", 1, 'i');
+    // Set hit index.
+//    appendTagValue(me.record.tags, "HI", 1, 'i');
 }
 
 #endif  // #ifndef APP_CUDAMAPPER_MAPPER_WRITER_H_
