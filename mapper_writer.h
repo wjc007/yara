@@ -422,7 +422,7 @@ inline void _writeMappedReadImpl(MatchesWriter<TSpec, Traits> & me, TReadId read
     bool paired = getReadId(mate) == readId;
 
     // If the read is paired, the paired match is the primary one.
-    TMatch const & primary = paired ? me.pairs[getMateSeqId(me.reads.seqs, readId)] : front(matches);
+    TMatch const & primary = paired ? me.pairs[getMateId(me.reads.seqs, readId)] : front(matches);
     TSize bestCount = countBestMatches(matches);
 
     clear(me.record);
