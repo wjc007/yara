@@ -537,6 +537,26 @@ countMappedReads(TReadSeqs const & readSeqs, TMatches const & matches, TThreadin
 }
 
 // ----------------------------------------------------------------------------
+// Function countMappedPairs()
+// ----------------------------------------------------------------------------
+
+template <typename TReadSeqs, typename TMatches>
+inline typename Size<TReadSeqs>::Type
+countMappedPairs(TReadSeqs const & readSeqs, TMatches const & matches)
+{
+    typedef typename Size<TReadSeqs>::Type              TSize;
+    typedef typename Iterator<TMatches, Standard>::Type TIter;
+
+    TSize pairedReads = 0;
+
+    for (TIter it = begin(matches, Standard()); !atEnd(it, matches); it++)
+        if (getReadId(*it) < getReadsCount(readSeqs))
+            pairedReads++;
+
+    return pairedReads / 2;
+}
+
+// ----------------------------------------------------------------------------
 // Function countBestMatches()
 // ----------------------------------------------------------------------------
 // Count the number of cooptimal matches - ordering by errors is required.

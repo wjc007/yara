@@ -629,7 +629,7 @@ inline void _selectPairsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs const & 
     stop(mapper.timer);
 
     std::cout << "Pairing time:\t\t\t" << mapper.timer << std::endl;
-//    std::cout << "Mapped pairs:\t\t\t" << countMappedReads(readSeqs, mapper.mates, typename TConfig::TThreading()) << std::endl;
+    std::cout << "Mapped pairs:\t\t\t" << countMappedPairs(readSeqs, mapper.mates) << std::endl;
 }
 
 // ----------------------------------------------------------------------------
