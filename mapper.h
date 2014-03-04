@@ -192,9 +192,6 @@ struct MapperTraits
     typedef Match<void>                                             TMatch;
     typedef String<TMatch>                                          TMatches;
     typedef StringSet<TMatches, Segment<TMatches> >                 TMatchesSet;
-    typedef Pair<TMatch>                                            TPair;
-    typedef String<TPair>                                           TPairs;
-    typedef StringSet<TPairs, Owner<ConcatDirect<> > >              TPairsSet;
 
     typedef Multiple<FinderSTree>                                   TAlgorithmExt;
     typedef Multiple<Backtracking<HammingDistance> >                TAlgorithmApx;
@@ -228,7 +225,8 @@ struct Mapper
     typename Traits::THitsBuckets       hits;
     typename Traits::TMatches           anchors;
     typename Traits::TMatchesSet        anchorsSet;
-    typename Traits::TPairsSet          pairsSet;
+    typename Traits::TMatches           mates;
+    typename Traits::TMatches           pairs;
 
     typename Traits::TFinderExt         finderExt;
     typename Traits::TFinderApx         finderApx;
@@ -246,7 +244,8 @@ struct Mapper
         hits(),
         anchors(),
         anchorsSet(),
-        pairsSet(),
+        mates(),
+        pairs(),
         finderExt(index),
         finderApx(index)
     {};
@@ -596,29 +595,50 @@ inline void aggregateAnchors(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSe
 template <typename TSpec, typename TConfig, typename TReadSeqs>
 inline void verifyAnchors(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs)
 {
-    _verifyAnchorsImpl(mapper, readSeqs, typename TConfig::TSequencing());
+    _verifyAnchorsImpl(mapper, readSeqs, typename TConfig::TAnchoring());
 }
 
-template <typename TSpec, typename TConfig, typename TReadSeqs, typename TSequencing>
-inline void _verifyAnchorsImpl(Mapper<TSpec, TConfig> & /* mapper */, TReadSeqs & /* readSeqs */, TSequencing) {}
+template <typename TSpec, typename TConfig, typename TReadSeqs, typename TAnchoring>
+inline void _verifyAnchorsImpl(Mapper<TSpec, TConfig> & /* mapper */, TReadSeqs & /* readSeqs */, TAnchoring) {}
 
 template <typename TSpec, typename TConfig, typename TReadSeqs>
-inline void _verifyAnchorsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, PairedEnd)
+inline void _verifyAnchorsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, AnchorOne)
 {
     typedef MapperTraits<TSpec, TConfig>    TTraits;
     typedef AnchorsVerifier<TSpec, TTraits> TAnchorsVerifier;
 
     start(mapper.timer);
-    clear(mapper.pairsSet);
-    TAnchorsVerifier verifier(mapper.ctx, mapper.pairsSet,
+    clear(mapper.mates);
+    TAnchorsVerifier verifier(mapper.ctx, mapper.mates,
                               mapper.contigs.seqs, readSeqs,
                               mapper.anchorsSet, mapper.options);
     stop(mapper.timer);
 
     std::cout << "Verification time:\t\t" << mapper.timer << std::endl;
-    std::cout << "Mates count:\t\t\t" << length(concat(mapper.pairsSet)) << std::endl;
-//    std::cout << "Mates count:\t\t\t" << lengthSum(mapper.pairsSet) << std::endl;
-    std::cout << "Mapped pairs:\t\t\t" << length(mapper.pairsSet) << std::endl;
+    std::cout << "Mates count:\t\t\t" << length(mapper.mates) << std::endl;
+    std::cout << "Mapped pairs:\t\t\t" << countMappedReads(readSeqs, mapper.mates, typename TConfig::TThreading()) << std::endl;
+}
+
+// ----------------------------------------------------------------------------
+// Function selectMates()
+// ----------------------------------------------------------------------------
+
+template <typename TSpec, typename TConfig, typename TReadSeqs>
+inline void selectMates(Mapper<TSpec, TConfig> & mapper, TReadSeqs const & readSeqs)
+{
+//    typedef typename Size<TReadSeqs>::Type              TReadId;
+//
+//    clear(mapper.pairs);
+//    resize(mapper.pairs, getReadsCount(readSeqs), MaxValue<unsigned>::VALUE, Exact());
+//
+//    TReadId pairsCount = getPairsCount(readSeqs);
+//
+//    for (TReadId pairId = 0; pairId < pairsCount; ++pairId)
+//    {
+//        pairMatches(mapper.anchorsSet[getFirstMateFwdSeqId(readSeqs, pairId)],
+//                    mapper.anchorsSet[getSecondMateFwdSeqId(readSeqs, pairId)],
+//                    mapper.options.libraryLength, mapper.options.libraryError, me);
+//    }
 }
 
 // ----------------------------------------------------------------------------
@@ -633,7 +653,7 @@ inline void writeMatches(Mapper<TSpec, TConfig> & mapper)
 
     start(mapper.timer);
     TMatchesWriter writer(mapper.outputStream, mapper.outputCtx,
-                          mapper.anchorsSet, mapper.pairsSet,
+                          mapper.anchorsSet,
                           mapper.ctx, mapper.contigs, mapper.reads,
                           mapper.options);
 
