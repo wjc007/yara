@@ -132,7 +132,7 @@ void setupArgumentParser(ArgumentParser & parser, Options const & options)
 //    setDefaultValue(parser, "strata-rate", options.strataRate);
 
 //    addOption(parser, ArgParseOption("a", "all", "Report all suboptimal mapping locations."));// Shortcut for strata-rate = error-rate."));
-    addOption(parser, ArgParseOption("s", "stratum", "Report only cooptimal mapping locations."));
+    addOption(parser, ArgParseOption("s", "strata", "Report only cooptimal mapping locations."));
 
     // Setup paired-end mapping options.
     addSection(parser, "Paired-End / Mate-Pairs Options");
