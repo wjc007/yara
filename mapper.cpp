@@ -223,7 +223,7 @@ parseCommandLine(Options & options, ArgumentParser & parser, int argc, char cons
 
     bool strata = false;
     getOptionValue(strata, parser, "strata");
-    if (strata) options.mappingMode = Options::STRATA;
+    if (strata) options.mappingMode = STRATA;
 
     // Parse paired-end mapping options.
     getOptionValue(options.libraryLength, parser, "library-length");
@@ -277,10 +277,10 @@ void configureStrategy(Options const & options, TExecSpace const & execSpace, TT
 {
     switch (options.mappingMode)
     {
-    case Options::STRATA:
+    case STRATA:
         return spawnMapper(options, execSpace, threading, format, sequencing, Strata(), Nothing());
 
-    case Options::ALL:
+    case ALL:
         return spawnMapper(options, execSpace, threading, format, sequencing, All(), Nothing());
 
     default:
@@ -311,11 +311,11 @@ void configureOutputFormat(Options const & options, TExecSpace const & execSpace
 {
     switch (options.outputFormat)
     {
-    case Options::SAM:
+    case SAM:
         return configureSequencing(options, execSpace, threading, Sam());
 
 #ifdef SEQAN_HAS_ZLIB
-    case Options::BAM:
+    case BAM:
         return configureSequencing(options, execSpace, threading, Bam());
 #endif
 

@@ -50,21 +50,6 @@ struct Options
     typedef std::string             TString;
     typedef std::vector<TString>    TList;
 
-    enum MappingMode
-    {
-        STRATA, ALL
-    };
-
-    enum LibraryOrientation
-    {
-        FWD_REV, FWD_FWD, REV_REV
-    };
-
-    enum OutputFormat
-    {
-        SAM, BAM
-    };
-
     CharString          genomeFile;
     CharString          genomeIndexFile;
     Pair<CharString>    readsFile;
