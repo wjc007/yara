@@ -117,7 +117,6 @@ struct PairsSelector
     typedef typename Traits::TReadSeqs         TReadSeqs;
     typedef typename Traits::TMatchesSet       TMatchesSet;
     typedef typename Traits::TMatches          TMatches;
-    typedef typename Traits::TMatch            TMatch;
 
     // Shared-memory read-write data.
     TMatches &          pairs;
@@ -145,9 +144,10 @@ struct PairsSelector
         _selectPairImpl(*this, it);
     }
 
-    void operator() (TMatch const & left, TMatch const & right)
+    template <typename TMatch, typename TOrientation>
+    void operator() (TMatch const & first, TMatch const & second, TOrientation const & tag)
     {
-        _selectBestPair(*this, left, right);
+        _enumeratePairsImpl(*this, first, second, tag);
     }
 };
 
@@ -315,9 +315,103 @@ inline void _selectPairImpl(PairsSelector<TSpec, Traits> & me, TIterator const &
     // Get pairId.
     TReadId pairId = position(it);
 
-    pairMatches(me.anchorsSet[getFirstMateFwdSeqId(me.readSeqs, pairId)],
-                me.anchorsSet[getSecondMateFwdSeqId(me.readSeqs, pairId)],
-                me.options.libraryLength, me.options.libraryError, me);
+    TReadId firstId = getFirstMateFwdSeqId(me.readSeqs, pairId);
+    TReadId secondId = getSecondMateFwdSeqId(me.readSeqs, pairId);
+
+    bucketMatches(me.anchorsSet[firstId], me.anchorsSet[secondId], me);
+}
+
+// ----------------------------------------------------------------------------
+// Function _enumeratePairsImpl()
+// ----------------------------------------------------------------------------
+
+template <typename TSpec, typename Traits, typename TMatches>
+inline void _enumeratePairsImpl(PairsSelector<TSpec, Traits> & me, TMatches const & first, TMatches const & second, FwdRev)
+{
+    if (me.options.libraryOrientation == FWD_REV)
+        _enumeratePairs(me, first, second);
+}
+
+template <typename TSpec, typename Traits, typename TMatches>
+inline void _enumeratePairsImpl(PairsSelector<TSpec, Traits> & me, TMatches const & first, TMatches const & second, RevFwd)
+{
+    if (me.options.libraryOrientation == FWD_REV)
+        _enumeratePairs(me, second, first);
+}
+
+template <typename TSpec, typename Traits, typename TMatches>
+inline void _enumeratePairsImpl(PairsSelector<TSpec, Traits> & me, TMatches const & first, TMatches const & second, FwdFwd)
+{
+    if (me.options.libraryOrientation == FWD_FWD)
+    {
+        _enumeratePairs(me, first, second);
+        _enumeratePairs(me, second, first);
+    }
+}
+
+template <typename TSpec, typename Traits, typename TMatches>
+inline void _enumeratePairsImpl(PairsSelector<TSpec, Traits> & me, TMatches const & first, TMatches const & second, RevRev)
+{
+    if (me.options.libraryOrientation == REV_REV)
+    {
+        _enumeratePairs(me, first, second);
+        _enumeratePairs(me, second, first);
+    }
+}
+
+// ----------------------------------------------------------------------------
+// Function _enumeratePairs()
+// ----------------------------------------------------------------------------
+
+template <typename TSpec, typename Traits, typename TMatches>
+inline void _enumeratePairs(PairsSelector<TSpec, Traits> & me, TMatches const & left, TMatches const & right)
+{
+    typedef typename Iterator<TMatches const, Standard>::Type TIterator;
+
+    TIterator leftBegin = begin(left, Standard());
+    TIterator leftEnd = end(left, Standard());
+    TIterator rightBegin = begin(right, Standard());
+    TIterator rightEnd = end(right, Standard());
+
+    TIterator leftIt = leftBegin;
+
+    if (leftIt == leftEnd) return;
+
+    // Left queue C= right queue, i.e. leftTail >= rightTail && leftHead <= rightHead
+
+    // Get next right match.
+    for (TIterator rightIt = rightBegin; rightIt != rightEnd; ++rightIt)
+    {
+        // Compute the interval of feasible left matches from current right match.
+        unsigned rightHead = getContigEnd(*rightIt) - me.options.libraryLength + me.options.libraryError;
+        unsigned rightTail = getContigEnd(*rightIt) - me.options.libraryLength - me.options.libraryError;
+
+        // Seek first feasible left match - beyond the right tail.
+        while (leftIt != leftEnd && getContigBegin(*leftIt) < rightTail)
+            ++leftIt;
+
+        // No left matches anymore.
+        TIterator leftTailIt = leftIt;
+        if (leftTailIt == leftEnd)
+            break;
+
+        // Continue with next right match if there are no feasible left matches anymore.
+        unsigned leftTail = getContigBegin(*leftTailIt);
+        if (leftTail >= rightHead)
+            continue;
+
+        // Seek first infeasible left match - beyond the right head.
+        while (leftIt != leftEnd && getContigBegin(*leftIt) < rightHead)
+            ++leftIt;
+        TIterator leftHeadIt = leftIt;
+
+        // Couple all lefts matches in the queue with current right match.
+        for (TIterator leftQueueIt = leftTailIt; leftQueueIt != leftHeadIt; ++leftQueueIt)
+            _selectBestPair(me, *leftQueueIt, *rightIt);
+
+        // Empty left queue.
+//        if (leftTailIt == leftHeadIt) continue;
+    }
 }
 
 // ----------------------------------------------------------------------------

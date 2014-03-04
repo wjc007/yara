@@ -643,13 +643,11 @@ inline void findReverseStrand(TMatchesIterator & it, TMatches const & matches, T
 }
 
 // ----------------------------------------------------------------------------
-// Function pairMatches()
+// Function bucketMatches()
 // ----------------------------------------------------------------------------
 
-template <typename TMatches, typename TLibraryLength, typename TLibraryError, typename TDelegate>
-inline void pairMatches(TMatches const & left, TMatches const & right,
-                        TLibraryLength libraryLength, TLibraryError libraryError,
-                        TDelegate & delegate)
+template <typename TMatches, typename TDelegate>
+inline void bucketMatches(TMatches const & left, TMatches const & right, TDelegate & delegate)
 {
     typedef typename Iterator<TMatches const, Standard>::Type   TIterator;
     typedef typename Infix<TMatches const>::Type                TInfix;
@@ -681,65 +679,10 @@ inline void pairMatches(TMatches const & left, TMatches const & right,
         TInfix leftRev = infix(left, position(leftBegin, left), position(leftIt, left));
         TInfix rightRev = infix(right, position(rightBegin, right), position(rightIt, right));
 
-        enumeratePairs(leftFwd, rightRev, libraryLength, libraryError, delegate);
-        enumeratePairs(rightFwd, leftRev, libraryLength, libraryError, delegate);
-    }
-}
-
-// ----------------------------------------------------------------------------
-// Function enumeratePairs()
-// ----------------------------------------------------------------------------
-
-template <typename TMatches, typename TLibraryLength, typename TLibraryError, typename TDelegate>
-inline void enumeratePairs(TMatches const & matchesFwd, TMatches const & matchesRev,
-                           TLibraryLength libraryLength, TLibraryError libraryError,
-                           TDelegate & delegate)
-{
-    typedef typename Iterator<TMatches const, Standard>::Type TIterator;
-
-    TIterator matchesFwdBegin = begin(matchesFwd, Standard());
-    TIterator matchesFwdEnd = end(matchesFwd, Standard());
-    TIterator matchesRevBegin = begin(matchesRev, Standard());
-    TIterator matchesRevEnd = end(matchesRev, Standard());
-
-    TIterator matchesFwdIt = matchesFwdBegin;
-
-    if (matchesFwdIt == matchesFwdEnd) return;
-
-    // matchesFwd queue C= matchesRev queue, i.e. matchesFwdTail >= matchesRevTail && matchesFwdHead <= matchesRevHead
-
-    // Get next rev match.
-    for (TIterator matchesRevIt = matchesRevBegin; matchesRevIt != matchesRevEnd; ++matchesRevIt)
-    {
-        // Compute the interval of feasible fwd matches from current rev match.
-        unsigned matchesRevHead = getContigEnd(*matchesRevIt) - libraryLength + libraryError;
-        unsigned matchesRevTail = getContigEnd(*matchesRevIt) - libraryLength - libraryError;
-
-        // Seek first feasible fwd match - beyond the rev tail.
-        while (matchesFwdIt != matchesFwdEnd && getContigBegin(*matchesFwdIt) < matchesRevTail)
-            ++matchesFwdIt;
-
-        // No fwd matches anymore.
-        TIterator matchesFwdTailIt = matchesFwdIt;
-        if (matchesFwdTailIt == matchesFwdEnd)
-            break;
-
-        // Continue with next rev match if there are no feasible fwd matches anymore.
-        unsigned matchesFwdTail = getContigBegin(*matchesFwdTailIt);
-        if (matchesFwdTail >= matchesRevHead)
-            continue;
-
-        // Seek first infeasible fwd match - beyond the rev head.
-        while (matchesFwdIt != matchesFwdEnd && getContigBegin(*matchesFwdIt) < matchesRevHead)
-            ++matchesFwdIt;
-        TIterator matchesFwdHeadIt = matchesFwdIt;
-
-        // Couple all fwds matches in the queue with current rev match.
-        for (TIterator matchesFwdQueueIt = matchesFwdTailIt; matchesFwdQueueIt != matchesFwdHeadIt; ++matchesFwdQueueIt)
-            delegate(*matchesFwdQueueIt, *matchesRevIt);
-
-        // Empty matchesFwd queue.
-//        if (matchesFwdTailIt == matchesFwdHeadIt) continue;
+        delegate(leftFwd, rightRev, FwdRev());
+        delegate(leftFwd, rightFwd, FwdFwd());
+        delegate(leftRev, rightFwd, RevFwd());
+        delegate(leftRev, rightRev, RevRev());
     }
 }
 
