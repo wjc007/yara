@@ -147,15 +147,7 @@ struct PairsSelector
 
     void operator() (TMatch const & left, TMatch const & right)
     {
-        TMatch & bestLeft = pairs[getReadId(left)];
-        TMatch & bestRight = pairs[getReadId(right)];
-
-        // TODO(esiragusa): consider least insert deviation.
-        if (getErrors(left, right) < getErrors(bestLeft, bestRight))
-        {
-            bestLeft = left;
-            bestRight = right;
-        }
+        _selectBestPair(*this, left, right);
     }
 };
 
@@ -326,6 +318,32 @@ inline void _selectPairImpl(PairsSelector<TSpec, Traits> & me, TIterator const &
     pairMatches(me.anchorsSet[getFirstMateFwdSeqId(me.readSeqs, pairId)],
                 me.anchorsSet[getSecondMateFwdSeqId(me.readSeqs, pairId)],
                 me.options.libraryLength, me.options.libraryError, me);
+}
+
+// ----------------------------------------------------------------------------
+// Function _selectBestPair()
+// ----------------------------------------------------------------------------
+
+template <typename TSpec, typename Traits, typename TMatch>
+inline void _selectBestPair(PairsSelector<TSpec, Traits> & me, TMatch const & left, TMatch const & right)
+{
+    TMatch & bestLeft = me.pairs[getReadId(left)];
+    TMatch & bestRight = me.pairs[getReadId(right)];
+
+    unsigned errors = getErrors(left, right);
+    unsigned bestErrors = getErrors(bestLeft, bestRight);
+
+    if (errors <= bestErrors)
+    {
+        unsigned libraryDeviation = _abs((int)getTemplateLength(left, right) - (int)me.options.libraryLength);
+        unsigned bestLibraryDeviation = _abs((int)getTemplateLength(bestLeft, bestRight) - (int)me.options.libraryLength);
+
+        if (errors < bestErrors || libraryDeviation < bestLibraryDeviation)
+        {
+            bestLeft = left;
+            bestRight = right;
+        }
+    }
 }
 
 #endif  // #ifndef APP_CUDAMAPPER_MAPPER_VERIFIER_H_
