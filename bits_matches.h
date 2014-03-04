@@ -374,10 +374,27 @@ inline unsigned char getErrors(Match<TSpec> const & me)
     return me.errors;
 }
 
+// ----------------------------------------------------------------------------
+// Function getErrors()
+// ----------------------------------------------------------------------------
+
 template <typename TSpec>
 inline unsigned getErrors(Match<TSpec> const & a, Match<TSpec> const & b)
 {
     return (unsigned)a.errors + b.errors;
+}
+
+// ----------------------------------------------------------------------------
+// Function getTemplateLength()
+// ----------------------------------------------------------------------------
+
+template <typename TSpec>
+inline unsigned getTemplateLength(Match<TSpec> const & a, Match<TSpec> const & b)
+{
+    if (getContigBegin(a) < getContigBegin(b))
+        return getContigEnd(b) - getContigBegin(a);
+    else
+        return getContigEnd(a) - getContigBegin(b);
 }
 
 // ----------------------------------------------------------------------------
