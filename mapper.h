@@ -620,25 +620,31 @@ inline void _verifyAnchorsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & read
 }
 
 // ----------------------------------------------------------------------------
-// Function selectMates()
+// Function selectPairs()
 // ----------------------------------------------------------------------------
 
 template <typename TSpec, typename TConfig, typename TReadSeqs>
-inline void selectMates(Mapper<TSpec, TConfig> & mapper, TReadSeqs const & readSeqs)
+inline void selectPairs(Mapper<TSpec, TConfig> & mapper, TReadSeqs const & readSeqs)
 {
-//    typedef typename Size<TReadSeqs>::Type              TReadId;
-//
-//    clear(mapper.pairs);
-//    resize(mapper.pairs, getReadsCount(readSeqs), MaxValue<unsigned>::VALUE, Exact());
-//
-//    TReadId pairsCount = getPairsCount(readSeqs);
-//
-//    for (TReadId pairId = 0; pairId < pairsCount; ++pairId)
-//    {
-//        pairMatches(mapper.anchorsSet[getFirstMateFwdSeqId(readSeqs, pairId)],
-//                    mapper.anchorsSet[getSecondMateFwdSeqId(readSeqs, pairId)],
-//                    mapper.options.libraryLength, mapper.options.libraryError, me);
-//    }
+    _selectPairsImpl(mapper, readSeqs, typename TConfig::TAnchoring());
+}
+
+template <typename TSpec, typename TConfig, typename TReadSeqs, typename TAnchoring>
+inline void _selectPairsImpl(Mapper<TSpec, TConfig> & /* mapper */, TReadSeqs & /* readSeqs */, TAnchoring) {}
+
+template <typename TSpec, typename TConfig, typename TReadSeqs>
+inline void _selectPairsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs const & readSeqs, AnchorBoth)
+{
+    typedef MapperTraits<TSpec, TConfig>    TTraits;
+    typedef PairsSelector<TSpec, TTraits>   TPairsSelector;
+
+    start(mapper.timer);
+    clear(mapper.pairs);
+    TPairsSelector selector(mapper.pairs, readSeqs, mapper.anchorsSet, mapper.options);
+    stop(mapper.timer);
+
+    std::cout << "Pairing time:\t\t" << mapper.timer << std::endl;
+//    std::cout << "Mapped pairs:\t\t\t" << countMappedReads(readSeqs, mapper.mates, typename TConfig::TThreading()) << std::endl;
 }
 
 // ----------------------------------------------------------------------------
@@ -653,7 +659,7 @@ inline void writeMatches(Mapper<TSpec, TConfig> & mapper)
 
     start(mapper.timer);
     TMatchesWriter writer(mapper.outputStream, mapper.outputCtx,
-                          mapper.anchorsSet,
+                          mapper.anchorsSet, mapper.pairs,
                           mapper.ctx, mapper.contigs, mapper.reads,
                           mapper.options);
 
@@ -735,7 +741,7 @@ inline void _mapReadsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs,
     extendHits(mapper);
     aggregateAnchors(mapper, readSeqs);
     verifyAnchors(mapper, readSeqs);
-
+    selectPairs(mapper, readSeqs);
     writeMatches(mapper);
 }
 

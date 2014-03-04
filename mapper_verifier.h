@@ -151,7 +151,7 @@ struct PairsSelector
         TMatch & bestRight = pairs[getReadId(right)];
 
         // TODO(esiragusa): consider least insert deviation.
-        if (getErrors(left) + getErrors(right) < getErrors(bestLeft) + getErrors(bestRight))
+        if (getErrors(left, right) < getErrors(bestLeft, bestRight))
         {
             bestLeft = left;
             bestRight = right;
@@ -298,15 +298,16 @@ inline void _selectPairsImpl(PairsSelector<TSpec, Traits> & me)
 {
     typedef typename Traits::TReadSeqs              TReadSeqs;
     typedef Segment<TReadSeqs const, PrefixSegment> TPrefix;
+    typedef typename Traits::TMatch                 TMatch;
 
     TPrefix pairs(me.readSeqs, getPairsCount(me.readSeqs));
 
     clear(me.pairs);
-    resize(me.pairs, getReadsCount(me.readSeqs), MaxValue<unsigned>::VALUE, Exact());
+    TMatch unpaired = { getReadsCount(me.readSeqs), 0, 0, 0, 0, 31 };
+    resize(me.pairs, getReadsCount(me.readSeqs), unpaired, Exact());
 
     // Iterate over all pairs.
-    // TODO(esiragusa): parallelize.
-    iterate(pairs, me, Rooted(), Serial());
+    iterate(pairs, me, Rooted(), typename Traits::TThreading());
 }
 
 // ----------------------------------------------------------------------------
