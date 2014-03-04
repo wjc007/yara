@@ -205,7 +205,7 @@ template <typename TString>
 inline void appendAlignments(BamAlignmentRecord & record, TString const & xa)
 {
     // XA:Z:(chr,pos,strand,CIGAR,NM;)+
-    appendTagValue(record.tags, "XA", xa, 'Z');
+    if (!empty(xa)) appendTagValue(record.tags, "XA", xa, 'Z');
 }
 
 // ----------------------------------------------------------------------------
@@ -296,11 +296,8 @@ inline void _fillXa(MatchesWriter<TSpec, Traits> & me, TMatches const & matches)
 {
     typedef typename Iterator<TMatches const, Standard>::Type   TIter;
 
-    if (length(matches) <= 1) return;
-
-    clear(me.xa);
     TIter itEnd = end(matches, Standard());
-    for (TIter it = begin(matches, Standard()) + 1; it != itEnd; ++it)
+    for (TIter it = begin(matches, Standard()); it != itEnd; ++it)
     {
         append(me.xa, nameStore(me.outputCtx)[getContigId(value(it))]);
         appendValue(me.xa, ',');
@@ -314,8 +311,6 @@ inline void _fillXa(MatchesWriter<TSpec, Traits> & me, TMatches const & matches)
         appendValue(me.xa, '0' + getErrors(value(it)));
         appendValue(me.xa, ';');
     }
-
-    appendAlignments(me.record, me.xa);
 }
 
 // ----------------------------------------------------------------------------
@@ -402,27 +397,35 @@ inline void _writeMappedReadImpl(MatchesWriter<TSpec, Traits> & me, TReadId read
     appendCooptimalCount(me.record, bestCount);
     appendSuboptimalCount(me.record, length(matches) - bestCount);
     appendType(me.record, bestCount == 1);
-    _fillXa(me, matches);
-    write2(me.outputStream, me.record, me.outputCtx, typename Traits::TOutputFormat());
 
     // Set number of secondary alignments.
 //    appendTagValue(me.record.tags, "NH", 1, 'i');
     // Set hit index.
 //    appendTagValue(me.record.tags, "HI", 1, 'i');
+
+    // Exclude primary match from matches list.
+    clear(me.xa);
+    _fillXa(me, suffix(matches, 1));
+    appendAlignments(me.record, me.xa);
+
+    write2(me.outputStream, me.record, me.outputCtx, typename Traits::TOutputFormat());
+
 }
 
 template <typename TSpec, typename Traits, typename TReadId, typename TMatches>
 inline void _writeMappedReadImpl(MatchesWriter<TSpec, Traits> & me, TReadId readId, TMatches const & matches, PairedEnd)
 {
-    typedef typename Value<TMatches>::Type          TMatch;
-    typedef typename Size<TMatches>::Type           TSize;
+    typedef typename Value<TMatches>::Type                      TMatch;
+    typedef typename Size<TMatches>::Type                       TSize;
+    typedef typename Iterator<TMatches const, Standard>::Type   TIter;
 
     // Check for paired match.
-    TMatch const & mate = me.pairs[readId];
-    bool paired = getReadId(mate) == readId;
+    TReadId mateId = getMateId(me.reads.seqs, readId);
+    TMatch const & mate = me.pairs[mateId];
+    bool paired = getReadId(mate) == mateId;
 
     // If the read is paired, the paired match is the primary one.
-    TMatch const & primary = paired ? me.pairs[getMateId(me.reads.seqs, readId)] : front(matches);
+    TMatch const & primary = paired ? me.pairs[readId] : front(matches);
     TSize bestCount = countBestMatches(matches);
 
     clear(me.record);
@@ -434,13 +437,15 @@ inline void _writeMappedReadImpl(MatchesWriter<TSpec, Traits> & me, TReadId read
     appendCooptimalCount(me.record, bestCount);
     appendSuboptimalCount(me.record, length(matches) - bestCount);
     appendType(me.record, bestCount == 1);
-    _fillXa(me, matches);
-    write2(me.outputStream, me.record, me.outputCtx, typename Traits::TOutputFormat());
 
-    // Set number of secondary alignments.
-//    appendTagValue(me.record.tags, "NH", 1, 'i');
-    // Set hit index.
-//    appendTagValue(me.record.tags, "HI", 1, 'i');
+    // Exclude primary match from matches list.
+    clear(me.xa);
+    TIter it = findMatch(matches, primary);
+    _fillXa(me, prefix(matches, position(it, matches)));
+    _fillXa(me, suffix(matches, position(it + 1, matches)));
+    appendAlignments(me.record, me.xa);
+
+    write2(me.outputStream, me.record, me.outputCtx, typename Traits::TOutputFormat());
 }
 
 #endif  // #ifndef APP_CUDAMAPPER_MAPPER_WRITER_H_
