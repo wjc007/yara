@@ -369,6 +369,13 @@ getReadId(TReadSeqs const & readSeqs, TReadSeqId readSeqId)
     return isFwdReadSeq(readSeqs, readSeqId) ? readSeqId : readSeqId - getReadsCount(readSeqs);
 }
 
+template <typename TReadSeqs, typename TReadId>
+inline typename Size<TReadSeqs>::Type
+getMateId(TReadSeqs const & readSeqs, TReadId readId)
+{
+    return isFirstMate(readSeqs, readId) ? getSecondMateFwdSeqId(readSeqs, readId) : getFirstMateFwdSeqId(readSeqs, readId);
+}
+
 template <typename TReadSeqs, typename TReadSeqId>
 inline typename Size<TReadSeqs>::Type
 getPairId(TReadSeqs const & readSeqs, TReadSeqId readSeqId)
