@@ -542,6 +542,24 @@ countBestMatches(TMatches const & matches)
 }
 
 // ----------------------------------------------------------------------------
+// Function findMatch()
+// ----------------------------------------------------------------------------
+
+template <typename TMatches, typename TMatch>
+inline typename Iterator<TMatches const, Standard>::Type
+findMatch(TMatches const & matches, TMatch const & match)
+{
+    typedef typename Iterator<TMatches const, Standard>::Type   TIter;
+
+    TIter it = begin(matches, Standard());
+    TIter itEnd = end(matches, Standard());
+
+    for (; it != itEnd && !isDuplicate(*it, match, SortBeginPos()); it++) ;
+
+    return it;
+}
+
+// ----------------------------------------------------------------------------
 // Function sortMatches()
 // ----------------------------------------------------------------------------
 
