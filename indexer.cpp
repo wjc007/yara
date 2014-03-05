@@ -209,7 +209,7 @@ void buildIndex(Indexer<TIndexSpec, TSpec> & indexer)
 
     // Clears the contigs.
     // NOTE(esiragusa): the index now owns its own contigs.
-//    shrinkToFit(indexer.contigs.seqs);
+    shrinkToFit(indexer.contigs.seqs);
 
     // Iterator instantiation calls automatic index construction.
     typename Iterator<TIndex, TopDown<> >::Type it(indexer.index);

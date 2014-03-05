@@ -391,6 +391,20 @@ inline void initSeeds(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs)
 }
 
 // ----------------------------------------------------------------------------
+// Function clearSeeds()
+// ----------------------------------------------------------------------------
+
+template <typename TSpec, typename TConfig>
+inline void clearSeeds(Mapper<TSpec, TConfig> & mapper)
+{
+    for (unsigned bucketId = 0; bucketId < TConfig::BUCKETS; bucketId++)
+    {
+        clear(mapper.seeds[bucketId]);
+        shrinkToFit(mapper.seeds[bucketId]);
+    }
+}
+
+// ----------------------------------------------------------------------------
 // Function initReadsContext()
 // ----------------------------------------------------------------------------
 
@@ -495,7 +509,10 @@ template <typename TSpec, typename TConfig>
 inline void clearHits(Mapper<TSpec, TConfig> & mapper)
 {
     for (unsigned bucketId = 0; bucketId < TConfig::BUCKETS; bucketId++)
+    {
         clear(mapper.hits[bucketId]);
+        shrinkToFit(mapper.hits[bucketId]);
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -605,6 +622,18 @@ inline void _verifyAnchorsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & read
 }
 
 // ----------------------------------------------------------------------------
+// Function clearAnchors()
+// ----------------------------------------------------------------------------
+// Clears all anchors.
+
+template <typename TSpec, typename TConfig>
+inline void clearAnchors(Mapper<TSpec, TConfig> & mapper)
+{
+    clear(mapper.anchors);
+    shrinkToFit(mapper.anchors);
+}
+
+// ----------------------------------------------------------------------------
 // Function selectPairs()
 // ----------------------------------------------------------------------------
 
@@ -629,7 +658,19 @@ inline void _selectPairsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs const & 
     stop(mapper.timer);
 
     std::cout << "Pairing time:\t\t\t" << mapper.timer << std::endl;
-    std::cout << "Mapped pairs:\t\t\t" << countMappedPairs(readSeqs, mapper.mates) << std::endl;
+    std::cout << "Mapped pairs:\t\t\t" << countMappedPairs(readSeqs, mapper.pairs) << std::endl;
+}
+
+// ----------------------------------------------------------------------------
+// Function clearPairs()
+// ----------------------------------------------------------------------------
+// Clears all pairs.
+
+template <typename TSpec, typename TConfig>
+inline void clearPairs(Mapper<TSpec, TConfig> & mapper)
+{
+    clear(mapper.pairs);
+    shrinkToFit(mapper.pairs);
 }
 
 // ----------------------------------------------------------------------------
@@ -714,7 +755,6 @@ inline void _mapReadsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs,
 {
     initReadsContext(mapper, readSeqs);
     initSeeds(mapper, readSeqs);
-    clearHits(mapper);
 
     collectSeeds<0>(mapper, readSeqs);
     findSeeds<0>(mapper, 0);
@@ -724,10 +764,14 @@ inline void _mapReadsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs,
     findSeeds<1>(mapper, 1);
     findSeeds<2>(mapper, 2);
     extendHits(mapper);
+    clearSeeds(mapper);
+    clearHits(mapper);
     aggregateAnchors(mapper, readSeqs);
     verifyAnchors(mapper, readSeqs);
     selectPairs(mapper, readSeqs);
     writeMatches(mapper);
+    clearAnchors(mapper);
+    clearPairs(mapper);
 }
 
 // ----------------------------------------------------------------------------
