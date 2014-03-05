@@ -201,7 +201,7 @@ inline bool _extendRight(Extender<THaystack, TNeedle, TSpec> & extender,
         TErrors currentErrors = -getScore(extender.patternRight);
 
         // Compare last base.
-        if (haystackInfix[currentEnd] != back(needleInfix))
+        if (getValue(haystackInfix, currentEnd) != back(needleInfix))
             if (++currentErrors > remainingErrors)
                 continue;
 
