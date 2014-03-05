@@ -441,7 +441,7 @@ inline void collectSeeds(Mapper<TSpec, TConfig> & mapper, TReadSeqs const & read
 
     stop(mapper.timer);
 
-    std::cout << "Seeding time:\t\t" << mapper.timer << std::endl;
+    std::cout << "Seeding time:\t\t\t" << mapper.timer << std::endl;
     std::cout << "Seeds count:\t\t\t" << length(mapper.seeds[ERRORS]) << std::endl;
 }
 
