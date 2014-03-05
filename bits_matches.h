@@ -375,6 +375,16 @@ inline unsigned char getErrors(Match<TSpec> const & me)
 }
 
 // ----------------------------------------------------------------------------
+// Function getUnpairedMatch()
+// ----------------------------------------------------------------------------
+
+template <typename TMatch, typename TReadSeqs>
+inline TMatch getUnpairedMatch(TReadSeqs const & readSeqs)
+{
+    return { (unsigned)getReadsCount(readSeqs), 0, 0, 0, 0, 31 };
+}
+
+// ----------------------------------------------------------------------------
 // Function getErrors()
 // ----------------------------------------------------------------------------
 
