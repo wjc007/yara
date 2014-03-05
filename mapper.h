@@ -834,11 +834,6 @@ inline void _mapReadsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs,
 
     rankSeeds(mapper);
 
-    // Sort hits by range size.
-    // TODO(esiragusa): generalize sorting for approximate seeds, where one seed can have multiple hits.
-    for (unsigned bucketId = 0; bucketId < TConfig::BUCKETS; ++bucketId)
-        stableSort(mapper.hits[bucketId], HitsSorterByCount<THit>());
-
 //    std::cout << "Mapped reads:\t\t\t" << countMapped(mapper.ctx, typename TConfig::TThreading()) << std::endl;
 
 //    clearHits(mapper);
