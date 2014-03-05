@@ -174,7 +174,8 @@ struct MapperTraits
     typedef String<THit>                                            THits;
     typedef Tuple<THits, TConfig::BUCKETS>                          THitsBuckets;
 
-    typedef StringSet<TIndexSize, Owner<ConcatDirect<> > >          TRanks;
+    typedef String<TIndexSize>                                      THitsCounts;
+    typedef StringSet<THitsCounts, Owner<ConcatDirect<> > >         TRanks;
     typedef Tuple<TRanks, TConfig::BUCKETS>                         TRanksBuckets;
 
     typedef Match<void>                                             TMatch;
@@ -431,10 +432,17 @@ inline void collectSeeds(Mapper<TSpec, TConfig> & mapper, TReadSeqs const & read
     typedef SeedsCollector<Counter, TTraits>            TCounter;
     typedef SeedsCollector<void, TTraits>               TFiller;
 
+    start(mapper.timer);
+
     typename TTraits::TSeedsCount seedsCounts;
 
     TCounter counter(mapper.ctx, mapper.seeds[ERRORS], seedsCounts, readSeqs, mapper.options, ERRORS);
     TFiller filler(mapper.ctx, mapper.seeds[ERRORS], seedsCounts, readSeqs, mapper.options, ERRORS);
+
+    stop(mapper.timer);
+
+    std::cout << "Seeding time:\t\t" << mapper.timer << std::endl;
+    std::cout << "Seeds count:\t\t\t" << length(mapper.seeds[ERRORS]) << std::endl;
 }
 
 // ----------------------------------------------------------------------------
@@ -449,7 +457,6 @@ inline void findSeeds(Mapper<TSpec, TConfig> & mapper, TBucketId bucketId)
     typedef typename TTraits::TPatternApx           TPatternApx;
 
     start(mapper.timer);
-    std::cout << "Seeds count:\t\t\t" << length(mapper.seeds[bucketId]) << std::endl;
 
     if (ERRORS > 0)
     {
@@ -464,7 +471,8 @@ inline void findSeeds(Mapper<TSpec, TConfig> & mapper, TBucketId bucketId)
     }
 
     stop(mapper.timer);
-    std::cout << "Seeding time:\t\t\t" << mapper.timer << std::endl;
+
+    std::cout << "Filtering time:\t\t\t" << mapper.timer << std::endl;
     std::cout << "Hits count:\t\t\t" << countHits<unsigned long>(mapper.hits[bucketId], typename TConfig::TThreading()) << std::endl;
 //    writeHits(mapper, readSeqs, mapper.hits[bucketId], mapper.seeds[bucketId], "hits.csv");
 }
@@ -502,6 +510,29 @@ inline void classifyReads(Mapper<TSpec, TConfig> & mapper)
     stop(mapper.timer);
     std::cout << "Classification time:\t\t" << mapper.timer << std::endl;
     std::cout << "Hits count:\t\t\t" << countHits<unsigned long>(mapper.hits[0], typename TConfig::TThreading()) << std::endl;
+}
+
+// ----------------------------------------------------------------------------
+// Function rankSeeds()
+// ----------------------------------------------------------------------------
+// Rank the seeds in all buckets.
+
+template <typename TSpec, typename TConfig>
+inline void rankSeeds(Mapper<TSpec, TConfig> & mapper)
+{
+    typedef MapperTraits<TSpec, TConfig>    TTraits;
+    typedef SeedsRanker<TSpec, TTraits>     TSeedsRanker;
+
+    start(mapper.timer);
+
+    typename TTraits::THitsCounts hitsCounts;
+
+    for (unsigned bucketId = 0; bucketId < TConfig::BUCKETS; bucketId++)
+        TSeedsRanker ranker(hitsCounts, mapper.ranks[bucketId], mapper.seeds[bucketId], mapper.hits[bucketId], mapper.options);
+
+    stop(mapper.timer);
+
+    std::cout << "Ranking time:\t\t\t" << mapper.timer << std::endl;
 }
 
 // ----------------------------------------------------------------------------
@@ -800,6 +831,8 @@ inline void _mapReadsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs,
     collectSeeds<2>(mapper, readSeqs);
     findSeeds<0>(mapper, 1);
     findSeeds<0>(mapper, 2);
+
+    rankSeeds(mapper);
 
     // Sort hits by range size.
     // TODO(esiragusa): generalize sorting for approximate seeds, where one seed can have multiple hits.
