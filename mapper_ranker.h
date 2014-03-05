@@ -122,11 +122,12 @@ struct SeedsSorter
 template <typename TSpec, typename Traits>
 inline void _rankAllSeedsImpl(SeedsRanker<TSpec, Traits> & me)
 {
-    // The ranks hold one element per seed and one bucket per read seq.
     resize(me.counts, lengthSum(me.seeds), Exact());
 
+    // One element per seed.
     resize(concat(me.ranks), lengthSum(me.seeds), Exact());
-    resize(stringSetLimits(me.ranks), length(me.readSeqs) + 1, Exact());
+    // One bucket per read seq.
+    resize(stringSetLimits(me.ranks), length(me.readSeqs) + 1, 0, Exact());
 
     // Fill counts and ranks.
     iterate(me.readSeqs, me, Standard(), typename Traits::TThreading());
