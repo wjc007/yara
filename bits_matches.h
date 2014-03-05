@@ -107,6 +107,26 @@ struct KeyCounter
     }
 };
 
+// ----------------------------------------------------------------------------
+// Class KeySorter
+// ----------------------------------------------------------------------------
+
+template <typename TSource, typename TSpec = void>
+struct KeySorter
+{
+    TSource const & source;
+
+    KeySorter(TSource const & source) :
+        source(source)
+    {}
+
+    template <typename TKey>
+    inline bool operator()(TKey a, TKey b) const
+    {
+        return source[a] < source[b];
+    }
+};
+
 // --------------------------------------------------------------------------
 // Function bucket()
 // --------------------------------------------------------------------------
