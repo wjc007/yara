@@ -148,6 +148,7 @@ struct MapperTraits
 
     typedef Index<TFMContigs, TGenomeIndexSpec>                     THostIndex;
     typedef typename Space<THostIndex, TExecSpace>::Type            TIndex;
+    typedef typename Size<TIndex>::Type                             TIndexSize;
     typedef typename Fibre<TIndex, FibreSA>::Type                   TSA;
 
     typedef Reads<TSequencing, TConfig>                             TReads;
@@ -169,10 +170,12 @@ struct MapperTraits
     typedef StringSet<TReadSeqs, Segment<TReadSeqs> >               TSeeds;
     typedef Tuple<TSeeds, TConfig::BUCKETS>                         TSeedsBuckets;
 
-    typedef typename Size<TIndex>::Type                             TIndexSize;
     typedef Hit<TIndexSize, HammingDistance>                        THit;
     typedef String<THit>                                            THits;
     typedef Tuple<THits, TConfig::BUCKETS>                          THitsBuckets;
+
+    typedef StringSet<TIndexSize, Owner<ConcatDirect<> > >          TRanks;
+    typedef Tuple<TRanks, TConfig::BUCKETS>                         TRanksBuckets;
 
     typedef Match<void>                                             TMatch;
     typedef String<TMatch>                                          TMatches;
@@ -208,9 +211,10 @@ struct Mapper
     typename Traits::TReadsContext      ctx;
     typename Traits::TSeedsBuckets      seeds;
     typename Traits::THitsBuckets       hits;
+    typename Traits::TRanksBuckets      ranks;
+
     typename Traits::TMatches           anchors;
     typename Traits::TMatchesSet        anchorsSet;
-    typename Traits::TMatches           mates;
     typename Traits::TMatches           pairs;
 
     typename Traits::TFinderExt         finderExt;
@@ -227,9 +231,9 @@ struct Mapper
         ctx(),
         seeds(),
         hits(),
+        ranks(),
         anchors(),
         anchorsSet(),
-        mates(),
         pairs(),
         finderExt(index),
         finderApx(index)
@@ -610,15 +614,15 @@ inline void _verifyAnchorsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & read
     typedef AnchorsVerifier<TSpec, TTraits> TAnchorsVerifier;
 
     start(mapper.timer);
-    clear(mapper.mates);
-    TAnchorsVerifier verifier(mapper.ctx, mapper.mates,
+    clear(mapper.pairs);
+    TAnchorsVerifier verifier(mapper.ctx, mapper.pairs,
                               mapper.contigs.seqs, readSeqs,
                               mapper.anchorsSet, mapper.options);
     stop(mapper.timer);
 
     std::cout << "Verification time:\t\t" << mapper.timer << std::endl;
-    std::cout << "Mates count:\t\t\t" << length(mapper.mates) << std::endl;
-    std::cout << "Mapped pairs:\t\t\t" << countMappedReads(readSeqs, mapper.mates, typename TConfig::TThreading()) << std::endl;
+    std::cout << "Mates count:\t\t\t" << length(mapper.pairs) << std::endl;
+    std::cout << "Mapped pairs:\t\t\t" << countMappedReads(readSeqs, mapper.pairs, typename TConfig::TThreading()) << std::endl;
 }
 
 // ----------------------------------------------------------------------------
