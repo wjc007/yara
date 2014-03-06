@@ -846,14 +846,14 @@ inline void _mapReadsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs,
     clearSeeds(mapper);
     clearHits(mapper);
 
-//    initSeeds(mapper, readSeqs);
-//    collectSeeds<2>(mapper, readSeqs);
-//    findSeeds<2>(mapper, 2);
-////    rankSeeds(mapper);
-//    // TODO(esiragusa): filter out hits with distance < 2.
-//    extendHits(mapper);
-//    clearHits(mapper);
-//    clearSeeds(mapper);
+    initSeeds(mapper, readSeqs);
+    collectSeeds<2>(mapper, readSeqs);
+    findSeeds<2>(mapper, 2);
+//    rankSeeds(mapper);
+    // TODO(esiragusa): filter out hits with distance < 2.
+    extendHits(mapper);
+    clearHits(mapper);
+    clearSeeds(mapper);
 
     aggregateAnchors(mapper, readSeqs);
     verifyAnchors(mapper, readSeqs);
