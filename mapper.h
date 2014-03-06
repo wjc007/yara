@@ -683,15 +683,6 @@ inline void clearAnchors(Mapper<TSpec, TConfig> & mapper)
 template <typename TSpec, typename TConfig, typename TReadSeqs>
 inline void selectPairs(Mapper<TSpec, TConfig> & mapper, TReadSeqs const & readSeqs)
 {
-    _selectPairsImpl(mapper, readSeqs, typename TConfig::TAnchoring());
-}
-
-template <typename TSpec, typename TConfig, typename TReadSeqs, typename TAnchoring>
-inline void _selectPairsImpl(Mapper<TSpec, TConfig> & /* mapper */, TReadSeqs & /* readSeqs */, TAnchoring) {}
-
-template <typename TSpec, typename TConfig, typename TReadSeqs>
-inline void _selectPairsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs const & readSeqs, AnchorBoth)
-{
     typedef MapperTraits<TSpec, TConfig>    TTraits;
     typedef PairsSelector<TSpec, TTraits>   TPairsSelector;
 
@@ -855,16 +846,21 @@ inline void _mapReadsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs,
     clearSeeds(mapper);
     clearHits(mapper);
 
-    initSeeds(mapper, readSeqs);
-    collectSeeds<2>(mapper, readSeqs);
-    findSeeds<2>(mapper, 2);
-//    rankSeeds(mapper);
-    // TODO(esiragusa): filter out hits with distance < 2.
-    extendHits(mapper);
-    clearHits(mapper);
-    clearSeeds(mapper);
+//    initSeeds(mapper, readSeqs);
+//    collectSeeds<2>(mapper, readSeqs);
+//    findSeeds<2>(mapper, 2);
+////    rankSeeds(mapper);
+//    // TODO(esiragusa): filter out hits with distance < 2.
+//    extendHits(mapper);
+//    clearHits(mapper);
+//    clearSeeds(mapper);
 
     aggregateAnchors(mapper, readSeqs);
+    verifyAnchors(mapper, readSeqs);
+    selectPairs(mapper, readSeqs);
+    writeMatches(mapper);
+    clearAnchors(mapper);
+    clearPairs(mapper);
 }
 
 // ----------------------------------------------------------------------------
