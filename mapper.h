@@ -830,9 +830,7 @@ inline void _mapReadsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs,
 
     initReadsContext(mapper, readSeqs);
     initSeeds(mapper, readSeqs);
-    clearHits(mapper);
 
-    start(mapper.timer);
     collectSeeds<0>(mapper, readSeqs);
     findSeeds<0>(mapper, 0);
     classifyReads(mapper);
@@ -840,26 +838,32 @@ inline void _mapReadsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs,
     collectSeeds<2>(mapper, readSeqs);
     findSeeds<0>(mapper, 1);
     findSeeds<0>(mapper, 2);
-
     rankSeeds(mapper);
-
-//    std::cout << "Mapped reads:\t\t\t" << countMapped(mapper.ctx, typename TConfig::TThreading()) << std::endl;
-
-//    clearHits(mapper);
-//    collectSeeds<1>(mapper, readSeqs);
-//    collectSeeds<2>(mapper, readSeqs);
-//    findSeeds<1>(mapper, 1);
-//    findSeeds<1>(mapper, 2);
-////    sortHits(mapper);
-//    extendHits(mapper);
-//
-//    clearHits(mapper);
-//    collectSeeds<2>(mapper, readSeqs);
-//    findSeeds<2>(mapper, 2);
-////    sortHits(mapper);
-//    extendHits(mapper);
-
+    reserveAnchors(mapper);
     extendHits(mapper);
+    clearSeeds(mapper);
+    clearHits(mapper);
+
+    initSeeds(mapper, readSeqs);
+    collectSeeds<1>(mapper, readSeqs);
+    findSeeds<1>(mapper, 1);
+    collectSeeds<2>(mapper, readSeqs);
+    findSeeds<1>(mapper, 2);
+//    rankSeeds(mapper);
+    // TODO(esiragusa): filter out hits with distance < 1.
+    extendHits(mapper);
+    clearSeeds(mapper);
+    clearHits(mapper);
+
+    initSeeds(mapper, readSeqs);
+    collectSeeds<2>(mapper, readSeqs);
+    findSeeds<2>(mapper, 2);
+//    rankSeeds(mapper);
+    // TODO(esiragusa): filter out hits with distance < 2.
+    extendHits(mapper);
+    clearHits(mapper);
+    clearSeeds(mapper);
+
     aggregateAnchors(mapper, readSeqs);
 }
 
