@@ -579,14 +579,10 @@ inline void extendHits(Mapper<TSpec, TConfig> & mapper)
 
     start(mapper.timer);
 
-    // TODO(esiragusa): guess the number of matches.
-    clear(mapper.anchors);
-    reserve(mapper.anchors, countHits(mapper) / 3);
-
     for (unsigned bucketId = 0; bucketId < TConfig::BUCKETS; bucketId++)
     {
         THitsExtender extender(mapper.ctx, mapper.anchors, mapper.contigs.seqs,
-                               mapper.seeds[bucketId], mapper.hits[bucketId],
+                               mapper.seeds[bucketId], mapper.hits[bucketId], mapper.ranks[bucketId],
                                indexSA(mapper.index), mapper.options);
     }
 
@@ -594,6 +590,18 @@ inline void extendHits(Mapper<TSpec, TConfig> & mapper)
 
     std::cout << "Extension time:\t\t\t" << mapper.timer << std::endl;
     std::cout << "Anchors count:\t\t\t" << length(mapper.anchors) << std::endl;
+}
+
+// ----------------------------------------------------------------------------
+// Function reserveAnchors()
+// ----------------------------------------------------------------------------
+
+template <typename TSpec, typename TConfig>
+inline void reserveAnchors(Mapper<TSpec, TConfig> & mapper)
+{
+    // TODO(esiragusa): guess the number of matches.
+    clear(mapper.anchors);
+    reserve(mapper.anchors, countHits(mapper) / 3);
 }
 
 // ----------------------------------------------------------------------------
@@ -798,6 +806,7 @@ inline void _mapReadsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs,
     collectSeeds<2>(mapper, readSeqs);
     findSeeds<1>(mapper, 1);
     findSeeds<2>(mapper, 2);
+    reserveAnchors(mapper);
     extendHits(mapper);
     clearSeeds(mapper);
     clearHits(mapper);
