@@ -683,6 +683,15 @@ inline void clearAnchors(Mapper<TSpec, TConfig> & mapper)
 template <typename TSpec, typename TConfig, typename TReadSeqs>
 inline void selectPairs(Mapper<TSpec, TConfig> & mapper, TReadSeqs const & readSeqs)
 {
+    _selectPairsImpl(mapper, readSeqs, typename TConfig::TSequencing());
+}
+
+template <typename TSpec, typename TConfig, typename TReadSeqs, typename TSequencing>
+inline void _selectPairsImpl(Mapper<TSpec, TConfig> & /* mapper */, TReadSeqs & /* readSeqs */, TSequencing) {}
+
+template <typename TSpec, typename TConfig, typename TReadSeqs>
+inline void _selectPairsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs const & readSeqs, PairedEnd)
+{
     typedef MapperTraits<TSpec, TConfig>    TTraits;
     typedef PairsSelector<TSpec, TTraits>   TPairsSelector;
 
