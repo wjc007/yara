@@ -67,7 +67,7 @@ struct Options
     unsigned            libraryError;
     TList               libraryOrientationList;
     LibraryOrientation  libraryOrientation;
-    bool                anchorOne;
+//    bool                anchorOne;
 
     unsigned            mappingBlock;
     bool                noCuda;
@@ -84,7 +84,7 @@ struct Options
         libraryLength(220),
         libraryError(50),
         libraryOrientation(FWD_REV),
-        anchorOne(false),
+//        anchorOne(false),
         mappingBlock(200000),
         noCuda(false),
         threadsCount(1),
@@ -786,15 +786,15 @@ inline void writeHits(Mapper<TSpec, TConfig> const & mapper, TReadSeqs const & r
 template <typename TSpec, typename TConfig>
 inline void mapReads(Mapper<TSpec, TConfig> & mapper)
 {
-    _mapReadsImpl(mapper, mapper.reads.seqs, typename TConfig::TSequencing(), typename TConfig::TStrategy());
+    _mapReadsImpl(mapper, mapper.reads.seqs, typename TConfig::TStrategy());
 }
 
 // ----------------------------------------------------------------------------
-// Function _mapReadsImpl(); SingleEnd or PairedEnd, All
+// Function _mapReadsImpl(); All
 // ----------------------------------------------------------------------------
 
-template <typename TSpec, typename TConfig, typename TReadSeqs, typename TSequencing>
-inline void _mapReadsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, TSequencing, All)
+template <typename TSpec, typename TConfig, typename TReadSeqs>
+inline void _mapReadsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, All)
 {
     initReadsContext(mapper, readSeqs);
     initSeeds(mapper, readSeqs);
@@ -819,11 +819,11 @@ inline void _mapReadsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs,
 }
 
 // ----------------------------------------------------------------------------
-// Function _mapReadsImpl(); SingleEnd, Strata
+// Function _mapReadsImpl(); Strata
 // ----------------------------------------------------------------------------
 
 template <typename TSpec, typename TConfig, typename TReadSeqs>
-inline void _mapReadsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, SingleEnd, Strata)
+inline void _mapReadsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, Strata)
 {
     typedef MapperTraits<TSpec, TConfig>    TTraits;
     typedef typename TTraits::THit          THit;
