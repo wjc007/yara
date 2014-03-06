@@ -156,8 +156,8 @@ struct MapperTraits
     typedef typename TReads::TReadSeqs                              THostReadSeqs;
     typedef typename Space<THostReadSeqs, TExecSpace>::Type         TReadSeqs;
     typedef typename Value<TReadSeqs>::Type                         TReadSeq;
-    typedef typename Size<TReadSeqs>::Type                          TReadSeqSize;
-    typedef String<TReadSeqSize>                                    TSeedsCount;
+    typedef typename Size<TReadSeqs>::Type                          TReadSeqsSize;
+    typedef String<TReadSeqsSize>                                   TSeedsCount;
 
     typedef typename TContigs::TContigNames                         TContigNames;
     typedef typename TContigs::TContigNamesCache                    TContigNamesCache;
@@ -173,9 +173,9 @@ struct MapperTraits
     typedef Hit<TIndexSize, HammingDistance>                        THit;
     typedef String<THit>                                            THits;
     typedef Tuple<THits, TConfig::BUCKETS>                          THitsBuckets;
-
     typedef String<TIndexSize>                                      THitsCounts;
-    typedef StringSet<THitsCounts, Owner<ConcatDirect<> > >         TRanks;
+
+    typedef StringSet<TSeedsCount, Owner<ConcatDirect<> > >         TRanks;
     typedef Tuple<TRanks, TConfig::BUCKETS>                         TRanksBuckets;
 
     typedef Match<void>                                             TMatch;
