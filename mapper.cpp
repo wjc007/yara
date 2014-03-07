@@ -76,6 +76,7 @@ struct Options;
 #include "find_extender.h"
 #include "mapper_collector.h"
 #include "mapper_classifier.h"
+#include "mapper_ranker.h"
 #include "mapper_filter.h"
 #include "mapper_extender.h"
 #include "mapper_verifier.h"
@@ -149,7 +150,7 @@ void setupArgumentParser(ArgumentParser & parser, Options const & options)
     setValidValues(parser, "library-orientation", options.libraryOrientationList);
     setDefaultValue(parser, "library-orientation", options.libraryOrientationList[options.libraryOrientation]);
 
-    addOption(parser, ArgParseOption("la", "anchor", "Anchor one read and verify its mate."));
+//    addOption(parser, ArgParseOption("la", "anchor", "Anchor one read and verify its mate."));
 
     // Setup output options.
     addSection(parser, "Output Options");
@@ -229,7 +230,7 @@ parseCommandLine(Options & options, ArgumentParser & parser, int argc, char cons
     getOptionValue(options.libraryLength, parser, "library-length");
     getOptionValue(options.libraryError, parser, "library-error");
     getOptionValue(options.libraryOrientation, parser, "library-orientation", options.libraryOrientationList);
-    getOptionValue(options.anchorOne, parser, "anchor");
+//    getOptionValue(options.anchorOne, parser, "anchor");
 
     // Parse genome index prefix.
     getIndexPrefix(options, parser);
@@ -257,15 +258,15 @@ parseCommandLine(Options & options, ArgumentParser & parser, int argc, char cons
 // Function configureAnchoring()
 // ----------------------------------------------------------------------------
 
-template <typename TExecSpace, typename TThreading, typename TOutputFormat, typename TSequencing, typename TStrategy>
-void configureAnchoring(Options const & options, TExecSpace const & execSpace, TThreading const & threading,
-                        TOutputFormat const & format, TSequencing const & sequencing, TStrategy const & strategy)
-{
-    if (options.anchorOne)
-        spawnMapper(options, execSpace, threading, format, sequencing, strategy, AnchorOne());
-    else
-        spawnMapper(options, execSpace, threading, format, sequencing, strategy, AnchorBoth());
-}
+//template <typename TExecSpace, typename TThreading, typename TOutputFormat, typename TSequencing, typename TStrategy>
+//void configureAnchoring(Options const & options, TExecSpace const & execSpace, TThreading const & threading,
+//                        TOutputFormat const & format, TSequencing const & sequencing, TStrategy const & strategy)
+//{
+//    if (options.anchorOne)
+//        spawnMapper(options, execSpace, threading, format, sequencing, strategy, AnchorOne());
+//    else
+//        spawnMapper(options, execSpace, threading, format, sequencing, strategy, AnchorBoth());
+//}
 
 // ----------------------------------------------------------------------------
 // Function configureStrategy()
@@ -299,7 +300,9 @@ void configureSequencing(Options const & options, TExecSpace const & execSpace, 
     if (options.singleEnd)
         configureStrategy(options, execSpace, threading, format, SingleEnd());
     else
-        configureAnchoring(options, execSpace, threading, format, PairedEnd(), All());
+        configureStrategy(options, execSpace, threading, format, PairedEnd());
+
+//        configureAnchoring(options, execSpace, threading, format, PairedEnd(), All());
 }
 
 // ----------------------------------------------------------------------------

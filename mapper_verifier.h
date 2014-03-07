@@ -295,7 +295,9 @@ inline void _selectPairsImpl(PairsSelector<TSpec, Traits> & me)
     TPrefix pairs(me.readSeqs, getPairsCount(me.readSeqs));
 
     clear(me.pairs);
-    resize(me.pairs, getReadsCount(me.readSeqs), getUnpairedMatch<TMatch>(me.readSeqs), Exact());
+    TMatch unpaired;
+    setUnpaired(unpaired, me.readSeqs);
+    resize(me.pairs, getReadsCount(me.readSeqs), unpaired, Exact());
 
     // Iterate over all pairs.
     iterate(pairs, me, Rooted(), typename Traits::TThreading());

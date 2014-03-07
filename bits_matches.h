@@ -107,6 +107,26 @@ struct KeyCounter
     }
 };
 
+// ----------------------------------------------------------------------------
+// Class KeySorter
+// ----------------------------------------------------------------------------
+
+template <typename TSource, typename TSpec = void>
+struct KeySorter
+{
+    TSource const & source;
+
+    KeySorter(TSource const & source) :
+        source(source)
+    {}
+
+    template <typename TKey>
+    inline bool operator()(TKey a, TKey b) const
+    {
+        return source[a] < source[b];
+    }
+};
+
 // --------------------------------------------------------------------------
 // Function bucket()
 // --------------------------------------------------------------------------
@@ -314,6 +334,16 @@ inline void setContigPosition(Match<TSpec> & me, TContigPos contigBegin, TContig
     me.contigEnd = getValueI2(contigEnd) - getValueI2(contigBegin);
 }
 
+template <typename TSpec, typename TReadSeqs>
+inline void setUnpaired(Match<TSpec> & me, TReadSeqs const & readSeqs)
+{
+    me.readId = (unsigned)getReadsCount(readSeqs);
+    me.contigId = 0;
+    me.contigBegin = 0;
+    me.contigEnd = 0;
+    me.errors = 31;
+}
+
 // ----------------------------------------------------------------------------
 // Match Getters
 // ----------------------------------------------------------------------------
@@ -372,16 +402,6 @@ template <typename TSpec>
 inline unsigned char getErrors(Match<TSpec> const & me)
 {
     return me.errors;
-}
-
-// ----------------------------------------------------------------------------
-// Function getUnpairedMatch()
-// ----------------------------------------------------------------------------
-
-template <typename TMatch, typename TReadSeqs>
-inline TMatch getUnpairedMatch(TReadSeqs const & readSeqs)
-{
-    return { (unsigned)getReadsCount(readSeqs), 0, 0, 0, 0, 31 };
 }
 
 // ----------------------------------------------------------------------------

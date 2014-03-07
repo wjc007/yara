@@ -131,7 +131,7 @@ inline void _collectSeedsImpl(SeedsCollector<TSpec, Traits> & me, TReadSeqsItera
 
     TReadSeqId readSeqId = position(it);
 
-    if (getStatus(me.ctx, readSeqId) == STATUS_UNSEEDED)
+    if (getStatus(me.ctx, readSeqId) != STATUS_MAPPED && getSeedErrors(me.ctx, readSeqId) == me.seedErrors)
         _getSeeds(me, readSeqId);
 }
 
@@ -148,8 +148,6 @@ inline void _getSeeds(SeedsCollector<TSpec, Traits> & me, TReadSeqId readSeqId)
     typedef typename Value<TReadSeqs>::Type                 TReadSeq;
     typedef typename Size<TReadSeq>::Type                   TSize;
 
-    if (getSeedErrors(me.ctx, readSeqId) != me.seedErrors) return;
-
     TSize readLength = length(me.readSeqs[readSeqId]);
     TSize readErrors = getReadErrors(me.options, readLength);
     TSize seedErrors = getSeedErrors(me.ctx, readSeqId);
@@ -158,8 +156,6 @@ inline void _getSeeds(SeedsCollector<TSpec, Traits> & me, TReadSeqId readSeqId)
 
     for (TSize seedId = 0; seedId < seedsCount; ++seedId)
         _addSeed(me, TPos(readSeqId, seedId * seedsLength), seedsLength);
-
-    _markAsSeeded(me, readSeqId);
 }
 
 // ----------------------------------------------------------------------------
@@ -178,19 +174,6 @@ inline void _addSeed(SeedsCollector<Counter, Traits> & me, TPos seedPos, TSize /
 {
     me.seedsCount[getSeqNo(seedPos)]++;
 }
-
-// ----------------------------------------------------------------------------
-// Function _markAsSeeded()
-// ----------------------------------------------------------------------------
-
-template <typename TSpec, typename Traits, typename TReadSeqId>
-inline void _markAsSeeded(SeedsCollector<TSpec, Traits> & me, TReadSeqId readSeqId)
-{
-    setStatus(me.ctx, readSeqId, STATUS_SEEDED);
-}
-
-template <typename Traits, typename TReadSeqId>
-inline void _markAsSeeded(SeedsCollector<Counter, Traits> & /* me */, TReadSeqId /* readSeqId */) {}
 
 // ----------------------------------------------------------------------------
 // Function _finalize()
