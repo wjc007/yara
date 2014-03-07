@@ -783,9 +783,6 @@ inline void _mapReadsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs,
 template <typename TSpec, typename TConfig, typename TReadSeqs>
 inline void _mapReadsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, Strata)
 {
-    typedef MapperTraits<TSpec, TConfig>    TTraits;
-    typedef typename TTraits::THit          THit;
-
     initReadsContext(mapper, readSeqs);
     initSeeds(mapper, readSeqs);
 
