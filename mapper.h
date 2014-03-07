@@ -76,6 +76,9 @@ struct Options
     unsigned            hitsThreshold;
     bool                verbose;
 
+    CharString          commandLine;
+    CharString          version;
+
     Options() :
         outputFormat(SAM),
         mappingMode(ALL),
@@ -104,23 +107,6 @@ struct Options
         libraryOrientationList.push_back("rev-rev");
     }
 };
-
-// ----------------------------------------------------------------------------
-// Class Options
-// ----------------------------------------------------------------------------
-
-//struct Timings
-//{
-//    double loadGenome;
-//    double loadReads;
-//    double extendHits;
-//    double pairMatches;
-//
-//    Timings() :
-//        loadGenome(0),
-//        loadReads(0),
-//
-//};
 
 // ----------------------------------------------------------------------------
 // Mapper Configuration
@@ -399,7 +385,7 @@ inline void initOutput(Mapper<TSpec, TConfig> & me)
         throw RuntimeError("Error while opening output file.");
 
     // Fill header.
-    fillHeader(header, me.contigs.seqs, me.contigs.names);
+    fillHeader(header, me.options, me.contigs.seqs, me.contigs.names);
 
     // Write header to stream.
     write2(me.outputStream, header, me.outputCtx, typename TTraits::TOutputFormat());

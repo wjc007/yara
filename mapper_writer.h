@@ -121,8 +121,8 @@ struct QualityExtractor : public std::unary_function<TValue, char>
 // Function fillHeader()
 // ----------------------------------------------------------------------------
 
-template <typename TContigSeqs, typename TContigNames>
-inline void fillHeader(BamHeader & header, TContigSeqs const & seqs, TContigNames const & names)
+template <typename TContigSeqs, typename TOptions, typename TContigNames>
+inline void fillHeader(BamHeader & header, TOptions const & options, TContigSeqs const & seqs, TContigNames const & names)
 {
     typedef typename Iterator<TContigSeqs const, Standard>::Type    TContigSeqsIter;
     typedef typename Iterator<TContigNames const, Standard>::Type   TContigNamesIter;
@@ -150,6 +150,9 @@ inline void fillHeader(BamHeader & header, TContigSeqs const & seqs, TContigName
     BamHeaderRecord pgRecord;
     pgRecord.type = BAM_HEADER_PROGRAM;
     appendValue(pgRecord.tags, TTag("ID", "SeqAn"));
+    appendValue(pgRecord.tags, TTag("PN", "Yara"));
+    appendValue(pgRecord.tags, TTag("VN", options.version));
+    appendValue(pgRecord.tags, TTag("CL", options.commandLine));
     appendValue(header.records, pgRecord);
 }
 

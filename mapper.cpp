@@ -251,6 +251,17 @@ parseCommandLine(Options & options, ArgumentParser & parser, int argc, char cons
     // Parse verbose output option.
     getOptionValue(options.verbose, parser, "verbose");
 
+    // Get version.
+    options.version = getVersion(parser);
+
+    // Get command line.
+    for (int i = 1; i < argc; i++)
+    {
+        append(options.commandLine, argv[i]);
+        appendValue(options.commandLine, ' ');
+    }
+    eraseBack(options.commandLine);
+
     return seqan::ArgumentParser::PARSE_OK;
 }
 
