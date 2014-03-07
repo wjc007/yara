@@ -203,12 +203,16 @@ void getOptionValue(TOption & option,
 
 void setDateAndVersion(ArgumentParser & parser)
 {
-//    std::string rev  = "$Revision$";
-//    std::string date = "$Date$";
-
     setCategory(parser, "Read Mapping");
-//    setVersion(parser, "0.7.1 [" + rev.substr(11, rev.size() - 13) + "]");
-//    setDate(parser, date.substr(7, std::min((int)date.size() - 8, 10)));
+
+#ifdef SEQAN_REVISION
+    setVersion(parser, "0.8.0 [" + std::string(SEQAN_REVISION) + "]");
+#else
+    setVersion(parser, "0.8.0");
+#endif
+#ifdef SEQAN_DATE
+    setDate(parser, SEQAN_DATE);
+#endif
 }
 
 // ----------------------------------------------------------------------------
@@ -220,6 +224,7 @@ void setDescription(ArgumentParser & parser)
     addDescription(parser, "Yara - Yet Another Read Aligner - Fast and accurate.");
     addDescription(parser, "See \\fIhttp://www.seqan.de/projects/yara\\fP for more information.");
     addDescription(parser, "(c) Copyright 2011-2014 by Enrico Siragusa <enrico.siragusa@fu-berlin.de>.");
+    addDescription(parser, "(c) Copyright 2013 by NVIDIA Corporation.");
 }
 
 // ----------------------------------------------------------------------------
