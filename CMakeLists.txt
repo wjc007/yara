@@ -1,14 +1,14 @@
 # ===========================================================================
 #                  SeqAn - The Library for Sequence Analysis
 # ===========================================================================
-# File: /core/apps/cuda_mapper/CMakeLists.txt
+# File: /core/apps/yara/CMakeLists.txt
 #
-# CMakeLists.txt file for cuda_mapper.
+# CMakeLists.txt file for yara.
 # ===========================================================================
 
 cmake_minimum_required (VERSION 2.8.11)
-project (seqan_core_apps_cuda_mapper)
-message (STATUS "Configuring core/apps/cuda_mapper")
+project (seqan_core_apps_yara)
+message (STATUS "Configuring core/apps/yara")
 
 # ----------------------------------------------------------------------------
 # Dependencies
@@ -21,17 +21,17 @@ find_package (SeqAn REQUIRED)
 # Disable CUDA acceleration if CUDA was not found.
 if (NOT SEQAN_HAS_CUDA)
   add_definitions (-DCUDA_DISABLED=1)
-  message (STATUS "  CUDA disabled: building cuda_mapper without CUDA acceleration.")
+  message (STATUS "  CUDA disabled: building yara without CUDA acceleration.")
 endif (NOT SEQAN_HAS_CUDA)
 
 # Warn if OpenMP was not found.
 if (NOT SEQAN_HAS_OPENMP)
-  message (STATUS "  OpenMP not found: building cuda_mapper without multi-threading.")
+  message (STATUS "  OpenMP not found: building yara without multi-threading.")
 endif (NOT SEQAN_HAS_OPENMP)
 
 # Warn if Zlib was not found.
 if (NOT SEQAN_HAS_ZLIB)
-  message (STATUS "  Zlib not found: building cuda_mapper without BAM output.")
+  message (STATUS "  Zlib not found: building yara without BAM output.")
 endif (NOT SEQAN_HAS_ZLIB)
 
 # ----------------------------------------------------------------------------
@@ -92,7 +92,7 @@ add_definitions (-DSEQAN_DATE="${SEQAN_DATE}")
 set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${SEQAN_CXX_FLAGS}")
 
 # Update the list of file names below if you add source files to your application.
-add_executable(cuda_indexer indexer.cpp
+add_executable(yara_indexer indexer.cpp
                             store_genome.h
                             misc_timer.h
                             misc_options.h
@@ -100,7 +100,7 @@ add_executable(cuda_indexer indexer.cpp
                             index_fm.h)
 
 if (SEQAN_HAS_CUDA)
-  cuda_add_executable(cuda_mapper mapper.cpp
+  cuda_add_executable(yara_mapper mapper.cpp
                                   mapper.h
                                   mapper.cu
                                   mapper.cuh
@@ -125,7 +125,7 @@ if (SEQAN_HAS_CUDA)
                                   find_verifier.h
                                   index_fm.h)
 else ()
-  add_executable(cuda_mapper      mapper.cpp
+  add_executable(yara_mapper      mapper.cpp
                                   mapper.h
                                   mapper_collector.h
                                   mapper_classifier.h
@@ -150,8 +150,8 @@ else ()
 endif ()
 
 # Add dependencies found by find_package (SeqAn).
-target_link_libraries (cuda_indexer ${SEQAN_LIBRARIES})
-target_link_libraries (cuda_mapper ${SEQAN_LIBRARIES})
+target_link_libraries (yara_indexer ${SEQAN_LIBRARIES})
+target_link_libraries (yara_mapper ${SEQAN_LIBRARIES})
 
 # ----------------------------------------------------------------------------
 # Installation
@@ -159,15 +159,15 @@ target_link_libraries (cuda_mapper ${SEQAN_LIBRARIES})
 
 # Set variables for installing, depending on the selected build type.
 if (NOT SEQAN_PREFIX_SHARE_DOC)
-  seqan_setup_install_vars (cuda_indexer cuda_mapper)
+  seqan_setup_install_vars (yara_indexer yara_mapper)
 endif (NOT SEQAN_PREFIX_SHARE_DOC)
 
-# Install cuda_mapper in ${PREFIX}/bin directory
-install (TARGETS cuda_indexer cuda_mapper
+# Install yara in ${PREFIX}/bin directory
+install (TARGETS yara_indexer yara_mapper
          DESTINATION bin)
 
 # Install non-binary files for the package to "." for app builds and
-# ${PREFIX}/share/doc/cuda_mapper for SeqAn release builds.
+# ${PREFIX}/share/doc/yara for SeqAn release builds.
 install (FILES LICENSE README
          DESTINATION ${SEQAN_PREFIX_SHARE_DOC})
 
@@ -175,24 +175,24 @@ install (FILES LICENSE README
 # App Test
 # ----------------------------------------------------------------------------
 
-seqan_add_app_test (cuda_mapper)
+seqan_add_app_test (yara_mapper)
 
 # ----------------------------------------------------------------------------
 # Setup Common Tool Description for Generic Workflow Nodes
 # ----------------------------------------------------------------------------
 
-# Include executable cuda_mapper in CTD structure.
-#set (SEQAN_CTD_EXECUTABLES ${SEQAN_CTD_EXECUTABLES} cuda_mapper CACHE INTERNAL "")
+# Include executable yara_mapper in CTD structure.
+#set (SEQAN_CTD_EXECUTABLES ${SEQAN_CTD_EXECUTABLES} yara_mapper CACHE INTERNAL "")
 
 # ----------------------------------------------------------------------------
 # CPack Install
 # ----------------------------------------------------------------------------
 
-if (SEQAN_BUILD_SYSTEM STREQUAL "APP:cuda_mapper")
-  set (CPACK_PACKAGE_NAME "cuda_mapper")
-  set (CPACK_PACKAGE_DESCRIPTION_SUMMARY "CUDA Mapper")
+if (SEQAN_BUILD_SYSTEM STREQUAL "APP:yara")
+  set (CPACK_PACKAGE_NAME "yara")
+  set (CPACK_PACKAGE_DESCRIPTION_SUMMARY "Yara - Yet Another Read Aligner")
   set (CPACK_DEBIAN_PACKAGE_MAINTAINER "Enrico Siragusa <enrico.siragusa@fu-berlin.de>")
   set (CPACK_PACKAGE_VENDOR "SeqAn Team, FU Berlin")
 
-  seqan_configure_cpack_app (cuda_mapper "cuda_mapper")
-endif (SEQAN_BUILD_SYSTEM STREQUAL "APP:cuda_mapper")
+  seqan_configure_cpack_app (yara "yara")
+endif (SEQAN_BUILD_SYSTEM STREQUAL "APP:yara")
