@@ -215,8 +215,8 @@ struct Mapper
     typename Traits::THitsBuckets       hits;
     typename Traits::TRanksBuckets      ranks;
 
-    typename Traits::TMatches           anchors;
-    typename Traits::TMatchesSet        anchorsSet;
+    typename Traits::TMatches           matches;
+    typename Traits::TMatchesSet        matchesSet;
     typename Traits::TMatches           pairs;
 
     typename Traits::TFinderExt         finderExt;
@@ -234,8 +234,8 @@ struct Mapper
         seeds(),
         hits(),
         ranks(),
-        anchors(),
-        anchorsSet(),
+        matches(),
+        matchesSet(),
         pairs(),
         finderExt(index),
         finderApx(index)
@@ -582,7 +582,7 @@ inline void extendHits(Mapper<TSpec, TConfig> & mapper)
 
     for (unsigned bucketId = 0; bucketId < TConfig::BUCKETS; bucketId++)
     {
-        THitsExtender extender(mapper.ctx, mapper.anchors, mapper.contigs.seqs,
+        THitsExtender extender(mapper.ctx, mapper.matches, mapper.contigs.seqs,
                                mapper.seeds[bucketId], mapper.hits[bucketId], mapper.ranks[bucketId],
                                indexSA(mapper.index), mapper.options);
     }
@@ -590,74 +590,74 @@ inline void extendHits(Mapper<TSpec, TConfig> & mapper)
     stop(mapper.timer);
 
     std::cout << "Extension time:\t\t\t" << mapper.timer << std::endl;
-    std::cout << "Anchors count:\t\t\t" << length(mapper.anchors) << std::endl;
+    std::cout << "Matches count:\t\t\t" << length(mapper.matches) << std::endl;
 }
 
 // ----------------------------------------------------------------------------
-// Function reserveAnchors()
+// Function reserveMatches()
 // ----------------------------------------------------------------------------
 
 template <typename TSpec, typename TConfig>
-inline void reserveAnchors(Mapper<TSpec, TConfig> & mapper)
+inline void reserveMatches(Mapper<TSpec, TConfig> & mapper)
 {
     // TODO(esiragusa): guess the number of matches.
-    clear(mapper.anchors);
-    reserve(mapper.anchors, countHits(mapper) / 3);
+    clear(mapper.matches);
+    reserve(mapper.matches, countHits(mapper) / 3);
 }
 
 // ----------------------------------------------------------------------------
-// Function aggregateAnchors()
+// Function aggregateMatches()
 // ----------------------------------------------------------------------------
-// Aggregate anchors by readId.
+// Aggregate matches by readId.
 
 template <typename TSpec, typename TConfig, typename TReadSeqs>
-inline void aggregateAnchors(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs)
+inline void aggregateMatches(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs)
 {
     typedef MapperTraits<TSpec, TConfig>    TTraits;
     typedef typename TTraits::TMatch        TMatch;
 
-    // Bucket sort anchors by readId.
+    // Bucket sort matches by readId.
     start(mapper.timer);
-    clear(mapper.anchorsSet);
-    setHost(mapper.anchorsSet, mapper.anchors);
-    sort(mapper.anchors, MatchSorter<TMatch, SortReadId>(), typename TConfig::TThreading());
-    bucket(mapper.anchorsSet, Getter<TMatch, SortReadId>(), getReadsCount(readSeqs), typename TConfig::TThreading());
+    clear(mapper.matchesSet);
+    setHost(mapper.matchesSet, mapper.matches);
+    sort(mapper.matches, MatchSorter<TMatch, SortReadId>(), typename TConfig::TThreading());
+    bucket(mapper.matchesSet, Getter<TMatch, SortReadId>(), getReadsCount(readSeqs), typename TConfig::TThreading());
     stop(mapper.timer);
     std::cout << "Sorting time:\t\t\t" << mapper.timer << std::endl;
 
     start(mapper.timer);
-    removeDuplicates(mapper.anchorsSet, typename TConfig::TThreading());
+    removeDuplicates(mapper.matchesSet, typename TConfig::TThreading());
     stop(mapper.timer);
     std::cout << "Compaction time:\t\t" << mapper.timer << std::endl;
-    std::cout << "Anchors count:\t\t\t" << lengthSum(mapper.anchorsSet) << std::endl;
-    std::cout << "Mapped reads:\t\t\t" << countMappedReads(readSeqs, concat(mapper.anchorsSet), typename TConfig::TThreading()) << std::endl;
+    std::cout << "Matches count:\t\t\t" << lengthSum(mapper.matchesSet) << std::endl;
+    std::cout << "Mapped reads:\t\t\t" << countMappedReads(readSeqs, concat(mapper.matchesSet), typename TConfig::TThreading()) << std::endl;
 }
 
 // ----------------------------------------------------------------------------
-// Function verifyAnchors()
+// Function verifyMatches()
 // ----------------------------------------------------------------------------
-// Verifies all mates in within the insert window of their anchors.
+// Verifies all mates in within the insert window of their matches.
 
 template <typename TSpec, typename TConfig, typename TReadSeqs>
-inline void verifyAnchors(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs)
+inline void verifyMatches(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs)
 {
-    _verifyAnchorsImpl(mapper, readSeqs, typename TConfig::TAnchoring());
+    _verifyMatchesImpl(mapper, readSeqs, typename TConfig::TAnchoring());
 }
 
 template <typename TSpec, typename TConfig, typename TReadSeqs, typename TAnchoring>
-inline void _verifyAnchorsImpl(Mapper<TSpec, TConfig> & /* mapper */, TReadSeqs & /* readSeqs */, TAnchoring) {}
+inline void _verifyMatchesImpl(Mapper<TSpec, TConfig> & /* mapper */, TReadSeqs & /* readSeqs */, TAnchoring) {}
 
 template <typename TSpec, typename TConfig, typename TReadSeqs>
-inline void _verifyAnchorsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, AnchorOne)
+inline void _verifyMatchesImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs, AnchorOne)
 {
     typedef MapperTraits<TSpec, TConfig>    TTraits;
-    typedef AnchorsVerifier<TSpec, TTraits> TAnchorsVerifier;
+    typedef AnchorsVerifier<TSpec, TTraits> TMatchesVerifier;
 
     start(mapper.timer);
     clear(mapper.pairs);
-    TAnchorsVerifier verifier(mapper.ctx, mapper.pairs,
+    TMatchesVerifier verifier(mapper.ctx, mapper.pairs,
                               mapper.contigs.seqs, readSeqs,
-                              mapper.anchorsSet, mapper.options);
+                              mapper.matchesSet, mapper.options);
     stop(mapper.timer);
 
     std::cout << "Verification time:\t\t" << mapper.timer << std::endl;
@@ -666,15 +666,15 @@ inline void _verifyAnchorsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & read
 }
 
 // ----------------------------------------------------------------------------
-// Function clearAnchors()
+// Function clearMatches()
 // ----------------------------------------------------------------------------
-// Clears all anchors.
+// Clears all matches.
 
 template <typename TSpec, typename TConfig>
-inline void clearAnchors(Mapper<TSpec, TConfig> & mapper)
+inline void clearMatches(Mapper<TSpec, TConfig> & mapper)
 {
-    clear(mapper.anchors);
-    shrinkToFit(mapper.anchors);
+    clear(mapper.matches);
+    shrinkToFit(mapper.matches);
 }
 
 // ----------------------------------------------------------------------------
@@ -698,7 +698,7 @@ inline void _selectPairsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs const & 
 
     start(mapper.timer);
     clear(mapper.pairs);
-    TPairsSelector selector(mapper.pairs, readSeqs, mapper.anchorsSet, mapper.options);
+    TPairsSelector selector(mapper.pairs, readSeqs, mapper.matchesSet, mapper.options);
     stop(mapper.timer);
 
     std::cout << "Pairing time:\t\t\t" << mapper.timer << std::endl;
@@ -729,7 +729,7 @@ inline void writeMatches(Mapper<TSpec, TConfig> & mapper)
 
     start(mapper.timer);
     TMatchesWriter writer(mapper.outputStream, mapper.outputCtx,
-                          mapper.anchorsSet, mapper.pairs,
+                          mapper.matchesSet, mapper.pairs,
                           mapper.ctx, mapper.contigs, mapper.reads,
                           mapper.options);
 
@@ -764,15 +764,15 @@ inline void _mapReadsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs,
     collectSeeds<2>(mapper, readSeqs);
     findSeeds<1>(mapper, 1);
     findSeeds<2>(mapper, 2);
-    reserveAnchors(mapper);
+    reserveMatches(mapper);
     extendHits(mapper);
     clearSeeds(mapper);
     clearHits(mapper);
-    aggregateAnchors(mapper, readSeqs);
-    verifyAnchors(mapper, readSeqs);
+    aggregateMatches(mapper, readSeqs);
+    verifyMatches(mapper, readSeqs);
     selectPairs(mapper, readSeqs);
     writeMatches(mapper);
-    clearAnchors(mapper);
+    clearMatches(mapper);
     clearPairs(mapper);
 }
 
@@ -794,7 +794,7 @@ inline void _mapReadsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs,
     findSeeds<0>(mapper, 1);
     findSeeds<0>(mapper, 2);
     rankSeeds(mapper);
-    reserveAnchors(mapper);
+    reserveMatches(mapper);
     extendHits(mapper);
     clearSeeds(mapper);
     clearHits(mapper);
@@ -819,11 +819,11 @@ inline void _mapReadsImpl(Mapper<TSpec, TConfig> & mapper, TReadSeqs & readSeqs,
     clearHits(mapper);
     clearSeeds(mapper);
 
-    aggregateAnchors(mapper, readSeqs);
-    verifyAnchors(mapper, readSeqs);
+    aggregateMatches(mapper, readSeqs);
+    verifyMatches(mapper, readSeqs);
     selectPairs(mapper, readSeqs);
     writeMatches(mapper);
-    clearAnchors(mapper);
+    clearMatches(mapper);
     clearPairs(mapper);
 }
 
