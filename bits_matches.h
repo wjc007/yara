@@ -1,7 +1,7 @@
 // ==========================================================================
-//                 SeqAn - The Library for Sequence Analysis
+//                      Yara - Yet Another Read Aligner
 // ==========================================================================
-// Copyright (c) 2006-2013, Knut Reinert, FU Berlin
+// Copyright (c) 2011-2014, Enrico Siragusa, FU Berlin
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -19,7 +19,7 @@
 // THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
 // AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
 // IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
-// ARE DISCLAIMED. IN NO EVENT SHALL KNUT REINERT OR THE FU BERLIN BE LIABLE
+// ARE DISCLAIMED. IN NO EVENT SHALL ENRICO SIRAGUSA OR THE FU BERLIN BE LIABLE
 // FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
 // DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
 // SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
@@ -34,8 +34,8 @@
 // This file contains classes for storing and manipulating matches.
 // ==========================================================================
 
-#ifndef APP_CUDAMAPPER_BITS_MATCHES_H_
-#define APP_CUDAMAPPER_BITS_MATCHES_H_
+#ifndef APP_YARA_BITS_MATCHES_H_
+#define APP_YARA_BITS_MATCHES_H_
 
 // ============================================================================
 // Extras
@@ -736,4 +736,4 @@ inline void bucketMatches(TMatches const & left, TMatches const & right, TDelega
     }
 }
 
-#endif  // #ifndef APP_CUDAMAPPER_BITS_MATCHES_H_
+#endif  // #ifndef APP_YARA_BITS_MATCHES_H_
