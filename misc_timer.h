@@ -99,8 +99,8 @@ inline TValue getValue(Timer<TValue, TSpec> & timer)
 // Function operator<<
 // ----------------------------------------------------------------------------
 
-template <typename TValue, typename TSpec>
-std::ostream & operator<<(std::ostream & os, Timer<TValue, TSpec> & timer)
+template <typename TStream, typename TValue, typename TSpec>
+TStream & operator<<(TStream & os, Timer<TValue, TSpec> & timer)
 {
     os << getValue(timer) << " sec";
     return os;
@@ -110,11 +110,12 @@ std::ostream & operator<<(std::ostream & os, Timer<TValue, TSpec> & timer)
 // Function printRuler()
 // ----------------------------------------------------------------------------
 
-void printRuler()
+template <typename TStream>
+void printRuler(TStream & os)
 {
-    std::cout << std::endl
-              << "================================================================================"
-              << std::endl << std::endl;
+    os << std::endl
+       << "================================================================================"
+       << std::endl << std::endl;
 }
 
 #endif // APP_YARA_MISC_TIMER_H_
