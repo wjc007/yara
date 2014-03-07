@@ -98,8 +98,8 @@ using namespace seqan;
 
 void setupArgumentParser(ArgumentParser & parser, Options const & options)
 {
-    setAppName(parser, "cuda_mapper");
-    setShortDescription(parser, "CUDA Mapper");
+    setAppName(parser, "yara_mapper");
+    setShortDescription(parser, "Yara Mapper");
     setCategory(parser, "Read Mapping");
 
     setDateAndVersion(parser);

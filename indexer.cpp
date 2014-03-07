@@ -106,8 +106,8 @@ struct Indexer
 
 void setupArgumentParser(ArgumentParser & parser, Options const & /* options */)
 {
-    setAppName(parser, "cuda_indexer");
-    setShortDescription(parser, "CUDA Indexer");
+    setAppName(parser, "yara_indexer");
+    setShortDescription(parser, "Yara Indexer");
     setCategory(parser, "Read Mapping");
 
     setDateAndVersion(parser);
