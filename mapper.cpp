@@ -144,6 +144,7 @@ void setupArgumentParser(ArgumentParser & parser, Options const & options)
 
 //    addOption(parser, ArgParseOption("a", "all", "Report all suboptimal mapping locations."));// Shortcut for strata-rate = error-rate."));
     addOption(parser, ArgParseOption("s", "strata", "Report only cooptimal mapping locations."));
+    addOption(parser, ArgParseOption("q", "quick", "Be quick and shallow by losing mapping locations at higher error rates for a few very repetitive reads."));
 
     // Setup paired-end mapping options.
     addSection(parser, "Paired-End / Mate-Pairs Options");
@@ -229,6 +230,8 @@ parseCommandLine(Options & options, ArgumentParser & parser, int argc, char cons
     getOptionValue(strata, parser, "strata");
     if (strata) options.mappingMode = STRATA;
 
+    getOptionValue(options.quick, parser, "quick");
+
     // Parse paired-end mapping options.
     getOptionValue(options.libraryLength, parser, "library-length");
     getOptionValue(options.libraryError, parser, "library-error");
@@ -236,7 +239,6 @@ parseCommandLine(Options & options, ArgumentParser & parser, int argc, char cons
 //    getOptionValue(options.anchorOne, parser, "anchor");
 
 #ifdef _OPENMP
-    // Parse the number of threads.
     getOptionValue(options.threadsCount, parser, "threads");
 #endif
 
@@ -245,10 +247,7 @@ parseCommandLine(Options & options, ArgumentParser & parser, int argc, char cons
     getOptionValue(options.noCuda, parser, "no-cuda");
 #endif
 
-    // Parse mapping block option.
     getOptionValue(options.readsCount, parser, "reads-count");
-
-    // Parse verbose output option.
     getOptionValue(options.verbose, parser, "verbose");
 
     // Get version.

@@ -62,6 +62,7 @@ struct Options
     MappingMode         mappingMode;
     unsigned            errorRate;
 //    unsigned            strataRate;
+    bool                quick;
 
     bool                singleEnd;
     unsigned            libraryLength;
@@ -84,6 +85,7 @@ struct Options
         mappingMode(ALL),
         errorRate(5),
 //        strataRate(0),
+        quick(false),
         singleEnd(true),
         libraryLength(220),
         libraryError(50),
@@ -791,7 +793,10 @@ inline void _mapReadsImpl(Mapper<TSpec, TConfig> & me, TReadSeqs & readSeqs, All
     collectSeeds<1>(me, readSeqs);
     collectSeeds<2>(me, readSeqs);
     findSeeds<1>(me, 1);
-    findSeeds<2>(me, 2);
+    if (me.options.quick)
+        findSeeds<1>(me, 2);
+    else
+        findSeeds<2>(me, 2);
     reserveMatches(me);
     extendHits(me);
     clearSeeds(me);
@@ -838,14 +843,17 @@ inline void _mapReadsImpl(Mapper<TSpec, TConfig> & me, TReadSeqs & readSeqs, Str
     clearSeeds(me);
     clearHits(me);
 
-    initSeeds(me, readSeqs);
-    collectSeeds<2>(me, readSeqs);
-    findSeeds<2>(me, 2);
-//    rankSeeds(me);
+    if (!me.options.quick)
+    {
+        initSeeds(me, readSeqs);
+        collectSeeds<2>(me, readSeqs);
+        findSeeds<2>(me, 2);
+//        rankSeeds(me);
     // TODO(esiragusa): filter out hits with distance < 2.
-    extendHits(me);
-    clearHits(me);
-    clearSeeds(me);
+        extendHits(me);
+        clearHits(me);
+        clearSeeds(me);
+    }
 
     aggregateMatches(me, readSeqs);
     verifyMatches(me, readSeqs);
