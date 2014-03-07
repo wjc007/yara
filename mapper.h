@@ -70,7 +70,7 @@ struct Options
     LibraryOrientation  libraryOrientation;
 //    bool                anchorOne;
 
-    unsigned            mappingBlock;
+    unsigned            readsCount;
     bool                noCuda;
     unsigned            threadsCount;
     unsigned            hitsThreshold;
@@ -86,7 +86,7 @@ struct Options
         libraryError(50),
         libraryOrientation(FWD_REV),
 //        anchorOne(false),
-        mappingBlock(200000),
+        readsCount(100000),
         noCuda(false),
         threadsCount(1),
         hitsThreshold(300),
@@ -348,7 +348,7 @@ inline void loadReads(Mapper<TSpec, TConfig> & mapper)
     std::cout << "Loading reads:\t\t\t" << std::flush;
     start(mapper.timer);
     clear(mapper.reads);
-    load(mapper.reads, mapper.readsLoader, mapper.options.mappingBlock);
+    load(mapper.reads, mapper.readsLoader, mapper.options.readsCount);
     stop(mapper.timer);
     std::cout << mapper.timer << std::endl;
     std::cout << "Reads count:\t\t\t" << getReadsCount(mapper.reads.seqs) << std::endl;
@@ -946,7 +946,7 @@ inline void runMapper(Mapper<TSpec, TConfig> & mapper, Parallel)
     {
         // Reserve space for reads.
         TReads reads;
-        reserve(reads, mapper.options.mappingBlock);
+        reserve(reads, mapper.options.readsCount);
 
         // Process reads.
         while (true)
@@ -959,7 +959,7 @@ inline void runMapper(Mapper<TSpec, TConfig> & mapper, Parallel)
                 {
                     start(mapper.timer);
                     setReads(mapper.readsLoader, reads);
-                    load(mapper.readsLoader, mapper.options.mappingBlock);
+                    load(mapper.readsLoader, mapper.options.readsCount);
                     stop(mapper.timer);
 
                     cout << "Loading reads:\t\t\t" << mapper.timer << "\t\t[" << omp_get_thread_num() << "]" << std::endl;// <<

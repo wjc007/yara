@@ -119,7 +119,7 @@ void setupArgumentParser(ArgumentParser & parser, Options const & /* options */)
     setValidValues(parser, 0, "fasta fa");
     setHelpText(parser, 0, "A reference genome file.");
 
-    addSection(parser, "Indexing Options");
+    addSection(parser, "Input Options");
 
     setIndexPrefix(parser);
     

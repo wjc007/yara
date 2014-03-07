@@ -119,6 +119,16 @@ void setupArgumentParser(ArgumentParser & parser, Options const & options)
 
     addOption(parser, ArgParseOption("v", "verbose", "Displays verbose output."));
 
+    // Setup index options.
+    addSection(parser, "Input Options");
+
+    setIndexPrefix(parser);
+
+    // Setup output options.
+    addSection(parser, "Output Options");
+
+    setOutputFile(parser, options);
+
     // Setup mapping options.
     addSection(parser, "Mapping Options");
 
@@ -152,16 +162,6 @@ void setupArgumentParser(ArgumentParser & parser, Options const & options)
 
 //    addOption(parser, ArgParseOption("la", "anchor", "Anchor one read and verify its mate."));
 
-    // Setup output options.
-    addSection(parser, "Output Options");
-
-    setOutputFile(parser, options);
-
-    // Setup index options.
-    addSection(parser, "Indexing Options");
-
-    setIndexPrefix(parser);
-
     // Setup performance options.
     addSection(parser, "Performance Options");
 
@@ -176,9 +176,9 @@ void setupArgumentParser(ArgumentParser & parser, Options const & options)
     addOption(parser, ArgParseOption("nc", "no-cuda", "Do not use CUDA accelerated code."));
 #endif
 
-    addOption(parser, ArgParseOption("mb", "mapping-block", "Maximum number of reads to be mapped at once.", ArgParseOption::INTEGER));
-    setMinValue(parser, "mapping-block", "1000");
-    setDefaultValue(parser, "mapping-block", options.mappingBlock);
+    addOption(parser, ArgParseOption("r", "reads-count", "Maximum number of reads to process at once.", ArgParseOption::INTEGER));
+    setMinValue(parser, "reads-count", "1000");
+    setDefaultValue(parser, "reads-count", options.readsCount);
 }
 
 // ----------------------------------------------------------------------------
@@ -218,6 +218,9 @@ parseCommandLine(Options & options, ArgumentParser & parser, int argc, char cons
     // Parse output format.
     getOutputFormat(options, options.outputFile);
 
+    // Parse genome index prefix.
+    getIndexPrefix(options, parser);
+
     // Parse mapping options.
     getOptionValue(options.errorRate, parser, "error-rate");
 //    getOptionValue(options.strataRate, parser, "strata-rate");
@@ -232,9 +235,6 @@ parseCommandLine(Options & options, ArgumentParser & parser, int argc, char cons
     getOptionValue(options.libraryOrientation, parser, "library-orientation", options.libraryOrientationList);
 //    getOptionValue(options.anchorOne, parser, "anchor");
 
-    // Parse genome index prefix.
-    getIndexPrefix(options, parser);
-
 #ifdef _OPENMP
     // Parse the number of threads.
     getOptionValue(options.threadsCount, parser, "threads");
@@ -246,7 +246,7 @@ parseCommandLine(Options & options, ArgumentParser & parser, int argc, char cons
 #endif
 
     // Parse mapping block option.
-    getOptionValue(options.mappingBlock, parser, "mapping-block");
+    getOptionValue(options.readsCount, parser, "reads-count");
 
     // Parse verbose output option.
     getOptionValue(options.verbose, parser, "verbose");
