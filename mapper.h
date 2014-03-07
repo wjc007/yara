@@ -738,49 +738,6 @@ inline void writeMatches(Mapper<TSpec, TConfig> & mapper)
 }
 
 // ----------------------------------------------------------------------------
-// Function writeHits()
-// ----------------------------------------------------------------------------
-// Debug stuff.
-
-template <typename TSpec, typename TConfig, typename TReadSeqs, typename THits, typename TSeeds, typename TFilename>
-inline void writeHits(Mapper<TSpec, TConfig> const & mapper, TReadSeqs const & readSeqs,
-                      THits const & hits, TSeeds const & seeds, TFilename const & filename)
-{
-    typedef MapperTraits<TSpec, TConfig>                TTraits;
-    typedef typename Id<TSeeds>::Type                   TSeedId;
-    typedef Pair<TSeedId>                               TSeedIds;
-    typedef typename TTraits::THit                      THit;
-    typedef typename Id<THit>::Type                     THitId;
-    typedef typename Id<THit>::Type                     THitId;
-    typedef Pair<THitId>                                THitIds;
-    typedef typename Position<THit>::Type               THitRange;
-    typedef typename Size<THit>::Type                   THitSize;
-    typedef typename Size<TReadSeqs>::Type              TReadId;
-
-    std::ofstream file;
-    file.open(filename);
-
-    TReadId readSeqsCount = getReadSeqsCount(readSeqs);
-
-    for (TReadId readSeqId = 0; readSeqId < readSeqsCount; ++readSeqId)
-    {
-        TSeedIds readSeedIds = getSeedIds(seeds, readSeqId);
-
-        if (getStatus(mapper.ctx, readSeqId) != STATUS_SEEDED) continue;
-        if (getValueI2(readSeedIds) <= getValueI1(readSeedIds)) continue;
-
-        for (TSeedId seedId = getValueI1(readSeedIds); seedId < getValueI2(readSeedIds); ++seedId)
-        {
-            THitIds seedHitIds = getHitIds(hits, seedId);
-            file << countHits<THitSize>(hits, seedHitIds, Serial()) << "\t";
-        }
-        file << "\n";
-    }
-
-    file.close();
-}
-
-// ----------------------------------------------------------------------------
 // Function mapReads()
 // ----------------------------------------------------------------------------
 
