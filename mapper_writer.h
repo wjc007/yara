@@ -32,8 +32,8 @@
 // Author: Enrico Siragusa <enrico.siragusa@fu-berlin.de>
 // ==========================================================================
 
-#ifndef APP_CUDAMAPPER_MAPPER_WRITER_H_
-#define APP_CUDAMAPPER_MAPPER_WRITER_H_
+#ifndef APP_YARA_MAPPER_WRITER_H_
+#define APP_YARA_MAPPER_WRITER_H_
 
 using namespace seqan;
 
@@ -448,4 +448,4 @@ inline void _writeMappedReadImpl(MatchesWriter<TSpec, Traits> & me, TReadId read
     write2(me.outputStream, me.record, me.outputCtx, typename Traits::TOutputFormat());
 }
 
-#endif  // #ifndef APP_CUDAMAPPER_MAPPER_WRITER_H_
+#endif  // #ifndef APP_YARA_MAPPER_WRITER_H_

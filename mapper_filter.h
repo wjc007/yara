@@ -33,8 +33,8 @@
 // Author: Enrico Siragusa <enrico.siragusa@fu-berlin.de>
 // ==========================================================================
 
-#ifndef APP_CUDAMAPPER_MAPPER_FILTER_H_
-#define APP_CUDAMAPPER_MAPPER_FILTER_H_
+#ifndef APP_YARA_MAPPER_FILTER_H_
+#define APP_YARA_MAPPER_FILTER_H_
 
 using namespace seqan;
 
@@ -121,4 +121,4 @@ _addHit(FilterDelegate<TSpec, Traits> & me, TFinder const & finder, HammingDista
     appendValue(me.hits, hit, Insist(), typename Traits::TThreading());
 }
 
-#endif  // #ifndef APP_CUDAMAPPER_MAPPER_FILTER_H_
+#endif  // #ifndef APP_YARA_MAPPER_FILTER_H_

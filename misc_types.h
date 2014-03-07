@@ -35,8 +35,8 @@
 // This file contains type overloadings.
 // ==========================================================================
 
-#ifndef APP_CUDAMAPPER_MISC_TYPES_H_
-#define APP_CUDAMAPPER_MISC_TYPES_H_
+#ifndef APP_YARA_MISC_TYPES_H_
+#define APP_YARA_MISC_TYPES_H_
 
 using namespace seqan;
 
@@ -270,4 +270,4 @@ struct MinLength<ContainerView<TContainer, TSpec> >
 };
 }
 
-#endif  // #ifndef APP_CUDAMAPPER_MISC_TYPES_H_
+#endif  // #ifndef APP_YARA_MISC_TYPES_H_

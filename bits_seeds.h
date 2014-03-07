@@ -32,8 +32,8 @@
 // Author: Enrico Siragusa <enrico.siragusa@fu-berlin.de>
 // ==========================================================================
 
-#ifndef APP_CUDAMAPPER_BITS_SEEDS_H_
-#define APP_CUDAMAPPER_BITS_SEEDS_H_
+#ifndef APP_YARA_BITS_SEEDS_H_
+#define APP_YARA_BITS_SEEDS_H_
 
 using namespace seqan;
 
@@ -104,4 +104,4 @@ getPosInRead(StringSet<THost, Segment<TSpec> > const & seeds, TSeedId seedId)
     return Pair<TPos>(seedBegin, seedEnd);
 }
 
-#endif  // #ifndef APP_CUDAMAPPER_BITS_SEEDS_H_
+#endif  // #ifndef APP_YARA_BITS_SEEDS_H_

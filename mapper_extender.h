@@ -32,8 +32,8 @@
 // Author: Enrico Siragusa <enrico.siragusa@fu-berlin.de>
 // ==========================================================================
 
-#ifndef APP_CUDAMAPPER_MAPPER_EXTENDER_H_
-#define APP_CUDAMAPPER_MAPPER_EXTENDER_H_
+#ifndef APP_YARA_MAPPER_EXTENDER_H_
+#define APP_YARA_MAPPER_EXTENDER_H_
 
 using namespace seqan;
 
@@ -304,4 +304,4 @@ inline void _addMatchImpl(HitsExtender<TSpec, Traits> & me,
     setStatus(me.ctx, getFirstMateRevSeqId(me.readSeqs, readId), STATUS_MAPPED);
 }
 
-#endif  // #ifndef APP_CUDAMAPPER_MAPPER_EXTENDER_H_
+#endif  // #ifndef APP_YARA_MAPPER_EXTENDER_H_

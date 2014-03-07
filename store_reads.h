@@ -36,8 +36,8 @@
 // ==========================================================================
 // NOTE(esiragusa): the FragmentStore should provide these functionalities.
 
-#ifndef APP_CUDAMAPPER_STORE_READS_H_
-#define APP_CUDAMAPPER_STORE_READS_H_
+#ifndef APP_YARA_STORE_READS_H_
+#define APP_YARA_STORE_READS_H_
 
 #include <seqan/basic.h>
 #include <seqan/sequence.h>
@@ -422,4 +422,4 @@ getMateSeqId(TReadSeqs const & readSeqs, TReadSeqId readSeqId)
     }
 }
 
-#endif  // #ifndef APP_CUDAMAPPER_STORE_READS_H_
+#endif  // #ifndef APP_YARA_STORE_READS_H_

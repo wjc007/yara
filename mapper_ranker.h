@@ -32,8 +32,8 @@
 // Author: Enrico Siragusa <enrico.siragusa@fu-berlin.de>
 // ==========================================================================
 
-#ifndef APP_CUDAMAPPER_MAPPER_RANKER_H_
-#define APP_CUDAMAPPER_MAPPER_RANKER_H_
+#ifndef APP_YARA_MAPPER_RANKER_H_
+#define APP_YARA_MAPPER_RANKER_H_
 
 using namespace seqan;
 
@@ -176,4 +176,4 @@ inline void _countHitsImpl(SeedsRanker<TSpec, Traits> & me, TReadSeqsIterator co
 
 }
 
-#endif  // #ifndef APP_CUDAMAPPER_MAPPER_RANKER_H_
+#endif  // #ifndef APP_YARA_MAPPER_RANKER_H_

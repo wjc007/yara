@@ -32,8 +32,8 @@
 // Author: Enrico Siragusa <enrico.siragusa@fu-berlin.de>
 // ==========================================================================
 
-#ifndef APP_CUDAMAPPER_MAPPER_COLLECTOR_H_
-#define APP_CUDAMAPPER_MAPPER_COLLECTOR_H_
+#ifndef APP_YARA_MAPPER_COLLECTOR_H_
+#define APP_YARA_MAPPER_COLLECTOR_H_
 
 using namespace seqan;
 
@@ -188,4 +188,4 @@ inline void _finalize(SeedsCollector<TSpec, Traits> & me)
 template <typename Traits>
 inline void _finalize(SeedsCollector<Counter, Traits> & /* me */) {}
 
-#endif  // #ifndef APP_CUDAMAPPER_MAPPER_COLLECTOR_H_
+#endif  // #ifndef APP_YARA_MAPPER_COLLECTOR_H_

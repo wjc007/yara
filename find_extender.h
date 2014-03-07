@@ -32,8 +32,8 @@
 // Author: Enrico Siragusa <enrico.siragusa@fu-berlin.de>
 // ==========================================================================
 
-#ifndef APP_CUDAMAPPER_FIND_EXTENDER_H_
-#define APP_CUDAMAPPER_FIND_EXTENDER_H_
+#ifndef APP_YARA_FIND_EXTENDER_H_
+#define APP_YARA_FIND_EXTENDER_H_
 
 using namespace seqan;
 
@@ -283,4 +283,4 @@ extend(Extender<THaystack, TNeedle, TSpec> & extender,
     delegate(matchBegin, matchEnd, needleErrors);
 }
 
-#endif  // #ifndef APP_CUDAMAPPER_FIND_EXTENDER_H_
+#endif  // #ifndef APP_YARA_FIND_EXTENDER_H_

@@ -32,8 +32,8 @@
 // Author: Enrico Siragusa <enrico.siragusa@fu-berlin.de>
 // ==========================================================================
 
-#ifndef APP_CUDAMAPPER_MAPPER_CLASSIFIER_H_
-#define APP_CUDAMAPPER_MAPPER_CLASSIFIER_H_
+#ifndef APP_YARA_MAPPER_CLASSIFIER_H_
+#define APP_YARA_MAPPER_CLASSIFIER_H_
 
 using namespace seqan;
 
@@ -276,4 +276,4 @@ inline void _classifyReadImpl(ReadsClassifier<TSpec, TConfig> & me, TReadSeqsIte
     }
 }
 
-#endif  // #ifndef APP_CUDAMAPPER_MAPPER_CLASSIFIER_H_
+#endif  // #ifndef APP_YARA_MAPPER_CLASSIFIER_H_

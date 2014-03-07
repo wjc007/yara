@@ -34,8 +34,8 @@
 // This file contains tags.
 // ==========================================================================
 
-#ifndef APP_CUDAMAPPER_MISC_TAGS_H_
-#define APP_CUDAMAPPER_MISC_TAGS_H_
+#ifndef APP_YARA_MISC_TAGS_H_
+#define APP_YARA_MISC_TAGS_H_
 
 #include <seqan/basic.h>
 
@@ -134,4 +134,4 @@ typedef Tag<RevFwd_>        RevFwd;
 typedef Tag<FwdFwd_>        FwdFwd;
 typedef Tag<RevRev_>        RevRev;
 
-#endif  // #ifndef APP_CUDAMAPPER_MISC_TAGS_H_
+#endif  // #ifndef APP_YARA_MISC_TAGS_H_

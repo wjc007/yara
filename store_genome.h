@@ -36,8 +36,8 @@
 // ==========================================================================
 // NOTE(esiragusa): the FragmentStore should provide these functionalities.
 
-#ifndef APP_CUDAMAPPER_STORE_CONTIGS_H_
-#define APP_CUDAMAPPER_STORE_CONTIGS_H_
+#ifndef APP_YARA_STORE_CONTIGS_H_
+#define APP_YARA_STORE_CONTIGS_H_
 
 #include <seqan/basic.h>
 #include <seqan/sequence.h>
@@ -274,4 +274,4 @@ inline void open(ContigsLoader<TSpec, TConfig> & loader, TFileName const & conti
         throw RuntimeError("Error while guessing contigs file format.");
 }
 
-#endif  // #ifndef APP_CUDAMAPPER_STORE_CONTIGS_H_
+#endif  // #ifndef APP_YARA_STORE_CONTIGS_H_

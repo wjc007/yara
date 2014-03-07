@@ -34,8 +34,8 @@
 // This file contains classes for storing and manipulating matches.
 // ==========================================================================
 
-#ifndef APP_CUDAMAPPER_BITS_MATCHES_H_
-#define APP_CUDAMAPPER_BITS_MATCHES_H_
+#ifndef APP_YARA_BITS_MATCHES_H_
+#define APP_YARA_BITS_MATCHES_H_
 
 // ============================================================================
 // Extras
@@ -736,4 +736,4 @@ inline void bucketMatches(TMatches const & left, TMatches const & right, TDelega
     }
 }
 
-#endif  // #ifndef APP_CUDAMAPPER_BITS_MATCHES_H_
+#endif  // #ifndef APP_YARA_BITS_MATCHES_H_
