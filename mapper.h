@@ -43,7 +43,7 @@ using namespace seqan;
 // ============================================================================
 
 // ----------------------------------------------------------------------------
-// Class Options
+// Mapper Options
 // ----------------------------------------------------------------------------
 
 struct Options
@@ -75,7 +75,7 @@ struct Options
     bool                noCuda;
     unsigned            threadsCount;
     unsigned            hitsThreshold;
-    bool                verbose;
+    unsigned            verbose;
 
     CharString          commandLine;
     CharString          version;
@@ -95,7 +95,7 @@ struct Options
         noCuda(false),
         threadsCount(1),
         hitsThreshold(300),
-        verbose(false)
+        verbose(0)
     {
         outputFormatList.push_back("sam");
         outputFormatExtensions.push_back("sam");
@@ -197,6 +197,40 @@ struct MapperTraits
 };
 
 // ----------------------------------------------------------------------------
+// Mapper Stats
+// ----------------------------------------------------------------------------
+
+template <typename TValue>
+struct Stats
+{
+    TValue loadGenome;
+    TValue loadReads;
+    TValue collectSeeds;
+    TValue findSeeds;
+    TValue classifyReads;
+    TValue rankSeeds;
+    TValue extendHits;
+    TValue sortMatches;
+    TValue compactMatches;
+    TValue selectPairs;
+    TValue writeMatches;
+
+    Stats() :
+        loadGenome(0),
+        loadReads(0),
+        collectSeeds(0),
+        findSeeds(0),
+        classifyReads(0),
+        rankSeeds(0),
+        extendHits(0),
+        sortMatches(0),
+        compactMatches(0),
+        selectPairs(0),
+        writeMatches(0)
+    {}
+};
+
+// ----------------------------------------------------------------------------
 // Class Mapper
 // ----------------------------------------------------------------------------
 
@@ -207,6 +241,7 @@ struct Mapper
 
     Options const &                     options;
     Timer<double>                       timer;
+    Stats<double>                       stats;
 
     typename Traits::TContigs           contigs;
     typename Traits::TIndex             index;
@@ -229,6 +264,7 @@ struct Mapper
 
     Mapper(Options const & options) :
         options(options),
+        stats(),
         contigs(),
         index(),
         reads(),
@@ -273,7 +309,7 @@ inline void configureThreads(Mapper<TSpec, TConfig> & me)
 #ifdef _OPENMP
     omp_set_num_threads(me.options.threadsCount);
 
-    if (me.options.verbose)
+    if (me.options.verbose > 0)
         std::cout << "Threads count:\t\t\t" << omp_get_max_threads() << std::endl;
 #else
     ignoreUnusedVariableWarning(me);
@@ -291,8 +327,9 @@ inline void loadGenome(Mapper<TSpec, TConfig> & me)
     if (!open(me.contigs, toCString(me.options.genomeIndexFile)))
         throw RuntimeError("Error while opening genome file.");
     stop(me.timer);
+    me.stats.loadGenome += getValue(me.timer);
 
-    if (me.options.verbose)
+    if (me.options.verbose > 1)
         std::cout << "Loading genome:\t\t\t" << me.timer << std::endl;
 }
 
@@ -311,8 +348,9 @@ inline void loadGenomeIndex(Mapper<TSpec, TConfig> & me)
     if (!open(me.index, toCString(me.options.genomeIndexFile)))
         throw RuntimeError("Error while opening genome index file.");
     stop(me.timer);
+    me.stats.loadGenome += getValue(me.timer);
 
-    if (me.options.verbose)
+    if (me.options.verbose > 1)
         std::cout << "Loading genome index:\t\t" << me.timer << std::endl;
 
 #ifdef PLATFORM_CUDA
@@ -354,8 +392,9 @@ inline void loadReads(Mapper<TSpec, TConfig> & me)
     clear(me.reads);
     load(me.reads, me.readsLoader, me.options.readsCount);
     stop(me.timer);
+    me.stats.loadReads += getValue(me.timer);
 
-    if (me.options.verbose)
+    if (me.options.verbose > 1)
     {
         std::cout << "Loading reads:\t\t\t" << me.timer << std::endl;
         std::cout << "Reads count:\t\t\t" << getReadsCount(me.reads.seqs) << std::endl;
@@ -447,8 +486,9 @@ inline void collectSeeds(Mapper<TSpec, TConfig> & me, TReadSeqs const & readSeqs
     TCounter counter(me.ctx, me.seeds[ERRORS], seedsCounts, readSeqs, me.options, ERRORS);
     TFiller filler(me.ctx, me.seeds[ERRORS], seedsCounts, readSeqs, me.options, ERRORS);
     stop(me.timer);
+    me.stats.collectSeeds += getValue(me.timer);
 
-    if (me.options.verbose)
+    if (me.options.verbose > 1)
     {
         std::cout << "Seeding time:\t\t\t" << me.timer << std::endl;
         std::cout << "Seeds count:\t\t\t" << length(me.seeds[ERRORS]) << std::endl;
@@ -479,8 +519,9 @@ inline void findSeeds(Mapper<TSpec, TConfig> & me, TBucketId bucketId)
         _findSeedsImpl(me, me.hits[bucketId], me.seeds[bucketId], me.finderExt, TPatternExt());
     }
     stop(me.timer);
+    me.stats.findSeeds += getValue(me.timer);
 
-    if (me.options.verbose)
+    if (me.options.verbose > 1)
     {
         std::cout << "Filtering time:\t\t\t" << me.timer << std::endl;
         std::cout << "Hits count:\t\t\t" <<
@@ -519,8 +560,9 @@ inline void classifyReads(Mapper<TSpec, TConfig> & me)
     start(me.timer);
     TClassifier classifier(me.ctx, me.hits[0], me.seeds[0], me.options);
     stop(me.timer);
+    me.stats.classifyReads += getValue(me.timer);
 
-    if (me.options.verbose)
+    if (me.options.verbose > 1)
     {
         std::cout << "Classification time:\t\t" << me.timer << std::endl;
         std::cout << "Hits count:\t\t\t" <<
@@ -545,8 +587,9 @@ inline void rankSeeds(Mapper<TSpec, TConfig> & me)
     for (unsigned bucketId = 0; bucketId < TConfig::BUCKETS; bucketId++)
         TSeedsRanker ranker(hitsCounts, me.ranks[bucketId], me.seeds[bucketId], me.hits[bucketId], me.options);
     stop(me.timer);
+    me.stats.rankSeeds += getValue(me.timer);
 
-    if (me.options.verbose)
+    if (me.options.verbose > 1)
         std::cout << "Ranking time:\t\t\t" << me.timer << std::endl;
 }
 
@@ -600,8 +643,9 @@ inline void extendHits(Mapper<TSpec, TConfig> & me)
                                indexSA(me.index), me.options);
     }
     stop(me.timer);
+    me.stats.extendHits += getValue(me.timer);
 
-    if (me.options.verbose)
+    if (me.options.verbose > 1)
     {
         std::cout << "Extension time:\t\t\t" << me.timer << std::endl;
         std::cout << "Matches count:\t\t\t" << length(me.matches) << std::endl;
@@ -638,15 +682,17 @@ inline void aggregateMatches(Mapper<TSpec, TConfig> & me, TReadSeqs & readSeqs)
     sort(me.matches, MatchSorter<TMatch, SortReadId>(), typename TConfig::TThreading());
     bucket(me.matchesSet, Getter<TMatch, SortReadId>(), getReadsCount(readSeqs), typename TConfig::TThreading());
     stop(me.timer);
+    me.stats.sortMatches += getValue(me.timer);
 
-    if (me.options.verbose)
+    if (me.options.verbose > 1)
         std::cout << "Sorting time:\t\t\t" << me.timer << std::endl;
 
     start(me.timer);
     removeDuplicates(me.matchesSet, typename TConfig::TThreading());
     stop(me.timer);
+    me.stats.compactMatches += getValue(me.timer);
 
-    if (me.options.verbose)
+    if (me.options.verbose > 1)
     {
         std::cout << "Compaction time:\t\t" << me.timer << std::endl;
         std::cout << "Matches count:\t\t\t" << lengthSum(me.matchesSet) << std::endl;
@@ -682,7 +728,7 @@ inline void _verifyMatchesImpl(Mapper<TSpec, TConfig> & me, TReadSeqs & readSeqs
                               me.matchesSet, me.options);
     stop(me.timer);
 
-    if (me.options.verbose)
+    if (me.options.verbose > 1)
     {
         std::cout << "Verification time:\t\t" << me.timer << std::endl;
         std::cout << "Mates count:\t\t\t" << length(me.pairs) << std::endl;
@@ -726,8 +772,9 @@ inline void _selectPairsImpl(Mapper<TSpec, TConfig> & me, TReadSeqs const & read
     clear(me.pairs);
     TPairsSelector selector(me.pairs, readSeqs, me.matchesSet, me.options);
     stop(me.timer);
+    me.stats.selectPairs += getValue(me.timer);
 
-    if (me.options.verbose)
+    if (me.options.verbose > 1)
     {
         std::cout << "Pairing time:\t\t\t" << me.timer << std::endl;
         std::cout << "Mapped pairs:\t\t\t" << countMappedPairs(readSeqs, me.pairs) << std::endl;
@@ -762,8 +809,9 @@ inline void writeMatches(Mapper<TSpec, TConfig> & me)
                           me.ctx, me.contigs, me.reads,
                           me.options);
     stop(me.timer);
+    me.stats.writeMatches += getValue(me.timer);
 
-    if (me.options.verbose)
+    if (me.options.verbose > 1)
         std::cout << "Output time:\t\t\t" << me.timer << std::endl;
 }
 
@@ -864,15 +912,42 @@ inline void _mapReadsImpl(Mapper<TSpec, TConfig> & me, TReadSeqs & readSeqs, Str
 }
 
 // ----------------------------------------------------------------------------
+// Function printStats()
+// ----------------------------------------------------------------------------
+
+template <typename TSpec, typename TConfig, typename TValue>
+inline void printStats(Mapper<TSpec, TConfig> const & me, Timer<TValue> const & timer)
+{
+    TValue total = getValue(timer) / 100;
+
+    std::cout << "Genome loading time:\t\t" << me.stats.loadGenome << " sec" << "\t\t" << me.stats.loadGenome / total << " %" << std::endl;
+    std::cout << "Reads loading time:\t\t" << me.stats.loadReads << " sec" << "\t\t" << me.stats.loadReads / total << " %" << std::endl;
+    std::cout << "Seeding time:\t\t\t" << me.stats.collectSeeds << " sec" << "\t\t" << me.stats.collectSeeds / total << " %" << std::endl;
+    std::cout << "Filtering time:\t\t\t" << me.stats.findSeeds << " sec" << "\t\t" << me.stats.findSeeds / total << " %" << std::endl;
+    std::cout << "Classification time:\t\t" << me.stats.classifyReads << " sec" << "\t\t" << me.stats.classifyReads / total << " %" << std::endl;
+    std::cout << "Ranking time:\t\t\t" << me.stats.rankSeeds << " sec" << "\t\t" << me.stats.rankSeeds / total << " %" << std::endl;
+    std::cout << "Extension time:\t\t\t" << me.stats.extendHits << " sec" << "\t\t" << me.stats.extendHits / total << " %" << std::endl;
+    std::cout << "Sorting time:\t\t\t" << me.stats.sortMatches << " sec" << "\t\t" << me.stats.sortMatches / total << " %" << std::endl;
+    std::cout << "Compaction time:\t\t" << me.stats.compactMatches << " sec" << "\t\t" << me.stats.compactMatches / total << " %" << std::endl;
+    std::cout << "Pairing time:\t\t\t" << me.stats.selectPairs << " sec" << "\t\t" << me.stats.selectPairs / total << " %" << std::endl;
+    std::cout << "Output time:\t\t\t" << me.stats.writeMatches << " sec" << "\t\t" << me.stats.writeMatches / total << " %" << std::endl;
+    std::cout << "Total time:\t\t\t" << getValue(timer) << " sec" << std::endl;
+}
+
+// ----------------------------------------------------------------------------
 // Function runMapper()
 // ----------------------------------------------------------------------------
 
 template <typename TSpec, typename TConfig>
 inline void runMapper(Mapper<TSpec, TConfig> & me)
 {
+    Timer<double> timer;
+
+    start(timer);
+
     configureThreads(me);
 
-    if (me.options.verbose) printRuler(std::cout);
+    if (me.options.verbose > 1) printRuler(std::cout);
 
     loadGenome(me);
     loadGenomeIndex(me);
@@ -886,7 +961,7 @@ inline void runMapper(Mapper<TSpec, TConfig> & me)
     // Process reads in blocks.
     while (!atEnd(me.readsLoader))
     {
-        if (me.options.verbose) printRuler(std::cout);
+        if (me.options.verbose > 1) printRuler(std::cout);
 
         loadReads(me);
         mapReads(me);
@@ -898,6 +973,14 @@ inline void runMapper(Mapper<TSpec, TConfig> & me)
 
     // Close reads file.
     close(me.readsLoader);
+
+    stop(timer);
+
+    if (me.options.verbose > 1)
+        printRuler(std::cout);
+
+    if (me.options.verbose > 0)
+        printStats(me, timer);
 }
 
 // ----------------------------------------------------------------------------
