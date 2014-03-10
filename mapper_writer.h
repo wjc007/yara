@@ -467,7 +467,7 @@ inline void _writeMappedReadImpl(MatchesWriter<TSpec, Traits> & me, TReadId read
     _fillReadInfo(me, getReadSeqId(primary, me.reads.seqs));
     _fillReadAlignment(me, primary);
     _fillMateInfo(me, readId);
-    _fillLocations(me, matches, 1u);
+    _fillLocations(me, matches, 0u);
 
     write2(me.outputStream, me.record, me.outputCtx, typename Traits::TOutputFormat());
 }
