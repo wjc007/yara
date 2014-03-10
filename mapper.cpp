@@ -180,6 +180,7 @@ void setupArgumentParser(ArgumentParser & parser, Options const & options)
 
     addOption(parser, ArgParseOption("r", "reads-batch", "Number of reads to process in one batch.", ArgParseOption::INTEGER));
     setMinValue(parser, "reads-batch", "1000");
+    setMaxValue(parser, "reads-batch", "1000000");
     setDefaultValue(parser, "reads-batch", options.readsCount);
 }
 
