@@ -304,6 +304,7 @@ inline void _fillXa(MatchesWriter<TSpec, Traits> & me, TMatches const & matches)
     {
         append(me.xa, nameStore(me.outputCtx)[getContigId(value(it))]);
         appendValue(me.xa, ',');
+        // TODO(esiragusa): convert contig begin to string.
 //        append(me.xa, getContigBegin(value(it)) + 1);
         appendValue(me.xa, '1');
         appendValue(me.xa, ',');
@@ -363,7 +364,6 @@ template <typename TSpec, typename Traits, typename TReadId>
 inline void _writeUnmappedRead(MatchesWriter<TSpec, Traits> & me, TReadId readId)
 {
     clear(me.record);
-    me.record.flag = 0;
     _fillReadInfo(me, readId);
     _fillMateInfo(me, readId);
     me.record.flag |= BAM_FLAG_UNMAPPED;
@@ -392,7 +392,6 @@ inline void _writeMappedReadImpl(MatchesWriter<TSpec, Traits> & me, TReadId read
     TSize bestCount = countBestMatches(matches);
 
     clear(me.record);
-    me.record.flag = 0;
     _fillReadInfo(me, getReadSeqId(primary, me.reads.seqs));
     _fillReadAlignment(me, primary);
     _fillMateInfo(me, readId);
@@ -412,7 +411,6 @@ inline void _writeMappedReadImpl(MatchesWriter<TSpec, Traits> & me, TReadId read
     appendAlignments(me.record, me.xa);
 
     write2(me.outputStream, me.record, me.outputCtx, typename Traits::TOutputFormat());
-
 }
 
 template <typename TSpec, typename Traits, typename TReadId, typename TMatches>
@@ -432,7 +430,6 @@ inline void _writeMappedReadImpl(MatchesWriter<TSpec, Traits> & me, TReadId read
     TSize bestCount = countBestMatches(matches);
 
     clear(me.record);
-    me.record.flag = 0;
     _fillReadInfo(me, getReadSeqId(primary, me.reads.seqs));
     _fillReadAlignment(me, primary);
     _fillMateInfo(me, getReadId(primary));
