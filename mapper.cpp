@@ -138,14 +138,14 @@ void setupArgumentParser(ArgumentParser & parser, Options const & options)
     setMaxValue(parser, "error-rate", "10");
     setDefaultValue(parser, "error-rate", options.errorRate);
 
+    addOption(parser, ArgParseOption("a", "all", "Report all suboptimal mapping locations. Default: report only cooptimal mapping locations."));
+    addOption(parser, ArgParseOption("q", "quick", "Be quicker by loosely mapping a few very repetitive reads."));
+
 //    addOption(parser, ArgParseOption("s", "strata-rate", "Report found suboptimal mapping locations within this error rate from the optimal one. Note that strata-rate << error-rate.", ArgParseOption::STRING));
 //    setMinValue(parser, "strata-rate", "0");
 //    setMaxValue(parser, "strata-rate", "10");
 //    setDefaultValue(parser, "strata-rate", options.strataRate);
-
-//    addOption(parser, ArgParseOption("a", "all", "Report all suboptimal mapping locations."));// Shortcut for strata-rate = error-rate."));
-    addOption(parser, ArgParseOption("s", "strata", "Report only cooptimal mapping locations."));
-    addOption(parser, ArgParseOption("q", "quick", "Be quick by losing some distant mapping locations for a few very repetitive reads."));
+//    "all", Shortcut for strata-rate = error-rate."));
 
     // Setup paired-end mapping options.
     addSection(parser, "Paired-End / Mate-Pairs Options");
@@ -227,7 +227,7 @@ parseCommandLine(Options & options, ArgumentParser & parser, int argc, char cons
     getOptionValue(options.errorRate, parser, "error-rate");
 //    getOptionValue(options.strataRate, parser, "strata-rate");
 
-    if (isSet(parser, "strata")) options.mappingMode = STRATA;
+    if (isSet(parser, "all")) options.mappingMode = ALL;
 
     getOptionValue(options.quick, parser, "quick");
 

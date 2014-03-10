@@ -82,7 +82,7 @@ struct Options
 
     Options() :
         outputFormat(SAM),
-        mappingMode(ALL),
+        mappingMode(STRATA),
         errorRate(5),
 //        strataRate(0),
         quick(false),
@@ -118,7 +118,7 @@ template <typename TExecSpace_      = ExecHost,
           typename TThreading_      = Parallel,
           typename TOutputFormat_   = Sam,
           typename TSequencing_     = SingleEnd,
-          typename TStrategy_       = All,
+          typename TStrategy_       = Strata,
           typename TAnchoring_      = Nothing,
           unsigned BUCKETS_         = 3>
 struct ReadMapperConfig : public ContigsConfig<void>, public ReadsConfig<void>
