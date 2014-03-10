@@ -12,7 +12,7 @@
 //     * Redistributions in binary form must reproduce the above copyright
 //       notice, this list of conditions and the following disclaimer in the
 //       documentation and/or other materials provided with the distribution.
-//     * Neither the name of Knut Reinert or the FU Berlin nor the names of
+//     * Neither the name of Enrico Siragusa or the FU Berlin nor the names of
 //       its contributors may be used to endorse or promote products derived
 //       from this software without specific prior written permission.
 //
@@ -48,9 +48,13 @@ using namespace seqan;
 template <typename TValue, typename TSpec = void>
 struct Timer
 {
-    TValue _begin, _end;
+    TValue _begin;
+    TValue _end;
 
-    Timer() : _begin(0), _end(0) {};
+    Timer() :
+        _begin(0),
+        _end(0)
+    {};
 };
 
 // ============================================================================
@@ -90,9 +94,15 @@ inline void stop(Timer<TValue, TSpec> & timer)
 // ----------------------------------------------------------------------------
 
 template <typename TValue, typename TSpec>
-inline TValue getValue(Timer<TValue, TSpec> & timer)
+inline TValue getValue(Timer<TValue, TSpec> const & timer)
 {
     return timer._end - timer._begin;
+}
+
+template <typename TValue, typename TSpec>
+inline TValue getValue(Timer<TValue, TSpec> & timer)
+{
+    return getValue(static_cast<Timer<TValue, TSpec> const &>(timer));
 }
 
 // ----------------------------------------------------------------------------
@@ -100,7 +110,7 @@ inline TValue getValue(Timer<TValue, TSpec> & timer)
 // ----------------------------------------------------------------------------
 
 template <typename TStream, typename TValue, typename TSpec>
-TStream & operator<<(TStream & os, Timer<TValue, TSpec> & timer)
+inline TStream & operator<<(TStream & os, Timer<TValue, TSpec> const & timer)
 {
     os << getValue(timer) << " sec";
     return os;
@@ -111,7 +121,7 @@ TStream & operator<<(TStream & os, Timer<TValue, TSpec> & timer)
 // ----------------------------------------------------------------------------
 
 template <typename TStream>
-void printRuler(TStream & os)
+inline void printRuler(TStream & os)
 {
     os << std::endl
        << "================================================================================"

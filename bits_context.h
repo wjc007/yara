@@ -12,7 +12,7 @@
 //     * Redistributions in binary form must reproduce the above copyright
 //       notice, this list of conditions and the following disclaimer in the
 //       documentation and/or other materials provided with the distribution.
-//     * Neither the name of Knut Reinert or the FU Berlin nor the names of
+//     * Neither the name of Enrico Siragusa or the FU Berlin nor the names of
 //       its contributors may be used to endorse or promote products derived
 //       from this software without specific prior written permission.
 //
@@ -48,12 +48,6 @@ using namespace seqan;
 enum ReadStatus { STATUS_UNSEEDED, STATUS_SEEDED, STATUS_MAPPED, STATUS_UNMAPPABLE };
 
 // ----------------------------------------------------------------------------
-// Enum ReadAnchor
-// ----------------------------------------------------------------------------
-
-enum ReadAnchor { ANCHOR_FIRST, ANCHOR_SECOND };
-
-// ----------------------------------------------------------------------------
 // Class ReadContext
 // ----------------------------------------------------------------------------
 
@@ -63,7 +57,6 @@ struct ReadContext
     unsigned char stratum       : 4;
     unsigned char seedErrors    : 2;
     ReadStatus    status        : 2;
-//    ReadAnchor    anchor        : 1;
 
     ReadContext() :
         stratum(0),
@@ -75,16 +68,6 @@ struct ReadContext
 // ============================================================================
 // Functions
 // ============================================================================
-
-// ----------------------------------------------------------------------------
-// Function ctxIsMapped()
-// ----------------------------------------------------------------------------
-
-template <typename TReadContext>
-inline bool ctxIsMapped(TReadContext const & readCtx)
-{
-    return readCtx.status == STATUS_MAPPED;
-}
 
 // ----------------------------------------------------------------------------
 // Function getStratum()
@@ -154,18 +137,6 @@ template <typename TReadsContext, typename TReadSeqId>
 inline bool isMapped(TReadsContext const & ctx, TReadSeqId readSeqId)
 {
     return ctx[readSeqId].status == STATUS_MAPPED;
-}
-
-// ----------------------------------------------------------------------------
-// Function countMapped()
-// ----------------------------------------------------------------------------
-
-template <typename TReadsContext, typename TThreading>
-inline unsigned long countMapped(TReadsContext const & ctx, TThreading const & threading)
-{
-    typedef typename Value<TReadsContext>::Type     TReadContext;
-
-    return countIf(ctx, ctxIsMapped<TReadContext>, threading) / 2;
 }
 
 #endif  // #ifndef APP_YARA_BITS_CONTEXT_H_

@@ -12,7 +12,7 @@
 //     * Redistributions in binary form must reproduce the above copyright
 //       notice, this list of conditions and the following disclaimer in the
 //       documentation and/or other materials provided with the distribution.
-//     * Neither the name of Knut Reinert or the FU Berlin nor the names of
+//     * Neither the name of Enrico Siragusa or the FU Berlin nor the names of
 //       its contributors may be used to endorse or promote products derived
 //       from this software without specific prior written permission.
 //
@@ -117,7 +117,8 @@ void setupArgumentParser(ArgumentParser & parser, Options const & options)
     setValidValues(parser, 1, "fastq fasta fa");
     setHelpText(parser, 1, "Either one single-end or two paired-end / mate-pairs read files.");
 
-    addOption(parser, ArgParseOption("v", "verbose", "Displays verbose output."));
+    addOption(parser, ArgParseOption("v", "verbose", "Displays total elapsed time."));
+    addOption(parser, ArgParseOption("vv", "vverbose", "Displays diagnostic output per batch of reads."));
 
     // Setup index options.
     addSection(parser, "Input Options");
@@ -137,14 +138,14 @@ void setupArgumentParser(ArgumentParser & parser, Options const & options)
     setMaxValue(parser, "error-rate", "10");
     setDefaultValue(parser, "error-rate", options.errorRate);
 
+    addOption(parser, ArgParseOption("a", "all", "Report all suboptimal mapping locations. Default: report only cooptimal mapping locations."));
+    addOption(parser, ArgParseOption("q", "quick", "Be quicker by loosely mapping a few very repetitive reads."));
+
 //    addOption(parser, ArgParseOption("s", "strata-rate", "Report found suboptimal mapping locations within this error rate from the optimal one. Note that strata-rate << error-rate.", ArgParseOption::STRING));
 //    setMinValue(parser, "strata-rate", "0");
 //    setMaxValue(parser, "strata-rate", "10");
 //    setDefaultValue(parser, "strata-rate", options.strataRate);
-
-//    addOption(parser, ArgParseOption("a", "all", "Report all suboptimal mapping locations."));// Shortcut for strata-rate = error-rate."));
-    addOption(parser, ArgParseOption("s", "strata", "Report only cooptimal mapping locations."));
-    addOption(parser, ArgParseOption("q", "quick", "Be quick and shallow by losing mapping locations at higher error rates for a few very repetitive reads."));
+//    "all", Shortcut for strata-rate = error-rate."));
 
     // Setup paired-end mapping options.
     addSection(parser, "Paired-End / Mate-Pairs Options");
@@ -177,9 +178,10 @@ void setupArgumentParser(ArgumentParser & parser, Options const & options)
     addOption(parser, ArgParseOption("nc", "no-cuda", "Do not use CUDA accelerated code."));
 #endif
 
-    addOption(parser, ArgParseOption("r", "reads-count", "Maximum number of reads to process at once.", ArgParseOption::INTEGER));
-    setMinValue(parser, "reads-count", "1000");
-    setDefaultValue(parser, "reads-count", options.readsCount);
+    addOption(parser, ArgParseOption("r", "reads-batch", "Number of reads to process in one batch.", ArgParseOption::INTEGER));
+    setMinValue(parser, "reads-batch", "1000");
+    setMaxValue(parser, "reads-batch", "1000000");
+    setDefaultValue(parser, "reads-batch", options.readsCount);
 }
 
 // ----------------------------------------------------------------------------
@@ -226,9 +228,7 @@ parseCommandLine(Options & options, ArgumentParser & parser, int argc, char cons
     getOptionValue(options.errorRate, parser, "error-rate");
 //    getOptionValue(options.strataRate, parser, "strata-rate");
 
-    bool strata = false;
-    getOptionValue(strata, parser, "strata");
-    if (strata) options.mappingMode = STRATA;
+    if (isSet(parser, "all")) options.mappingMode = ALL;
 
     getOptionValue(options.quick, parser, "quick");
 
@@ -247,8 +247,10 @@ parseCommandLine(Options & options, ArgumentParser & parser, int argc, char cons
     getOptionValue(options.noCuda, parser, "no-cuda");
 #endif
 
-    getOptionValue(options.readsCount, parser, "reads-count");
-    getOptionValue(options.verbose, parser, "verbose");
+    getOptionValue(options.readsCount, parser, "reads-batch");
+
+    if (isSet(parser, "verbose")) options.verbose = 1;
+    if (isSet(parser, "vverbose")) options.verbose = 2;
 
     // Get version.
     options.version = getVersion(parser);

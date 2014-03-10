@@ -12,7 +12,7 @@
 //     * Redistributions in binary form must reproduce the above copyright
 //       notice, this list of conditions and the following disclaimer in the
 //       documentation and/or other materials provided with the distribution.
-//     * Neither the name of Knut Reinert or the FU Berlin nor the names of
+//     * Neither the name of Enrico Siragusa or the FU Berlin nor the names of
 //       its contributors may be used to endorse or promote products derived
 //       from this software without specific prior written permission.
 //
@@ -221,7 +221,7 @@ void setDateAndVersion(ArgumentParser & parser)
 
 void setDescription(ArgumentParser & parser)
 {
-    addDescription(parser, "Yara - Yet Another Read Aligner - Fast and accurate.");
+    addDescription(parser, "Yara - Yet Another Read Aligner.");
     addDescription(parser, "See \\fIhttp://www.seqan.de/projects/yara\\fP for more information.");
     addDescription(parser, "(c) Copyright 2011-2014 by Enrico Siragusa <enrico.siragusa@fu-berlin.de>.");
     addDescription(parser, "(c) Copyright 2013 by NVIDIA Corporation.");
