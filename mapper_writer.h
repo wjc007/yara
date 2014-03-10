@@ -365,7 +365,7 @@ inline void _fillLocationsImpl(MatchesWriter<TSpec, Traits> & me, TMatches const
     // Exclude primary match from matches list.
     clear(me.xa);
     _fillXa(me, prefix(matches, primaryPos));
-    _fillXa(me, suffix(matches, primaryPos));
+    _fillXa(me, suffix(matches, primaryPos + 1));
     appendAlignments(me.record, me.xa);
 }
 
@@ -386,7 +386,7 @@ inline void _fillLocationsImpl(MatchesWriter<TSpec, Traits> & me, TMatches const
         clear(me.xa);
         TMatches const & cooptimal = prefix(matches, bestCount);
         _fillXa(me, prefix(cooptimal, primaryPos));
-        _fillXa(me, suffix(cooptimal, primaryPos));
+        _fillXa(me, suffix(cooptimal, primaryPos + 1));
         appendAlignments(me.record, me.xa);
     }
 }
