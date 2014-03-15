@@ -794,6 +794,29 @@ inline void clearPairs(Mapper<TSpec, TConfig> & me)
 }
 
 // ----------------------------------------------------------------------------
+// Function rankMatches()
+// ----------------------------------------------------------------------------
+// Sort each set of matches by errors.
+
+template <typename TSpec, typename TConfig>
+inline void rankMatches(Mapper<TSpec, TConfig> & me)
+{
+    typedef MapperTraits<TSpec, TConfig>                    TTraits;
+    typedef typename TTraits::TMatchesSet                   TMatchesSet;
+    typedef typename Iterator<TMatchesSet, Standard>::Type  TMatchesIt;
+//    typedef typename Value<TMatchesSet>::Type               TMatches;
+
+    start(me.timer);
+    iterate(me.matchesSet, sortMatches<TMatchesIt, SortErrors>, Standard(), typename TTraits::TThreading());
+//    forEach(me.matchesSet, sortMatches<TMatches, SortErrors>, typename TTraits::TThreading());
+    stop(me.timer);
+    me.stats.sortMatches += getValue(me.timer);
+
+    if (me.options.verbose > 1)
+        std::cout << "Sorting time:\t\t\t" << me.timer << std::endl;
+}
+
+// ----------------------------------------------------------------------------
 // Function writeMatches()
 // ----------------------------------------------------------------------------
 
@@ -852,6 +875,7 @@ inline void _mapReadsImpl(Mapper<TSpec, TConfig> & me, TReadSeqs & readSeqs, All
     aggregateMatches(me, readSeqs);
     verifyMatches(me, readSeqs);
     selectPairs(me, readSeqs);
+    rankMatches(me);
     writeMatches(me);
     clearMatches(me);
     clearPairs(me);
@@ -906,6 +930,7 @@ inline void _mapReadsImpl(Mapper<TSpec, TConfig> & me, TReadSeqs & readSeqs, Str
     aggregateMatches(me, readSeqs);
     verifyMatches(me, readSeqs);
     selectPairs(me, readSeqs);
+    rankMatches(me);
     writeMatches(me);
     clearMatches(me);
     clearPairs(me);

@@ -63,10 +63,10 @@ struct MatchesWriter
     // Shared-memory read-write data.
     TOutputStream &         outputStream;
     TOutputContext &        outputCtx;
-    TMatchesSet &           matchesSet;
-    TMatches const &        pairs;
 
     // Shared-memory read-only data.
+    TMatchesSet const &     matchesSet;
+    TMatches const &        pairs;
     TReadsContext const &   ctx;
     TContigs const &        contigs;
     TReads const &          reads;
@@ -74,7 +74,7 @@ struct MatchesWriter
 
     MatchesWriter(TOutputStream & outputStream,
                   TOutputContext & outputCtx,
-                  TMatchesSet & matchesSet,
+                  TMatchesSet const & matchesSet,
                   TMatches const & pairs,
                   TReadsContext const & ctx,
                   TContigs const & contigs,
@@ -392,14 +392,6 @@ inline void _fillLocationsImpl(MatchesWriter<TSpec, Traits> & me, TMatches const
 template <typename TSpec, typename Traits>
 inline void _writeAllMatchesImpl(MatchesWriter<TSpec, Traits> & me)
 {
-    typedef typename Traits::TMatchesSet                    TMatchesSet;
-    typedef typename Iterator<TMatchesSet, Standard>::Type  TMatchesIt;
-//    typedef typename Value<TMatchesSet>::Type             TMatches;
-
-    // Sort each set of matches by errors.
-    iterate(me.matchesSet, sortMatches<TMatchesIt, SortErrors>, Standard(), typename Traits::TThreading());
-//    forEach(me.matchesSet, sortMatches<TMatches, SortErrors>, typename TConfig::TThreading());
-
     // Process all matches.
     iterate(me.matchesSet, me, Standard(), Serial());
 }
