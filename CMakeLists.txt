@@ -110,6 +110,7 @@ if (SEQAN_HAS_CUDA)
                                   mapper_filter.h
                                   mapper_extender.h
                                   mapper_verifier.h
+                                  mapper_aligner.h
                                   mapper_writer.h
                                   store_reads.h
                                   store_genome.h
@@ -133,6 +134,7 @@ else ()
                                   mapper_filter.h
                                   mapper_extender.h
                                   mapper_verifier.h
+                                  mapper_aligner.h
                                   mapper_writer.h
                                   store_reads.h
                                   store_genome.h
