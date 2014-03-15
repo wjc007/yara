@@ -296,16 +296,9 @@ inline void _fillMatePosition(MatchesWriter<TSpec, Traits> & me, TMatch const & 
 template <typename TSpec, typename Traits, typename TCount>
 inline void _fillMapq(MatchesWriter<TSpec, Traits> & me, TCount count)
 {
-    if (count == 1)
-        me.record.mapQ = 254;
-    else if (count == 2)
-        me.record.mapQ = 3;
-    else if (count == 3)
-        me.record.mapQ = 2;
-    else if (count < 10)
-        me.record.mapQ = 1;
-    else
-        me.record.mapQ = 0;
+    static const unsigned char MAPQ[] = { 255, 254, 3, 2, 1, 1, 1, 1, 1, 1, 0 };
+
+    me.record.mapQ = MAPQ[_min(count, 10u)];
 }
 
 // ----------------------------------------------------------------------------
