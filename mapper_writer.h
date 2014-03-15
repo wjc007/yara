@@ -89,7 +89,8 @@ struct MatchesWriter
         reads(reads),
         options(options)
     {
-        _writeAllMatchesImpl(*this);
+        // Process all matches.
+        iterate(matchesSet, *this, Standard(), Serial());
     }
 
     template <typename TIterator>
@@ -116,17 +117,6 @@ struct QualityExtractor : public std::unary_function<TValue, char>
 // ============================================================================
 // Functions
 // ============================================================================
-
-// ----------------------------------------------------------------------------
-// Function _writeAllMatchesImpl()
-// ----------------------------------------------------------------------------
-
-template <typename TSpec, typename Traits>
-inline void _writeAllMatchesImpl(MatchesWriter<TSpec, Traits> & me)
-{
-    // Process all matches.
-    iterate(me.matchesSet, me, Standard(), Serial());
-}
 
 // ----------------------------------------------------------------------------
 // Function _writeMatchesImpl()
