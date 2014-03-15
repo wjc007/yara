@@ -48,13 +48,19 @@ using namespace seqan;
 template <typename TSpec, typename Traits>
 struct MatchesAligner
 {
-    typedef typename Traits::TContigs          TContigs;
-    typedef typename Traits::TReads            TReads;
+    typedef typename Traits::TContigSeqs       TContigSeqs;
+    typedef typename Traits::TReadSeqs         TReadSeqs;
     typedef typename Traits::TMatchesSet       TMatchesSet;
     typedef typename Traits::TMatches          TMatches;
 
+    typedef String<GapAnchor<int> >            TGapAnchors;
+    typedef AnchorGaps<TGapAnchors>            TAnchorGaps;
+
     // Thread-private data.
-    // Matrix
+    TGapAnchors contigAnchors;
+    TGapAnchors readAnchors;
+    CharString cigar;
+    CharString md;
 
     // Shared-memory read-write data.
 //    TGaps
@@ -62,19 +68,19 @@ struct MatchesAligner
     // Shared-memory read-only data.
     TMatchesSet const &     matchesSet;
     TMatches const &        pairs;
-    TContigs const &        contigs;
-    TReads const &          reads;
+    TContigSeqs const &     contigSeqs;
+    TReadSeqs const &       readSeqs;
     Options const &         options;
 
     MatchesAligner(TMatchesSet const & matchesSet,
                    TMatches const & pairs,
-                   TContigs const & contigs,
-                   TReads const & reads,
+                   TContigSeqs const & contigSeqs,
+                   TReadSeqs const & readSeqs,
                    Options const & options) :
         matchesSet(matchesSet),
         pairs(pairs),
-        contigs(contigs),
-        reads(reads),
+        contigSeqs(contigSeqs),
+        readSeqs(readSeqs),
         options(options)
     {
         iterate(matchesSet, *this, Standard(), typename Traits::TThreading());
@@ -94,12 +100,55 @@ struct MatchesAligner
 // ----------------------------------------------------------------------------
 // Function _alignMatchImpl()
 // ----------------------------------------------------------------------------
+// Aligns one match.
 
-template <typename TSpec, typename Traits, typename TIterator>
-inline void _alignMatchImpl(MatchesAligner<TSpec, Traits> & me, TIterator const & it)
+template <typename TSpec, typename Traits, typename TMatchesIt>
+inline void _alignMatchImpl(MatchesAligner<TSpec, Traits> & me, TMatchesIt const & it)
 {
+    typedef typename Value<TMatchesIt const>::Type  TMatches;
+    typedef typename Value<TMatches>::Type          TMatch;
 
+    typedef typename Traits::TContigSeqs            TContigSeqs;
+    typedef typename Value<TContigSeqs const>::Type TContigSeq;
+    typedef typename Infix<TContigSeq>::Type        TContigInfix;
+
+    typedef typename Traits::TReadSeqs              TReadSeqs;
+    typedef typename Value<TReadSeqs const>::Type   TReadSeq;
+
+    typedef MatchesAligner<TSpec, Traits>           TMatchesAligner;
+    typedef typename TMatchesAligner::TAnchorGaps   TAnchorGaps;
+    typedef Gaps<TContigInfix, TAnchorGaps>         TContigGaps;
+    typedef Gaps<TReadSeq, TAnchorGaps>             TReadGaps;
+
+    TMatches const & matches = value(it);
+
+    if (empty(matches)) return;
+
+    // The first match is the primary one.
+    TMatch const & match = front(matches);
+
+    unsigned errors = getErrors(match);
+
+    TReadSeq const & readSeq = me.readSeqs[getReadSeqId(match, me.readSeqs)];
+
+    TContigInfix const & contigInfix = infix(me.contigSeqs[getContigId(match)],
+                                             getContigBegin(match),
+                                             getContigEnd(match));
+
+    clear(me.contigAnchors);
+    clear(me.readAnchors);
+    TContigGaps contigGaps(contigInfix, me.contigAnchors);
+    TReadGaps readGaps(readSeq, me.readAnchors);
+
+    // Do not align if the match contains no gaps.
+    // TODO(esiragusa): reuse DP matrix.
+    if (!(errors == 0 || (errors == 1 && length(contigInfix) == length(readSeq))))
+        globalAlignment(contigGaps, readGaps, Score<short, EditDistance>(), -(int)errors, (int)errors);
+
+    clear(me.cigar);
+    clear(me.md);
+    getCigarString(me.cigar, contigGaps, readGaps);
+//    getMDString(me.md, contigGaps, readGaps);
 }
-
 
 #endif  // #ifndef APP_YARA_MAPPER_ALIGNER_H_

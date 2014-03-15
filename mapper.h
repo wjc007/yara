@@ -829,7 +829,7 @@ inline void alignMatches(Mapper<TSpec, TConfig> & me)
     typedef MatchesAligner<TSpec, TTraits>      TMatchesAligner;
 
     start(me.timer);
-    TMatchesAligner aligner(me.matchesSet, me.pairs, me.contigs, me.reads, me.options);
+    TMatchesAligner aligner(me.matchesSet, me.pairs, me.contigs.seqs, me.reads.seqs, me.options);
     stop(me.timer);
     me.stats.alignMatches += getValue(me.timer);
 
