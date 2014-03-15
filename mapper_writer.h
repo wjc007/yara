@@ -296,16 +296,9 @@ inline void _fillMatePosition(MatchesWriter<TSpec, Traits> & me, TMatch const & 
 template <typename TSpec, typename Traits, typename TCount>
 inline void _fillMapq(MatchesWriter<TSpec, Traits> & me, TCount count)
 {
-    if (count == 1)
-        me.record.mapQ = 254;
-    else if (count == 2)
-        me.record.mapQ = 3;
-    else if (count == 3)
-        me.record.mapQ = 2;
-    else if (count < 10)
-        me.record.mapQ = 1;
-    else
-        me.record.mapQ = 0;
+    static const unsigned char MAPQ[] = { 255, 254, 3, 2, 1, 1, 1, 1, 1, 1, 0 };
+
+    me.record.mapQ = MAPQ[_min(count, 10u)];
 }
 
 // ----------------------------------------------------------------------------
@@ -322,13 +315,14 @@ inline void _fillXa(MatchesWriter<TSpec, Traits> & me, TMatches const & matches)
     {
         append(me.xa, nameStore(me.outputCtx)[getContigId(value(it))]);
         appendValue(me.xa, ',');
-        // TODO(esiragusa): convert contig begin to string.
+        // TODO(esiragusa): convert contig begin and end to string.
 //        append(me.xa, getContigBegin(value(it)) + 1);
         appendValue(me.xa, '1');
         appendValue(me.xa, ',');
-        appendValue(me.xa, onForwardStrand(value(it)) ? '+' : '-');
+//        append(me.xa, getContigEnd(value(it)) + 1);
+        appendValue(me.xa, '1');
         appendValue(me.xa, ',');
-        appendValue(me.xa, '*');
+        appendValue(me.xa, onForwardStrand(value(it)) ? '+' : '-');
         appendValue(me.xa, ',');
         appendValue(me.xa, '0' + getErrors(value(it)));
         appendValue(me.xa, ';');
