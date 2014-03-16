@@ -188,6 +188,10 @@ struct MapperTraits
     typedef String<TMatch>                                          TMatches;
     typedef StringSet<TMatches, Segment<TMatches> >                 TMatchesSet;
 
+    typedef String<CigarElement<> >                                 TCigar;
+    typedef StringSet<TCigar, Segment<TCigar> >                     TCigarSet;
+    typedef StringSetLimits<TCigarSet>::Type                        TCigarLimits;
+
     typedef Multiple<FinderSTree>                                   TAlgorithmExt;
     typedef Multiple<Backtracking<HammingDistance> >                TAlgorithmApx;
     typedef Pattern<TSeeds, TAlgorithmExt>                          TPatternExt;
@@ -261,6 +265,9 @@ struct Mapper
     typename Traits::TMatchesSet        matchesSet;
     typename Traits::TMatches           pairs;
 
+    typename Traits::TCigar             cigars;
+    typename Traits::TCigarSet          cigarSet;
+
     typename Traits::TFinderExt         finderExt;
     typename Traits::TFinderApx         finderApx;
 
@@ -280,6 +287,8 @@ struct Mapper
         matches(),
         matchesSet(),
         pairs(),
+        cigars(),
+        cigarSet(),
         finderExt(index),
         finderApx(index)
     {};
@@ -829,7 +838,11 @@ inline void alignMatches(Mapper<TSpec, TConfig> & me)
     typedef MatchesAligner<TSpec, TTraits>      TMatchesAligner;
 
     start(me.timer);
-    TMatchesAligner aligner(me.matchesSet, me.pairs, me.contigs.seqs, me.reads.seqs, me.options);
+    clear(me.cigars);
+    clear(me.cigarSet);
+    setHost(me.cigarSet, me.cigars);
+    typename TTraits::TCigarLimits cigarLimits;
+    TMatchesAligner aligner(me.cigarSet, cigarLimits, me.pairs, me.contigs.seqs, me.reads.seqs, me.options);
     stop(me.timer);
     me.stats.alignMatches += getValue(me.timer);
 
