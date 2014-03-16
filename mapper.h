@@ -671,7 +671,6 @@ template <typename TSpec, typename TConfig>
 inline void reserveMatches(Mapper<TSpec, TConfig> & me)
 {
     // TODO(esiragusa): guess the number of matches.
-//    clear(me.matches);
     reserve(me.matches, countHits(me) / 3);
 }
 
@@ -839,8 +838,6 @@ inline void alignMatches(Mapper<TSpec, TConfig> & me)
     typedef MatchesAligner<TSpec, TTraits>      TMatchesAligner;
 
     start(me.timer);
-//    clear(me.cigars);
-//    clear(me.cigarSet);
     setHost(me.cigarSet, me.cigars);
     typename TTraits::TCigarLimits cigarLimits;
     TMatchesAligner aligner(me.cigarSet, cigarLimits, me.primaryMatches, me.contigs.seqs, me.reads.seqs, me.options);
