@@ -131,7 +131,7 @@ inline void _collectSeedsImpl(SeedsCollector<TSpec, Traits> & me, TReadSeqsItera
 
     TReadSeqId readSeqId = position(it);
 
-    if (getStatus(me.ctx, readSeqId) != STATUS_MAPPED && getSeedErrors(me.ctx, readSeqId) == me.seedErrors)
+    if (!isMapped(me.ctx, readSeqId) && getSeedErrors(me.ctx, readSeqId) == me.seedErrors)
         _getSeeds(me, readSeqId);
 }
 

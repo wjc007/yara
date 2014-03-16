@@ -42,26 +42,22 @@ using namespace seqan;
 // ============================================================================
 
 // ----------------------------------------------------------------------------
-// Enum ReadStatus
-// ----------------------------------------------------------------------------
-
-enum ReadStatus { STATUS_UNSEEDED, STATUS_SEEDED, STATUS_MAPPED, STATUS_UNMAPPABLE };
-
-// ----------------------------------------------------------------------------
 // Class ReadContext
 // ----------------------------------------------------------------------------
 
 template <typename TSpec = void, typename TConfig = void>
 struct ReadContext
 {
-    unsigned char stratum       : 4;
-    unsigned char seedErrors    : 2;
-    ReadStatus    status        : 2;
+//    unsigned char stratum       : 4;
+    unsigned char seedErrors     : 2;
+    bool    mapped               : 1;
+    bool    paired               : 1;
 
     ReadContext() :
-        stratum(0),
+//        stratum(0),
         seedErrors(0),
-        status(STATUS_UNSEEDED)
+        mapped(false),
+        paired(false)
     {};
 };
 
@@ -73,21 +69,21 @@ struct ReadContext
 // Function getStratum()
 // ----------------------------------------------------------------------------
 
-template <typename TReadsContext, typename TReadSeqId>
-inline unsigned char getStratum(TReadsContext const & ctx, TReadSeqId readSeqId)
-{
-    return ctx[readSeqId].stratum;
-}
+//template <typename TReadsContext, typename TReadSeqId>
+//inline unsigned char getStratum(TReadsContext const & ctx, TReadSeqId readSeqId)
+//{
+//    return ctx[readSeqId].stratum;
+//}
 
 // ----------------------------------------------------------------------------
 // Function incStratum()
 // ----------------------------------------------------------------------------
 
-template <typename TReadsContext, typename TReadSeqId>
-inline void incStratum(TReadsContext & ctx, TReadSeqId readSeqId)
-{
-    ctx[readSeqId].stratum++;
-}
+//template <typename TReadsContext, typename TReadSeqId>
+//inline void incStratum(TReadsContext & ctx, TReadSeqId readSeqId)
+//{
+//    ctx[readSeqId].stratum++;
+//}
 
 // ----------------------------------------------------------------------------
 // Function getSeedErrors()
@@ -110,23 +106,13 @@ inline void setSeedErrors(TReadsContext & ctx, TReadSeqId readSeqId, TErrors err
 }
 
 // ----------------------------------------------------------------------------
-// Function getStatus()
+// Function setMapped()
 // ----------------------------------------------------------------------------
 
 template <typename TReadsContext, typename TReadSeqId>
-inline ReadStatus getStatus(TReadsContext const & ctx, TReadSeqId readSeqId)
+inline void setMapped(TReadsContext & ctx, TReadSeqId readSeqId)
 {
-    return ctx[readSeqId].status;
-}
-
-// ----------------------------------------------------------------------------
-// Function setStatus()
-// ----------------------------------------------------------------------------
-
-template <typename TReadsContext, typename TReadSeqId>
-inline void setStatus(TReadsContext & ctx, TReadSeqId readSeqId, ReadStatus status)
-{
-    ctx[readSeqId].status = status;
+    ctx[readSeqId].mapped = true;
 }
 
 // ----------------------------------------------------------------------------
@@ -136,7 +122,27 @@ inline void setStatus(TReadsContext & ctx, TReadSeqId readSeqId, ReadStatus stat
 template <typename TReadsContext, typename TReadSeqId>
 inline bool isMapped(TReadsContext const & ctx, TReadSeqId readSeqId)
 {
-    return ctx[readSeqId].status == STATUS_MAPPED;
+    return ctx[readSeqId].mapped;
+}
+
+// ----------------------------------------------------------------------------
+// Function setPaired()
+// ----------------------------------------------------------------------------
+
+template <typename TReadsContext, typename TReadSeqId>
+inline void setPaired(TReadsContext & ctx, TReadSeqId readSeqId)
+{
+    ctx[readSeqId].paired = true;
+}
+
+// ----------------------------------------------------------------------------
+// Function isPaired()
+// ----------------------------------------------------------------------------
+
+template <typename TReadsContext, typename TReadSeqId>
+inline bool isPaired(TReadsContext const & ctx, TReadSeqId readSeqId)
+{
+    return ctx[readSeqId].paired;
 }
 
 #endif  // #ifndef APP_YARA_BITS_CONTEXT_H_
