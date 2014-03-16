@@ -67,7 +67,7 @@ struct MatchesWriter
 
     // Shared-memory read-only data.
     TMatchesSet const &     matchesSet;
-    TMatches const &        pairs;
+    TMatches const &        primaryMatches;
     TCigarSet const &       cigarSet;
     TReadsContext const &   ctx;
     TContigs const &        contigs;
@@ -77,7 +77,7 @@ struct MatchesWriter
     MatchesWriter(TOutputStream & outputStream,
                   TOutputContext & outputCtx,
                   TMatchesSet const & matchesSet,
-                  TMatches const & pairs,
+                  TMatches const & primaryMatches,
                   TCigarSet const & cigarSet,
                   TReadsContext const & ctx,
                   TContigs const & contigs,
@@ -86,7 +86,7 @@ struct MatchesWriter
         outputStream(outputStream),
         outputCtx(outputCtx),
         matchesSet(matchesSet),
-        pairs(pairs),
+        primaryMatches(primaryMatches),
         cigarSet(cigarSet),
         ctx(ctx),
         contigs(contigs),
@@ -193,11 +193,11 @@ inline void _writeMappedReadImpl(MatchesWriter<TSpec, Traits> & me, TReadId read
 
     // Check for paired match.
     TReadId mateId = getMateId(me.reads.seqs, readId);
-    TMatch const & mate = me.pairs[mateId];
-    bool paired = getReadId(mate) == mateId;
+    TMatch const & mate = me.primaryMatches[mateId];
+    bool paired = isValid(mate);
 
     // If the read is paired, the paired match is the primary one.
-    TMatch const & primary = paired ? me.pairs[readId] : front(matches);
+    TMatch const & primary = paired ? me.primaryMatches[readId] : front(matches);
 
     clear(me.record);
     _fillReadInfo(me, getReadSeqId(primary, me.reads.seqs));
