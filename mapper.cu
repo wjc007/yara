@@ -74,6 +74,7 @@
 #include "mapper_filter.h"
 #include "mapper_extender.h"
 #include "mapper_verifier.h"
+#include "mapper_selector.h"
 #include "mapper_aligner.h"
 #include "mapper_writer.h"
 #include "mapper.h"
