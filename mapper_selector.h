@@ -138,7 +138,7 @@ inline void _selectMatchImpl(MatchesSelector<TSpec, Traits> & me, TIterator & it
 
     TMatches const & matches = me.matchesSet[position(it, me.primaryMatches)];
 
-    if (isInvalid(value(it)) && !empty(matches))
+    if (isInvalid(value(it)))
         assignValue(it, getFirstMatch(matches));
 }
 
