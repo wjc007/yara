@@ -219,6 +219,10 @@ struct Stats
     TValue alignMatches;
     TValue writeMatches;
 
+    unsigned long loadedReads;
+    unsigned long mappedReads;
+    unsigned long pairedReads;
+
     Stats() :
         loadGenome(0),
         loadReads(0),
@@ -231,7 +235,10 @@ struct Stats
         compactMatches(0),
         selectPairs(0),
         alignMatches(0),
-        writeMatches(0)
+        writeMatches(0),
+        loadedReads(0),
+        mappedReads(0),
+        pairedReads(0)
     {}
 };
 
@@ -403,6 +410,7 @@ inline void loadReads(Mapper<TSpec, TConfig> & me)
     load(me.reads, me.readsLoader, me.options.readsCount);
     stop(me.timer);
     me.stats.loadReads += getValue(me.timer);
+    me.stats.loadedReads += getReadsCount(me.reads.seqs);
 
     if (me.options.verbose > 1)
     {
@@ -704,8 +712,6 @@ inline void aggregateMatches(Mapper<TSpec, TConfig> & me, TReadSeqs & readSeqs)
     {
         std::cout << "Compaction time:\t\t" << me.timer << std::endl;
         std::cout << "Matches count:\t\t\t" << lengthSum(me.matchesSet) << std::endl;
-        std::cout << "Mapped reads:\t\t\t" <<
-                countMappedReads(readSeqs, concat(me.matchesSet), typename TConfig::TThreading()) << std::endl;
     }
 }
 
@@ -805,6 +811,15 @@ inline void _rankMatchesImpl(Mapper<TSpec, TConfig> & me, TReadSeqs & readSeqs, 
 
     resize(me.primaryMatches, getReadsCount(readSeqs), Exact());
     transform(me.primaryMatches, me.matchesSet, getFirstMatch<TMatches>, typename TTraits::TThreading());
+
+    unsigned long mappedReads = 0;
+    if (me.options.verbose > 0)
+    {
+        mappedReads = countValidMatches(me.primaryMatches, typename TTraits::TThreading());
+        me.stats.mappedReads += mappedReads;
+    }
+    if (me.options.verbose > 1)
+        std::cout << "Mapped reads:\t\t\t" << mappedReads << std::endl;
 }
 
 template <typename TSpec, typename TConfig, typename TReadSeqs>
@@ -814,15 +829,22 @@ inline void _rankMatchesImpl(Mapper<TSpec, TConfig> & me, TReadSeqs const & read
     typedef PairsSelector<TSpec, TTraits>   TPairsSelector;
     typedef MatchesSelector<TSpec, TTraits> TMatchesSelector;
 
+    unsigned long pairedReads = 0;
+
     start(me.timer);
     TPairsSelector selector(me.primaryMatches, readSeqs, me.matchesSet, me.options);
     stop(me.timer);
     me.stats.selectPairs += getValue(me.timer);
 
+    if (me.options.verbose > 0)
+    {
+        pairedReads = countValidMatches(me.primaryMatches, typename TTraits::TThreading());
+        me.stats.pairedReads += pairedReads;
+    }
     if (me.options.verbose > 1)
     {
         std::cout << "Pairing time:\t\t\t" << me.timer << std::endl;
-        std::cout << "Mapped pairs:\t\t\t" << countValidMatches(me.primaryMatches, typename TTraits::TThreading()) / 2 << std::endl;
+        std::cout << "Mapped pairs:\t\t\t" << pairedReads / 2 << std::endl;
     }
 
     // Mark paired reads.
@@ -833,6 +855,15 @@ inline void _rankMatchesImpl(Mapper<TSpec, TConfig> & me, TReadSeqs const & read
 
     // Select best match for unpaired reads.
     TMatchesSelector mselector(me.primaryMatches, me.ctx, me.matchesSet);
+
+    unsigned long mappedReads = 0;
+    if (me.options.verbose > 0)
+    {
+        mappedReads = countValidMatches(me.primaryMatches, typename TTraits::TThreading());
+        me.stats.mappedReads += mappedReads;
+    }
+    if (me.options.verbose > 1)
+        std::cout << "Mapped reads:\t\t\t" << mappedReads << std::endl;
 }
 
 // ----------------------------------------------------------------------------
@@ -998,6 +1029,7 @@ inline void printStats(Mapper<TSpec, TConfig> const & me, Timer<TValue> const & 
 {
     TValue total = getValue(timer) / 100;
 
+    std::cout << "Total time:\t\t\t" << getValue(timer) << " sec" << std::endl;
     std::cout << "Genome loading time:\t\t" << me.stats.loadGenome << " sec" << "\t\t" << me.stats.loadGenome / total << " %" << std::endl;
     std::cout << "Reads loading time:\t\t" << me.stats.loadReads << " sec" << "\t\t" << me.stats.loadReads / total << " %" << std::endl;
     std::cout << "Seeding time:\t\t\t" << me.stats.collectSeeds << " sec" << "\t\t" << me.stats.collectSeeds / total << " %" << std::endl;
@@ -1011,7 +1043,14 @@ inline void printStats(Mapper<TSpec, TConfig> const & me, Timer<TValue> const & 
         std::cout << "Pairing time:\t\t\t" << me.stats.selectPairs << " sec" << "\t\t" << me.stats.selectPairs / total << " %" << std::endl;
     std::cout << "Alignment time:\t\t\t" << me.stats.alignMatches << " sec" << "\t\t" << me.stats.alignMatches / total << " %" << std::endl;
     std::cout << "Output time:\t\t\t" << me.stats.writeMatches << " sec" << "\t\t" << me.stats.writeMatches / total << " %" << std::endl;
-    std::cout << "Total time:\t\t\t" << getValue(timer) << " sec" << std::endl;
+
+    printRuler(std::cout);
+
+    double totalReads = me.stats.loadedReads / 100;
+    std::cout << "Total reads:\t\t\t" << me.stats.loadedReads << std::endl;
+    std::cout << "Mapped reads:\t\t\t" << me.stats.mappedReads << "\t\t\t" << me.stats.mappedReads / totalReads << " %" << std::endl;
+    if (IsSameType<typename TConfig::TSequencing, PairedEnd>::VALUE)
+        std::cout << "Paired reads:\t\t\t" << me.stats.pairedReads << "\t\t\t" << me.stats.pairedReads / totalReads << " %" << std::endl;
 }
 
 // ----------------------------------------------------------------------------
