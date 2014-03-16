@@ -6,7 +6,7 @@
 # CMakeLists.txt file for yara.
 # ===========================================================================
 
-cmake_minimum_required (VERSION 2.8.11)
+cmake_minimum_required (VERSION 2.8.9)
 project (seqan_core_apps_yara)
 message (STATUS "Configuring core/apps/yara")
 
@@ -110,6 +110,8 @@ if (SEQAN_HAS_CUDA)
                                   mapper_filter.h
                                   mapper_extender.h
                                   mapper_verifier.h
+                                  mapper_selector.h
+                                  mapper_aligner.h
                                   mapper_writer.h
                                   store_reads.h
                                   store_genome.h
@@ -133,6 +135,8 @@ else ()
                                   mapper_filter.h
                                   mapper_extender.h
                                   mapper_verifier.h
+                                  mapper_selector.h
+                                  mapper_aligner.h
                                   mapper_writer.h
                                   store_reads.h
                                   store_genome.h

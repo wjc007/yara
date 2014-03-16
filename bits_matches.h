@@ -218,11 +218,11 @@ template <typename TSpec = void>
 struct Match
 {
     unsigned        readId       : 22;
-    unsigned char   contigId     : 8;
+    unsigned        contigId     : 8;
     unsigned        contigBegin  : 30;
     unsigned short  contigEnd    : 14;
     bool            isFwd        : 1;
-    unsigned char   errors       : 5;
+    unsigned        errors       : 5;
 }
 __attribute__((packed));
 
@@ -334,10 +334,10 @@ inline void setContigPosition(Match<TSpec> & me, TContigPos contigBegin, TContig
     me.contigEnd = getValueI2(contigEnd) - getValueI2(contigBegin);
 }
 
-template <typename TSpec, typename TReadSeqs>
-inline void setUnpaired(Match<TSpec> & me, TReadSeqs const & readSeqs)
+template <typename TSpec>
+inline void setInvalid(Match<TSpec> & me)
 {
-    me.readId = (unsigned)getReadsCount(readSeqs);
+    me.readId = 0;
     me.contigId = 0;
     me.contigBegin = 0;
     me.contigEnd = 0;
@@ -404,6 +404,18 @@ inline unsigned char getErrors(Match<TSpec> const & me)
     return me.errors;
 }
 
+template <typename TSpec>
+inline bool isInvalid(Match<TSpec> const & me)
+{
+    return getContigBegin(me) == getContigEnd(me);
+}
+
+template <typename TSpec>
+inline bool isValid(Match<TSpec> const & me)
+{
+    return !isInvalid(me);
+}
+
 // ----------------------------------------------------------------------------
 // Function getErrors()
 // ----------------------------------------------------------------------------
@@ -425,6 +437,16 @@ inline unsigned getTemplateLength(Match<TSpec> const & a, Match<TSpec> const & b
         return getContigEnd(b) - getContigBegin(a);
     else
         return getContigEnd(a) - getContigBegin(b);
+}
+
+// ----------------------------------------------------------------------------
+// Function cigarLength()
+// ----------------------------------------------------------------------------
+
+template <typename TSpec>
+inline unsigned getCigarLength(Match<TSpec> const & me)
+{
+    return isInvalid(me) ? 0 : 2 * getErrors(me) + 1;
 }
 
 // ----------------------------------------------------------------------------
@@ -567,23 +589,14 @@ countMappedReads(TReadSeqs const & readSeqs, TMatches const & matches, TThreadin
 }
 
 // ----------------------------------------------------------------------------
-// Function countMappedPairs()
+// Function countValidMatches()
 // ----------------------------------------------------------------------------
 
-template <typename TReadSeqs, typename TMatches>
-inline typename Size<TReadSeqs>::Type
-countMappedPairs(TReadSeqs const & readSeqs, TMatches const & matches)
+template <typename TMatches, typename TThreading>
+inline typename Size<TMatches>::Type
+countValidMatches(TMatches const & matches, TThreading const & threading)
 {
-    typedef typename Size<TReadSeqs>::Type                      TSize;
-    typedef typename Iterator<TMatches const, Standard>::Type   TIter;
-
-    TSize pairedReads = 0;
-
-    for (TIter it = begin(matches, Standard()); !atEnd(it, matches); it++)
-        if (getReadId(*it) < getReadsCount(readSeqs))
-            pairedReads++;
-
-    return pairedReads / 2;
+    return countIf(matches, isValid<void>, threading);
 }
 
 // ----------------------------------------------------------------------------
@@ -606,6 +619,20 @@ countBestMatches(TMatches const & matches)
     for (TIter it = itBegin; it != itEnd && getErrors(*it) <= getErrors(*itBegin); it++, count++) ;
 
     return count;
+}
+
+// ----------------------------------------------------------------------------
+// Function getFirstMatch()
+// ----------------------------------------------------------------------------
+
+template <typename TMatches>
+inline typename Value<TMatches>::Type
+getFirstMatch(TMatches const & matches)
+{
+    typename Value<TMatches>::Type invalid;
+    setInvalid(invalid);
+
+    return empty(matches) ? invalid : front(matches);
 }
 
 // ----------------------------------------------------------------------------

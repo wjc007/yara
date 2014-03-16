@@ -170,8 +170,7 @@ struct MapperTraits
     typedef Stream<FileStream<File<> > >                            TOutputStream;
     typedef BamIOContext<TContigNames, TContigNamesCache>           TOutputContext;
 
-    typedef ReadContext<TSpec, TConfig>                             TReadContext;
-    typedef String<TReadContext>                                    TReadsContext;
+    typedef ReadsContext<TSpec, TConfig>                            TReadsContext;
 
     typedef StringSet<TReadSeqs, Segment<TReadSeqs> >               TSeeds;
     typedef Tuple<TSeeds, TConfig::BUCKETS>                         TSeedsBuckets;
@@ -187,6 +186,10 @@ struct MapperTraits
     typedef Match<void>                                             TMatch;
     typedef String<TMatch>                                          TMatches;
     typedef StringSet<TMatches, Segment<TMatches> >                 TMatchesSet;
+
+    typedef String<CigarElement<> >                                 TCigar;
+    typedef StringSet<TCigar, Segment<TCigar> >                     TCigarSet;
+    typedef StringSetLimits<TCigarSet>::Type                        TCigarLimits;
 
     typedef Multiple<FinderSTree>                                   TAlgorithmExt;
     typedef Multiple<Backtracking<HammingDistance> >                TAlgorithmApx;
@@ -213,7 +216,12 @@ struct Stats
     TValue sortMatches;
     TValue compactMatches;
     TValue selectPairs;
+    TValue alignMatches;
     TValue writeMatches;
+
+    unsigned long loadedReads;
+    unsigned long mappedReads;
+    unsigned long pairedReads;
 
     Stats() :
         loadGenome(0),
@@ -226,7 +234,11 @@ struct Stats
         sortMatches(0),
         compactMatches(0),
         selectPairs(0),
-        writeMatches(0)
+        alignMatches(0),
+        writeMatches(0),
+        loadedReads(0),
+        mappedReads(0),
+        pairedReads(0)
     {}
 };
 
@@ -257,7 +269,10 @@ struct Mapper
 
     typename Traits::TMatches           matches;
     typename Traits::TMatchesSet        matchesSet;
-    typename Traits::TMatches           pairs;
+    typename Traits::TMatches           primaryMatches;
+
+    typename Traits::TCigar             cigars;
+    typename Traits::TCigarSet          cigarSet;
 
     typename Traits::TFinderExt         finderExt;
     typename Traits::TFinderApx         finderApx;
@@ -277,7 +292,9 @@ struct Mapper
         ranks(),
         matches(),
         matchesSet(),
-        pairs(),
+        primaryMatches(),
+        cigars(),
+        cigarSet(),
         finderExt(index),
         finderApx(index)
     {};
@@ -393,6 +410,7 @@ inline void loadReads(Mapper<TSpec, TConfig> & me)
     load(me.reads, me.readsLoader, me.options.readsCount);
     stop(me.timer);
     me.stats.loadReads += getValue(me.timer);
+    me.stats.loadedReads += getReadsCount(me.reads.seqs);
 
     if (me.options.verbose > 1)
     {
@@ -660,7 +678,6 @@ template <typename TSpec, typename TConfig>
 inline void reserveMatches(Mapper<TSpec, TConfig> & me)
 {
     // TODO(esiragusa): guess the number of matches.
-    clear(me.matches);
     reserve(me.matches, countHits(me) / 3);
 }
 
@@ -677,7 +694,6 @@ inline void aggregateMatches(Mapper<TSpec, TConfig> & me, TReadSeqs & readSeqs)
 
     // Bucket sort matches by readId.
     start(me.timer);
-    clear(me.matchesSet);
     setHost(me.matchesSet, me.matches);
     sort(me.matches, MatchSorter<TMatch, SortReadId>(), typename TConfig::TThreading());
     bucket(me.matchesSet, Getter<TMatch, SortReadId>(), getReadsCount(readSeqs), typename TConfig::TThreading());
@@ -696,8 +712,6 @@ inline void aggregateMatches(Mapper<TSpec, TConfig> & me, TReadSeqs & readSeqs)
     {
         std::cout << "Compaction time:\t\t" << me.timer << std::endl;
         std::cout << "Matches count:\t\t\t" << lengthSum(me.matchesSet) << std::endl;
-        std::cout << "Mapped reads:\t\t\t" <<
-                countMappedReads(readSeqs, concat(me.matchesSet), typename TConfig::TThreading()) << std::endl;
     }
 }
 
@@ -706,36 +720,35 @@ inline void aggregateMatches(Mapper<TSpec, TConfig> & me, TReadSeqs & readSeqs)
 // ----------------------------------------------------------------------------
 // Verifies all mates in within the insert window of their matches.
 
-template <typename TSpec, typename TConfig, typename TReadSeqs>
-inline void verifyMatches(Mapper<TSpec, TConfig> & me, TReadSeqs & readSeqs)
-{
-    _verifyMatchesImpl(me, readSeqs, typename TConfig::TAnchoring());
-}
-
-template <typename TSpec, typename TConfig, typename TReadSeqs, typename TAnchoring>
-inline void _verifyMatchesImpl(Mapper<TSpec, TConfig> & /* me */, TReadSeqs & /* readSeqs */, TAnchoring) {}
-
-template <typename TSpec, typename TConfig, typename TReadSeqs>
-inline void _verifyMatchesImpl(Mapper<TSpec, TConfig> & me, TReadSeqs & readSeqs, AnchorOne)
-{
-    typedef MapperTraits<TSpec, TConfig>    TTraits;
-    typedef AnchorsVerifier<TSpec, TTraits> TMatchesVerifier;
-
-    start(me.timer);
-    clear(me.pairs);
-    TMatchesVerifier verifier(me.ctx, me.pairs,
-                              me.contigs.seqs, readSeqs,
-                              me.matchesSet, me.options);
-    stop(me.timer);
-
-    if (me.options.verbose > 1)
-    {
-        std::cout << "Verification time:\t\t" << me.timer << std::endl;
-        std::cout << "Mates count:\t\t\t" << length(me.pairs) << std::endl;
-        std::cout << "Mapped pairs:\t\t\t" <<
-                countMappedReads(readSeqs, me.pairs, typename TConfig::TThreading()) << std::endl;
-    }
-}
+//template <typename TSpec, typename TConfig, typename TReadSeqs>
+//inline void verifyMatches(Mapper<TSpec, TConfig> & me, TReadSeqs & readSeqs)
+//{
+//    _verifyMatchesImpl(me, readSeqs, typename TConfig::TAnchoring());
+//}
+//
+//template <typename TSpec, typename TConfig, typename TReadSeqs, typename TAnchoring>
+//inline void _verifyMatchesImpl(Mapper<TSpec, TConfig> & /* me */, TReadSeqs & /* readSeqs */, TAnchoring) {}
+//
+//template <typename TSpec, typename TConfig, typename TReadSeqs>
+//inline void _verifyMatchesImpl(Mapper<TSpec, TConfig> & me, TReadSeqs & readSeqs, AnchorOne)
+//{
+//    typedef MapperTraits<TSpec, TConfig>    TTraits;
+//    typedef AnchorsVerifier<TSpec, TTraits> TMatchesVerifier;
+//
+//    start(me.timer);
+//    TMatchesVerifier verifier(me.ctx, me.pairs,
+//                              me.contigs.seqs, readSeqs,
+//                              me.matchesSet, me.options);
+//    stop(me.timer);
+//
+//    if (me.options.verbose > 1)
+//    {
+//        std::cout << "Verification time:\t\t" << me.timer << std::endl;
+//        std::cout << "Mates count:\t\t\t" << length(me.pairs) << std::endl;
+//        std::cout << "Mapped pairs:\t\t\t" <<
+//                countMappedReads(readSeqs, me.pairs, typename TConfig::TThreading()) << std::endl;
+//    }
+//}
 
 // ----------------------------------------------------------------------------
 // Function clearMatches()
@@ -745,52 +758,146 @@ inline void _verifyMatchesImpl(Mapper<TSpec, TConfig> & me, TReadSeqs & readSeqs
 template <typename TSpec, typename TConfig>
 inline void clearMatches(Mapper<TSpec, TConfig> & me)
 {
+    clear(me.matchesSet);
     clear(me.matches);
     shrinkToFit(me.matches);
+
+    clear(me.primaryMatches);
+    shrinkToFit(me.primaryMatches);
 }
 
 // ----------------------------------------------------------------------------
-// Function selectPairs()
+// Function _sortMatchesImpl()
 // ----------------------------------------------------------------------------
+// Sort each set of matches by errors.
 
-template <typename TSpec, typename TConfig, typename TReadSeqs>
-inline void selectPairs(Mapper<TSpec, TConfig> & me, TReadSeqs const & readSeqs)
+template <typename TSpec, typename TConfig>
+inline void _sortMatchesImpl(Mapper<TSpec, TConfig> & me)
 {
-    _selectPairsImpl(me, readSeqs, typename TConfig::TSequencing());
+    typedef MapperTraits<TSpec, TConfig>                    TTraits;
+    typedef typename TTraits::TMatchesSet                   TMatchesSet;
+    typedef typename Iterator<TMatchesSet, Standard>::Type  TMatchesIt;
+//    typedef typename Value<TMatchesSet>::Type               TMatches;
+
+    start(me.timer);
+    iterate(me.matchesSet, sortMatches<TMatchesIt, SortErrors>, Standard(), typename TTraits::TThreading());
+//    forEach(me.matchesSet, sortMatches<TMatches, SortErrors>, typename TTraits::TThreading());
+    stop(me.timer);
+    me.stats.sortMatches += getValue(me.timer);
+
+    if (me.options.verbose > 1)
+        std::cout << "Sorting time:\t\t\t" << me.timer << std::endl;
 }
 
-template <typename TSpec, typename TConfig, typename TReadSeqs, typename TSequencing>
-inline void _selectPairsImpl(Mapper<TSpec, TConfig> & /* me */, TReadSeqs & /* readSeqs */, TSequencing) {}
+// ----------------------------------------------------------------------------
+// Function rankMatches()
+// ----------------------------------------------------------------------------
 
 template <typename TSpec, typename TConfig, typename TReadSeqs>
-inline void _selectPairsImpl(Mapper<TSpec, TConfig> & me, TReadSeqs const & readSeqs, PairedEnd)
+inline void rankMatches(Mapper<TSpec, TConfig> & me, TReadSeqs const & readSeqs)
+{
+    _rankMatchesImpl(me, readSeqs, typename TConfig::TSequencing());
+}
+
+template <typename TSpec, typename TConfig, typename TReadSeqs>
+inline void _rankMatchesImpl(Mapper<TSpec, TConfig> & me, TReadSeqs & readSeqs, SingleEnd)
+{
+    typedef MapperTraits<TSpec, TConfig>        TTraits;
+    typedef typename TTraits::TMatchesSet       TMatchesSet;
+    typedef typename Value<TMatchesSet>::Type   TMatches;
+
+    // Sort matches by errors.
+    _sortMatchesImpl(me);
+
+    resize(me.primaryMatches, getReadsCount(readSeqs), Exact());
+    transform(me.primaryMatches, me.matchesSet, getFirstMatch<TMatches>, typename TTraits::TThreading());
+
+    unsigned long mappedReads = 0;
+    if (me.options.verbose > 0)
+    {
+        mappedReads = countValidMatches(me.primaryMatches, typename TTraits::TThreading());
+        me.stats.mappedReads += mappedReads;
+    }
+    if (me.options.verbose > 1)
+        std::cout << "Mapped reads:\t\t\t" << mappedReads << std::endl;
+}
+
+template <typename TSpec, typename TConfig, typename TReadSeqs>
+inline void _rankMatchesImpl(Mapper<TSpec, TConfig> & me, TReadSeqs const & readSeqs, PairedEnd)
 {
     typedef MapperTraits<TSpec, TConfig>    TTraits;
     typedef PairsSelector<TSpec, TTraits>   TPairsSelector;
+    typedef MatchesSelector<TSpec, TTraits> TMatchesSelector;
+
+    unsigned long pairedReads = 0;
 
     start(me.timer);
-    clear(me.pairs);
-    TPairsSelector selector(me.pairs, readSeqs, me.matchesSet, me.options);
+    TPairsSelector selector(me.primaryMatches, readSeqs, me.matchesSet, me.options);
     stop(me.timer);
     me.stats.selectPairs += getValue(me.timer);
 
+    if (me.options.verbose > 0)
+    {
+        pairedReads = countValidMatches(me.primaryMatches, typename TTraits::TThreading());
+        me.stats.pairedReads += pairedReads;
+    }
     if (me.options.verbose > 1)
     {
         std::cout << "Pairing time:\t\t\t" << me.timer << std::endl;
-        std::cout << "Mapped pairs:\t\t\t" << countMappedPairs(readSeqs, me.pairs) << std::endl;
+        std::cout << "Mapped pairs:\t\t\t" << pairedReads / 2 << std::endl;
     }
+
+    // Mark paired reads.
+    transform(me.ctx.paired, me.primaryMatches, isValid<void>, typename TTraits::TThreading());
+
+    // Sort matches by errors.
+    _sortMatchesImpl(me);
+
+    // Select best match for unpaired reads.
+    TMatchesSelector mselector(me.primaryMatches, me.ctx, me.matchesSet);
+
+    unsigned long mappedReads = 0;
+    if (me.options.verbose > 0)
+    {
+        mappedReads = countValidMatches(me.primaryMatches, typename TTraits::TThreading());
+        me.stats.mappedReads += mappedReads;
+    }
+    if (me.options.verbose > 1)
+        std::cout << "Mapped reads:\t\t\t" << mappedReads << std::endl;
 }
 
 // ----------------------------------------------------------------------------
-// Function clearPairs()
+// Function alignMatches()
 // ----------------------------------------------------------------------------
-// Clears all pairs.
 
 template <typename TSpec, typename TConfig>
-inline void clearPairs(Mapper<TSpec, TConfig> & me)
+inline void alignMatches(Mapper<TSpec, TConfig> & me)
 {
-    clear(me.pairs);
-    shrinkToFit(me.pairs);
+    typedef MapperTraits<TSpec, TConfig>        TTraits;
+    typedef MatchesAligner<TSpec, TTraits>      TMatchesAligner;
+
+    start(me.timer);
+    setHost(me.cigarSet, me.cigars);
+    typename TTraits::TCigarLimits cigarLimits;
+    TMatchesAligner aligner(me.cigarSet, cigarLimits, me.primaryMatches, me.contigs.seqs, me.reads.seqs, me.options);
+    stop(me.timer);
+    me.stats.alignMatches += getValue(me.timer);
+
+    if (me.options.verbose > 1)
+        std::cout << "Alignment time:\t\t\t" << me.timer << std::endl;
+}
+
+// ----------------------------------------------------------------------------
+// Function clearAlignments()
+// ----------------------------------------------------------------------------
+// Clears all cigars.
+
+template <typename TSpec, typename TConfig>
+inline void clearAlignments(Mapper<TSpec, TConfig> & me)
+{
+    clear(me.cigars);
+    clear(me.cigarSet);
+    shrinkToFit(me.cigarSet);
 }
 
 // ----------------------------------------------------------------------------
@@ -805,7 +912,7 @@ inline void writeMatches(Mapper<TSpec, TConfig> & me)
 
     start(me.timer);
     TMatchesWriter writer(me.outputStream, me.outputCtx,
-                          me.matchesSet, me.pairs,
+                          me.matchesSet, me.primaryMatches, me.cigarSet,
                           me.ctx, me.contigs, me.reads,
                           me.options);
     stop(me.timer);
@@ -850,11 +957,12 @@ inline void _mapReadsImpl(Mapper<TSpec, TConfig> & me, TReadSeqs & readSeqs, All
     clearSeeds(me);
     clearHits(me);
     aggregateMatches(me, readSeqs);
-    verifyMatches(me, readSeqs);
-    selectPairs(me, readSeqs);
+//    verifyMatches(me, readSeqs);
+    rankMatches(me, readSeqs);
+    alignMatches(me);
     writeMatches(me);
     clearMatches(me);
-    clearPairs(me);
+    clearAlignments(me);
 }
 
 // ----------------------------------------------------------------------------
@@ -904,11 +1012,12 @@ inline void _mapReadsImpl(Mapper<TSpec, TConfig> & me, TReadSeqs & readSeqs, Str
     }
 
     aggregateMatches(me, readSeqs);
-    verifyMatches(me, readSeqs);
-    selectPairs(me, readSeqs);
+//    verifyMatches(me, readSeqs);
+    rankMatches(me, readSeqs);
+    alignMatches(me);
     writeMatches(me);
     clearMatches(me);
-    clearPairs(me);
+    clearAlignments(me);
 }
 
 // ----------------------------------------------------------------------------
@@ -920,6 +1029,7 @@ inline void printStats(Mapper<TSpec, TConfig> const & me, Timer<TValue> const & 
 {
     TValue total = getValue(timer) / 100;
 
+    std::cout << "Total time:\t\t\t" << getValue(timer) << " sec" << std::endl;
     std::cout << "Genome loading time:\t\t" << me.stats.loadGenome << " sec" << "\t\t" << me.stats.loadGenome / total << " %" << std::endl;
     std::cout << "Reads loading time:\t\t" << me.stats.loadReads << " sec" << "\t\t" << me.stats.loadReads / total << " %" << std::endl;
     std::cout << "Seeding time:\t\t\t" << me.stats.collectSeeds << " sec" << "\t\t" << me.stats.collectSeeds / total << " %" << std::endl;
@@ -931,8 +1041,16 @@ inline void printStats(Mapper<TSpec, TConfig> const & me, Timer<TValue> const & 
     std::cout << "Compaction time:\t\t" << me.stats.compactMatches << " sec" << "\t\t" << me.stats.compactMatches / total << " %" << std::endl;
     if (IsSameType<typename TConfig::TSequencing, PairedEnd>::VALUE)
         std::cout << "Pairing time:\t\t\t" << me.stats.selectPairs << " sec" << "\t\t" << me.stats.selectPairs / total << " %" << std::endl;
+    std::cout << "Alignment time:\t\t\t" << me.stats.alignMatches << " sec" << "\t\t" << me.stats.alignMatches / total << " %" << std::endl;
     std::cout << "Output time:\t\t\t" << me.stats.writeMatches << " sec" << "\t\t" << me.stats.writeMatches / total << " %" << std::endl;
-    std::cout << "Total time:\t\t\t" << getValue(timer) << " sec" << std::endl;
+
+    printRuler(std::cout);
+
+    double totalReads = me.stats.loadedReads / 100;
+    std::cout << "Total reads:\t\t\t" << me.stats.loadedReads << std::endl;
+    std::cout << "Mapped reads:\t\t\t" << me.stats.mappedReads << "\t\t\t" << me.stats.mappedReads / totalReads << " %" << std::endl;
+    if (IsSameType<typename TConfig::TSequencing, PairedEnd>::VALUE)
+        std::cout << "Paired reads:\t\t\t" << me.stats.pairedReads << "\t\t\t" << me.stats.pairedReads / totalReads << " %" << std::endl;
 }
 
 // ----------------------------------------------------------------------------

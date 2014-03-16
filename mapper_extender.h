@@ -277,7 +277,6 @@ inline void _extendHitImpl(HitsExtender<TSpec, Traits> & me, TReadSeqsIterator c
             _extendHitImpl(me, it, All());
         for (THitsIt it = hitsBegin + getValueI1(revHitIds); it != hitsBegin + getValueI2(revHitIds); ++it)
             _extendHitImpl(me, it, All());
-
     }
 }
 
@@ -300,8 +299,8 @@ inline void _addMatchImpl(HitsExtender<TSpec, Traits> & me,
     appendValue(me.matches, me.prototype, Insist(), typename Traits::TThreading());
 
     TReadSeqId readId = getReadId(me.readSeqs, me.prototype.readId);
-    setStatus(me.ctx, getFirstMateFwdSeqId(me.readSeqs, readId), STATUS_MAPPED);
-    setStatus(me.ctx, getFirstMateRevSeqId(me.readSeqs, readId), STATUS_MAPPED);
+    setMapped(me.ctx, getFirstMateFwdSeqId(me.readSeqs, readId));
+    setMapped(me.ctx, getFirstMateRevSeqId(me.readSeqs, readId));
 }
 
 #endif  // #ifndef APP_YARA_MAPPER_EXTENDER_H_

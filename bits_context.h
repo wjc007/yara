@@ -42,27 +42,15 @@ using namespace seqan;
 // ============================================================================
 
 // ----------------------------------------------------------------------------
-// Enum ReadStatus
-// ----------------------------------------------------------------------------
-
-enum ReadStatus { STATUS_UNSEEDED, STATUS_SEEDED, STATUS_MAPPED, STATUS_UNMAPPABLE };
-
-// ----------------------------------------------------------------------------
-// Class ReadContext
+// Class ReadsContext
 // ----------------------------------------------------------------------------
 
 template <typename TSpec = void, typename TConfig = void>
-struct ReadContext
+struct ReadsContext
 {
-    unsigned char stratum       : 4;
-    unsigned char seedErrors    : 2;
-    ReadStatus    status        : 2;
-
-    ReadContext() :
-        stratum(0),
-        seedErrors(0),
-        status(STATUS_UNSEEDED)
-    {};
+    String<unsigned char>       seedErrors;
+    String<bool, Packed<> >     mapped;
+    String<bool, Packed<> >     paired;
 };
 
 // ============================================================================
@@ -70,23 +58,27 @@ struct ReadContext
 // ============================================================================
 
 // ----------------------------------------------------------------------------
-// Function getStratum()
+// Function clear()
 // ----------------------------------------------------------------------------
 
-template <typename TReadsContext, typename TReadSeqId>
-inline unsigned char getStratum(TReadsContext const & ctx, TReadSeqId readSeqId)
+template <typename TSpec, typename TConfig>
+inline void clear(ReadsContext<TSpec, TConfig> & ctx)
 {
-    return ctx[readSeqId].stratum;
+    clear(ctx.seedErrors);
+    clear(ctx.mapped);
+    clear(ctx.paired);
 }
 
 // ----------------------------------------------------------------------------
-// Function incStratum()
+// Function resize()
 // ----------------------------------------------------------------------------
 
-template <typename TReadsContext, typename TReadSeqId>
-inline void incStratum(TReadsContext & ctx, TReadSeqId readSeqId)
+template <typename TSpec, typename TConfig, typename TSize>
+inline void resize(ReadsContext<TSpec, TConfig> & ctx, TSize newLength)
 {
-    ctx[readSeqId].stratum++;
+    resize(ctx.seedErrors, newLength, 0, Exact());
+    resize(ctx.mapped, newLength, false, Exact());
+    resize(ctx.paired, newLength, false, Exact());
 }
 
 // ----------------------------------------------------------------------------
@@ -96,7 +88,7 @@ inline void incStratum(TReadsContext & ctx, TReadSeqId readSeqId)
 template <typename TReadsContext, typename TReadSeqId>
 inline unsigned char getSeedErrors(TReadsContext const & ctx, TReadSeqId readSeqId)
 {
-    return ctx[readSeqId].seedErrors;
+    return ctx.seedErrors[readSeqId];
 }
 
 // ----------------------------------------------------------------------------
@@ -106,27 +98,17 @@ inline unsigned char getSeedErrors(TReadsContext const & ctx, TReadSeqId readSeq
 template <typename TReadsContext, typename TReadSeqId, typename TErrors>
 inline void setSeedErrors(TReadsContext & ctx, TReadSeqId readSeqId, TErrors errors)
 {
-    ctx[readSeqId].seedErrors = errors;
+    assignValue(ctx.seedErrors, readSeqId, errors);
 }
 
 // ----------------------------------------------------------------------------
-// Function getStatus()
+// Function setMapped()
 // ----------------------------------------------------------------------------
 
 template <typename TReadsContext, typename TReadSeqId>
-inline ReadStatus getStatus(TReadsContext const & ctx, TReadSeqId readSeqId)
+inline void setMapped(TReadsContext & ctx, TReadSeqId readSeqId)
 {
-    return ctx[readSeqId].status;
-}
-
-// ----------------------------------------------------------------------------
-// Function setStatus()
-// ----------------------------------------------------------------------------
-
-template <typename TReadsContext, typename TReadSeqId>
-inline void setStatus(TReadsContext & ctx, TReadSeqId readSeqId, ReadStatus status)
-{
-    ctx[readSeqId].status = status;
+    assignValue(ctx.mapped, readSeqId, true);
 }
 
 // ----------------------------------------------------------------------------
@@ -136,7 +118,27 @@ inline void setStatus(TReadsContext & ctx, TReadSeqId readSeqId, ReadStatus stat
 template <typename TReadsContext, typename TReadSeqId>
 inline bool isMapped(TReadsContext const & ctx, TReadSeqId readSeqId)
 {
-    return ctx[readSeqId].status == STATUS_MAPPED;
+    return ctx.mapped[readSeqId];
+}
+
+// ----------------------------------------------------------------------------
+// Function setPaired()
+// ----------------------------------------------------------------------------
+
+template <typename TReadsContext, typename TReadSeqId>
+inline void setPaired(TReadsContext & ctx, TReadSeqId readSeqId)
+{
+    assignValue(ctx.paired, readSeqId, true);
+}
+
+// ----------------------------------------------------------------------------
+// Function isPaired()
+// ----------------------------------------------------------------------------
+
+template <typename TReadsContext, typename TReadSeqId>
+inline bool isPaired(TReadsContext const & ctx, TReadSeqId readSeqId)
+{
+    return ctx.paired[readSeqId];
 }
 
 #endif  // #ifndef APP_YARA_BITS_CONTEXT_H_

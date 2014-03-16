@@ -52,6 +52,7 @@ struct MatchesWriter
     typedef typename Traits::TReads            TReads;
     typedef typename Traits::TMatchesSet       TMatchesSet;
     typedef typename Traits::TMatches          TMatches;
+    typedef typename Traits::TCigarSet         TCigarSet;
     typedef typename Traits::TOutputStream     TOutputStream;
     typedef typename Traits::TOutputContext    TOutputContext;
     typedef typename Traits::TReadsContext     TReadsContext;
@@ -63,10 +64,11 @@ struct MatchesWriter
     // Shared-memory read-write data.
     TOutputStream &         outputStream;
     TOutputContext &        outputCtx;
-    TMatchesSet &           matchesSet;
-    TMatches const &        pairs;
 
     // Shared-memory read-only data.
+    TMatchesSet const &     matchesSet;
+    TMatches const &        primaryMatches;
+    TCigarSet const &       cigarSet;
     TReadsContext const &   ctx;
     TContigs const &        contigs;
     TReads const &          reads;
@@ -74,8 +76,9 @@ struct MatchesWriter
 
     MatchesWriter(TOutputStream & outputStream,
                   TOutputContext & outputCtx,
-                  TMatchesSet & matchesSet,
-                  TMatches const & pairs,
+                  TMatchesSet const & matchesSet,
+                  TMatches const & primaryMatches,
+                  TCigarSet const & cigarSet,
                   TReadsContext const & ctx,
                   TContigs const & contigs,
                   TReads const & reads,
@@ -83,13 +86,15 @@ struct MatchesWriter
         outputStream(outputStream),
         outputCtx(outputCtx),
         matchesSet(matchesSet),
-        pairs(pairs),
+        primaryMatches(primaryMatches),
+        cigarSet(cigarSet),
         ctx(ctx),
         contigs(contigs),
         reads(reads),
         options(options)
     {
-        _writeAllMatchesImpl(*this);
+        // Process all matches.
+        iterate(primaryMatches, *this, Standard(), Serial());
     }
 
     template <typename TIterator>
@@ -116,6 +121,88 @@ struct QualityExtractor : public std::unary_function<TValue, char>
 // ============================================================================
 // Functions
 // ============================================================================
+
+// ----------------------------------------------------------------------------
+// Function _writeMatchesImpl()
+// ----------------------------------------------------------------------------
+// Writes one block of matches.
+
+template <typename TSpec, typename Traits, typename TMatchIt>
+inline void _writeMatchesImpl(MatchesWriter<TSpec, Traits> & me, TMatchIt const & it)
+{
+    typedef typename Value<TMatchIt const>::Type    TMatch;
+
+    TMatch const & primary = value(it);
+
+    if (isValid(primary))
+        _writeMappedRead(me, position(it, me.primaryMatches), primary);
+    else
+        _writeUnmappedRead(me, position(it, me.primaryMatches));
+}
+
+// ----------------------------------------------------------------------------
+// Function _writeUnmappedRead()
+// ----------------------------------------------------------------------------
+// Writes one unmapped read.
+
+template <typename TSpec, typename Traits, typename TReadId>
+inline void _writeUnmappedRead(MatchesWriter<TSpec, Traits> & me, TReadId readId)
+{
+    clear(me.record);
+    _fillReadInfo(me, readId);
+    _fillMateInfo(me, readId);
+    me.record.flag |= BAM_FLAG_UNMAPPED;
+    write2(me.outputStream, me.record, me.outputCtx, typename Traits::TOutputFormat());
+}
+
+// ----------------------------------------------------------------------------
+// Function _writeMappedRead()
+// ----------------------------------------------------------------------------
+// Writes one block of matches.
+
+template <typename TSpec, typename Traits, typename TReadId, typename TMatch>
+inline void _writeMappedRead(MatchesWriter<TSpec, Traits> & me, TReadId readId, TMatch const & primary)
+{
+    _writeMappedReadImpl(me, readId, primary, typename Traits::TSequencing());
+}
+
+template <typename TSpec, typename Traits, typename TReadId, typename TMatch>
+inline void _writeMappedReadImpl(MatchesWriter<TSpec, Traits> & me, TReadId readId, TMatch const & primary, SingleEnd)
+{
+    clear(me.record);
+    _fillReadInfo(me, getReadSeqId(primary, me.reads.seqs));
+    _fillReadAlignment(me, primary);
+    _fillMateInfo(me, readId);
+    _fillLocations(me, me.matchesSet[readId], 0u);
+
+    write2(me.outputStream, me.record, me.outputCtx, typename Traits::TOutputFormat());
+}
+
+template <typename TSpec, typename Traits, typename TReadId, typename TMatch>
+inline void _writeMappedReadImpl(MatchesWriter<TSpec, Traits> & me, TReadId readId, TMatch const & primary, PairedEnd)
+{
+    typedef typename Traits::TMatches                           TMatches;
+    typedef typename Iterator<TMatches const, Standard>::Type   TIter;
+
+    clear(me.record);
+    _fillReadInfo(me, getReadSeqId(primary, me.reads.seqs));
+    _fillReadAlignment(me, primary);
+    _fillMateInfo(me, getReadId(primary));
+
+    if (isPaired(me.ctx, readId))
+    {
+        TReadId mateId = getMateId(me.reads.seqs, readId);
+        TMatch const & mate = me.primaryMatches[mateId];
+        _fillMatePosition(me, primary, mate);
+    }
+
+    // Find the primary match in the list of matches.
+    TMatches const & matches = me.matchesSet[readId];
+    TIter it = findMatch(matches, primary);
+    _fillLocations(me, matches, position(it, matches));
+
+    write2(me.outputStream, me.record, me.outputCtx, typename Traits::TOutputFormat());
+}
 
 // ----------------------------------------------------------------------------
 // Function fillHeader()
@@ -235,7 +322,7 @@ inline void _fillReadAlignment(MatchesWriter<TSpec, Traits> & me, TMatch const &
 
     me.record.rID = getContigId(match);
     me.record.beginPos = getContigBegin(match);
-//    setAlignment(record, me.contigs, match, match, alignFunctor);
+    me.record.cigar = me.cigarSet[getReadId(match)];
     appendErrors(me.record, getErrors(match));
 }
 
@@ -317,13 +404,12 @@ inline void _fillXa(MatchesWriter<TSpec, Traits> & me, TMatches const & matches)
         appendValue(me.xa, ',');
         // TODO(esiragusa): convert contig begin and end to string.
 //        append(me.xa, getContigBegin(value(it)) + 1);
-        appendValue(me.xa, '1');
-        appendValue(me.xa, ',');
+//        appendValue(me.xa, ',');
 //        append(me.xa, getContigEnd(value(it)) + 1);
-        appendValue(me.xa, '1');
-        appendValue(me.xa, ',');
+//        appendValue(me.xa, ',');
         appendValue(me.xa, onForwardStrand(value(it)) ? '+' : '-');
         appendValue(me.xa, ',');
+        // TODO(esiragusa): convert errors to string.
         appendValue(me.xa, '0' + getErrors(value(it)));
         appendValue(me.xa, ';');
     }
@@ -383,115 +469,6 @@ inline void _fillLocationsImpl(MatchesWriter<TSpec, Traits> & me, TMatches const
         _fillXa(me, suffix(cooptimal, primaryPos + 1));
         appendAlignments(me.record, me.xa);
     }
-}
-
-// ----------------------------------------------------------------------------
-// Function _writeAllMatchesImpl()
-// ----------------------------------------------------------------------------
-
-template <typename TSpec, typename Traits>
-inline void _writeAllMatchesImpl(MatchesWriter<TSpec, Traits> & me)
-{
-    typedef typename Traits::TMatchesSet                    TMatchesSet;
-    typedef typename Iterator<TMatchesSet, Standard>::Type  TMatchesIt;
-//    typedef typename Value<TMatchesSet>::Type             TMatches;
-
-    // Sort each set of matches by errors.
-    iterate(me.matchesSet, sortMatches<TMatchesIt, SortErrors>, Standard(), typename Traits::TThreading());
-//    forEach(me.matchesSet, sortMatches<TMatches, SortErrors>, typename TConfig::TThreading());
-
-    // Process all matches.
-    iterate(me.matchesSet, me, Standard(), Serial());
-}
-
-// ----------------------------------------------------------------------------
-// Function _writeMatchesImpl()
-// ----------------------------------------------------------------------------
-// Writes one block of matches.
-
-template <typename TSpec, typename Traits, typename TMatchesIt>
-inline void _writeMatchesImpl(MatchesWriter<TSpec, Traits> & me, TMatchesIt const & it)
-{
-    typedef typename Value<TMatchesIt const>::Type  TMatches;
-    typedef typename Value<TMatches>::Type          TMatch;
-
-    TMatches const & matches = value(it);
-
-    if (empty(matches))
-        _writeUnmappedRead(me, position(it, me.matchesSet));
-    else
-        _writeMappedRead(me, position(it, me.matchesSet), matches);
-}
-
-// ----------------------------------------------------------------------------
-// Function _writeUnmappedRead()
-// ----------------------------------------------------------------------------
-// Writes one unmapped read.
-
-template <typename TSpec, typename Traits, typename TReadId>
-inline void _writeUnmappedRead(MatchesWriter<TSpec, Traits> & me, TReadId readId)
-{
-    clear(me.record);
-    _fillReadInfo(me, readId);
-    _fillMateInfo(me, readId);
-    me.record.flag |= BAM_FLAG_UNMAPPED;
-    write2(me.outputStream, me.record, me.outputCtx, typename Traits::TOutputFormat());
-}
-
-// ----------------------------------------------------------------------------
-// Function _writeMappedRead()
-// ----------------------------------------------------------------------------
-// Writes one block of matches.
-
-template <typename TSpec, typename Traits, typename TReadId, typename TMatches>
-inline void _writeMappedRead(MatchesWriter<TSpec, Traits> & me, TReadId readId, TMatches const & matches)
-{
-    _writeMappedReadImpl(me, readId, matches, typename Traits::TSequencing());
-}
-
-template <typename TSpec, typename Traits, typename TReadId, typename TMatches>
-inline void _writeMappedReadImpl(MatchesWriter<TSpec, Traits> & me, TReadId readId, TMatches const & matches, SingleEnd)
-{
-    typedef typename Value<TMatches>::Type          TMatch;
-
-    // The first match is the primary one.
-    TMatch const & primary = front(matches);
-
-    clear(me.record);
-    _fillReadInfo(me, getReadSeqId(primary, me.reads.seqs));
-    _fillReadAlignment(me, primary);
-    _fillMateInfo(me, readId);
-    _fillLocations(me, matches, 0u);
-
-    write2(me.outputStream, me.record, me.outputCtx, typename Traits::TOutputFormat());
-}
-
-template <typename TSpec, typename Traits, typename TReadId, typename TMatches>
-inline void _writeMappedReadImpl(MatchesWriter<TSpec, Traits> & me, TReadId readId, TMatches const & matches, PairedEnd)
-{
-    typedef typename Value<TMatches>::Type                      TMatch;
-    typedef typename Size<TMatches>::Type                       TSize;
-    typedef typename Iterator<TMatches const, Standard>::Type   TIter;
-
-    // Check for paired match.
-    TReadId mateId = getMateId(me.reads.seqs, readId);
-    TMatch const & mate = me.pairs[mateId];
-    bool paired = getReadId(mate) == mateId;
-
-    // If the read is paired, the paired match is the primary one.
-    TMatch const & primary = paired ? me.pairs[readId] : front(matches);
-
-    clear(me.record);
-    _fillReadInfo(me, getReadSeqId(primary, me.reads.seqs));
-    _fillReadAlignment(me, primary);
-    _fillMateInfo(me, getReadId(primary));
-    if (paired) _fillMatePosition(me, primary, mate);
-
-    // Find the primary match in the list of matches.
-    TIter it = findMatch(matches, primary);
-    _fillLocations(me, matches, position(it, matches));
-
-    write2(me.outputStream, me.record, me.outputCtx, typename Traits::TOutputFormat());
 }
 
 #endif  // #ifndef APP_YARA_MAPPER_WRITER_H_
