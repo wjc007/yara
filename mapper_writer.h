@@ -412,13 +412,12 @@ inline void _fillXa(MatchesWriter<TSpec, Traits> & me, TMatches const & matches)
         appendValue(me.xa, ',');
         // TODO(esiragusa): convert contig begin and end to string.
 //        append(me.xa, getContigBegin(value(it)) + 1);
-        appendValue(me.xa, '1');
-        appendValue(me.xa, ',');
+//        appendValue(me.xa, ',');
 //        append(me.xa, getContigEnd(value(it)) + 1);
-        appendValue(me.xa, '1');
-        appendValue(me.xa, ',');
+//        appendValue(me.xa, ',');
         appendValue(me.xa, onForwardStrand(value(it)) ? '+' : '-');
         appendValue(me.xa, ',');
+        // TODO(esiragusa): convert errors to string.
         appendValue(me.xa, '0' + getErrors(value(it)));
         appendValue(me.xa, ';');
     }
