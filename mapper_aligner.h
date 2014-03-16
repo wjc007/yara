@@ -113,20 +113,21 @@ inline void _alignMatches(MatchesAligner<TSpec, Traits> & me)
     typedef typename Suffix<TCigarLimits>::Type         TCigarSuffix;
 
     TCigarLimits & cigarLimits = stringSetLimits(me.cigarSet);
-    TCigarSuffix const & cigarSuffix = suffix(cigarLimits, 1);
 
     // Fill limits with cigar length estimates.
     resize(cigarLimits, length(me.matches) + 1, Exact());
+    front(cigarLimits) = 0;
+    TCigarSuffix const & cigarSuffix = suffix(cigarLimits, 1);
     transform(cigarSuffix, me.matches, getCigarLength<void>, typename Traits::TThreading());
 
     // Bucket the cigar set.
     partialSum(cigarLimits, typename Traits::TThreading());
     assign(me.cigarSet.positions, prefix(cigarLimits, length(cigarLimits) - 1));
-    resize(host(me.cigarSet), back(stringSetLimits(me.cigarSet)), Exact());
+    resize(host(me.cigarSet), lengthSum(me.cigarSet), Exact());
 
     // Fill the cigars.
     resize(me.cigarLimits, length(me.matches) + 1, 0, Exact());
-    forEach(me.matches, me, typename Traits::TThreading());
+    iterate(me.matches, me, Standard(), typename Traits::TThreading());
 
     // Shrink the cigar limits.
     assign(cigarLimits, me.cigarLimits);
@@ -138,9 +139,10 @@ inline void _alignMatches(MatchesAligner<TSpec, Traits> & me)
 // ----------------------------------------------------------------------------
 // Aligns one match.
 
-template <typename TSpec, typename Traits, typename TMatch>
-inline void _alignMatchImpl(MatchesAligner<TSpec, Traits> & me, TMatch const & match)
+template <typename TSpec, typename Traits, typename TMatchIt>
+inline void _alignMatchImpl(MatchesAligner<TSpec, Traits> & me, TMatchIt const & matchIt)
 {
+    typedef typename Value<TMatchIt const>::Type    TMatch;
     typedef typename Traits::TContigSeqs            TContigSeqs;
     typedef typename Value<TContigSeqs const>::Type TContigSeq;
     typedef typename Infix<TContigSeq>::Type        TContigInfix;
@@ -152,6 +154,8 @@ inline void _alignMatchImpl(MatchesAligner<TSpec, Traits> & me, TMatch const & m
     typedef typename TMatchesAligner::TAnchorGaps   TAnchorGaps;
     typedef Gaps<TContigInfix, TAnchorGaps>         TContigGaps;
     typedef Gaps<TReadSeq, TAnchorGaps>             TReadGaps;
+
+    TMatch const & match = value(matchIt);
 
     if (isInvalid(match)) return;
 
