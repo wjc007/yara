@@ -97,52 +97,9 @@ struct MatchesAligner
     }
 };
 
-// ----------------------------------------------------------------------------
-// Class CigarLength
-// ----------------------------------------------------------------------------
-
-template <typename TLimits, typename TReadSeqs, typename TSpec = void>
-struct CigarLength
-{
-    TLimits &           limits;
-    TReadSeqs const &   readSeqs;
-
-    CigarLength(TLimits & limits, TReadSeqs const & readSeqs):
-        limits(limits),
-        readSeqs(readSeqs)
-    {}
-
-    template <typename TMatch>
-    void operator() (TMatch const & match)
-    {
-        typedef typename Value<TReadSeqs const>::Type   TReadSeq;
-        typedef typename Size<TReadSeq>::Type           TReadLength;
-        typedef typename Size<TLimits>::Type            TCigarLength;
-
-        if (getReadId(match) >= getReadsCount(readSeqs)) return;
-
-        TReadLength readLength = length(readSeqs[getReadSeqId(match, readSeqs)]);
-        unsigned errors = getErrors(match);
-
-        TReadLength readDigits = floor(log10(readLength)) + 1;
-        unsigned errorsDigits = floor(log10(errors)) + 1;
-
-        // rM + (eI + rM)^e
-        TCigarLength cigarLength = readDigits + 1 + errors * (readDigits + 1 + errorsDigits + 1);
-
-        limits[getReadId(match) + 1] = cigarLength;
-    }
-};
-
 // ============================================================================
 // Functions
 // ============================================================================
-
-//template <typename TCigar>
-//void printCigar(TCigar const & cigar)
-//{
-//    if (!empty(cigar)) std::cout << cigar << std::endl;
-//}
 
 // ----------------------------------------------------------------------------
 // Function _alignMatches()
@@ -153,32 +110,27 @@ inline void _alignMatches(MatchesAligner<TSpec, Traits> & me)
 {
     typedef typename Traits::TCigarSet                  TCigarSet;
     typedef typename StringSetLimits<TCigarSet>::Type   TCigarLimits;
-    typedef typename Traits::TReadSeqs                  TReadSeqs;
-    typedef CigarLength<TCigarLimits, TReadSeqs>        TEstimator;
+    typedef typename Suffix<TCigarLimits>::Type         TCigarSuffix;
 
-    // Estimate cigar lengths.
-    resize(stringSetLimits(me.cigarSet), length(me.matches) + 1, 0, Exact());
-    forEach(me.matches, TEstimator(stringSetLimits(me.cigarSet), me.readSeqs), typename Traits::TThreading());
+    TCigarLimits & cigarLimits = stringSetLimits(me.cigarSet);
+    TCigarSuffix const & cigarSuffix = suffix(cigarLimits, 1);
 
-    // Bucket the cigars by match.
-    partialSum(stringSetLimits(me.cigarSet), typename Traits::TThreading());
-    assign(me.cigarSet.positions, prefix(stringSetLimits(me.cigarSet), length(stringSetLimits(me.cigarSet)) - 1));
+    // Fill limits with cigar length estimates.
+    resize(cigarLimits, length(me.matches) + 1, Exact());
+    transform(cigarSuffix, me.matches, getCigarLength<void>, typename Traits::TThreading());
+
+    // Bucket the cigar set.
+    partialSum(cigarLimits, typename Traits::TThreading());
+    assign(me.cigarSet.positions, prefix(cigarLimits, length(cigarLimits) - 1));
     resize(host(me.cigarSet), back(stringSetLimits(me.cigarSet)), Exact());
-
-    std::cout << lengthSum(me.cigarSet) << std::endl;
 
     // Fill the cigars.
     resize(me.cigarLimits, length(me.matches) + 1, 0, Exact());
     forEach(me.matches, me, typename Traits::TThreading());
 
-    // Update the cigar limits.
-    assign(stringSetLimits(me.cigarSet), me.cigarLimits);
-    partialSum(stringSetLimits(me.cigarSet), typename Traits::TThreading());
-
-    std::cout << lengthSum(me.cigarSet) << std::endl;
-
-//    typedef typename Value<TCigarSet>::Type TCigar;
-//    forEach(me.cigarSet, printCigar<TCigar>);
+    // Shrink the cigar limits.
+    assign(cigarLimits, me.cigarLimits);
+    partialSum(cigarLimits, typename Traits::TThreading());
 }
 
 // ----------------------------------------------------------------------------
@@ -226,6 +178,7 @@ inline void _alignMatchImpl(MatchesAligner<TSpec, Traits> & me, TMatch const & m
     // Copy cigar to set.
     // TODO(esiragusa): use assign if possible.
 //    me.cigarSet[getReadId(match)] = me.cigar;
+    SEQAN_ASSERT_LEQ(length(me.cigar), length(me.cigarSet[getReadId(match)]));
     std::copy(begin(me.cigar, Standard()), end(me.cigar, Standard()), begin(me.cigarSet[getReadId(match)], Standard()));
     assignValue(me.cigarLimits, getReadId(match) + 1, length(me.cigar));
 
