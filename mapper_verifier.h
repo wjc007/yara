@@ -151,6 +151,42 @@ struct PairsSelector
     }
 };
 
+// ----------------------------------------------------------------------------
+// Class MatchesSelector
+// ----------------------------------------------------------------------------
+// One instance per thread.
+
+template <typename TSpec, typename Traits>
+struct MatchesSelector
+{
+    typedef typename Traits::TReadsContext     TReadsContext;
+    typedef typename Traits::TMatchesSet       TMatchesSet;
+    typedef typename Traits::TMatches          TMatches;
+
+    // Shared-memory read-write data.
+    TMatches &              primaryMatches;
+
+    // Shared-memory read-only data.
+    TReadsContext const &   ctx;
+    TMatchesSet const &     matchesSet;
+
+    MatchesSelector(TMatches & primaryMatches,
+                    TReadsContext const & ctx,
+                    TMatchesSet const & matchesSet) :
+        primaryMatches(primaryMatches),
+        ctx(ctx),
+        matchesSet(matchesSet)
+    {
+        iterate(primaryMatches, *this, Standard(), typename Traits::TThreading());
+    }
+
+    template <typename TIterator>
+    void operator() (TIterator & it)
+    {
+        _selectMatchImpl(*this, it);
+    }
+};
+
 // ============================================================================
 // Functions
 // ============================================================================
@@ -280,6 +316,21 @@ inline void _getMateContigPos(AnchorsVerifier<TSpec, Traits> const & me,
     SEQAN_ASSERT_LEQ(getValueI2(contigEnd) - getValueI2(contigBegin), 2 * me.options.libraryError);
 }
 
+// ----------------------------------------------------------------------------
+// Function _selectMatchImpl()
+// ----------------------------------------------------------------------------
+
+template <typename TSpec, typename Traits, typename TIterator>
+inline void _selectMatchImpl(MatchesSelector<TSpec, Traits> & me, TIterator & it)
+{
+    typedef typename Traits::TMatchesSet            TMatchesSet;
+    typedef typename Value<TMatchesSet const>::Type TMatches;
+
+    TMatches const & matches = me.matchesSet[position(it, me.primaryMatches)];
+
+    if (isInvalid(value(it)) && !empty(matches))
+        assignValue(it, getFirstMatch(matches));
+}
 
 // ----------------------------------------------------------------------------
 // Function _selectPairsImpl()
