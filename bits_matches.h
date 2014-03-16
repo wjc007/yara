@@ -334,11 +334,10 @@ inline void setContigPosition(Match<TSpec> & me, TContigPos contigBegin, TContig
     me.contigEnd = getValueI2(contigEnd) - getValueI2(contigBegin);
 }
 
-template <typename TSpec, typename TReadSeqs>
-inline void setUnpaired(Match<TSpec> & me, TReadSeqs const & readSeqs)
+template <typename TSpec>
+inline void setInvalid(Match<TSpec> & me)
 {
-    // TODO(esiragusa): refactor checks for invalid matches.
-    me.readId = (unsigned)getReadsCount(readSeqs);
+    me.readId = 0;
     me.contigId = 0;
     me.contigBegin = 0;
     me.contigEnd = 0;
@@ -405,6 +404,18 @@ inline unsigned char getErrors(Match<TSpec> const & me)
     return me.errors;
 }
 
+template <typename TSpec>
+inline bool isInvalid(Match<TSpec> const & me)
+{
+    return getContigBegin(me) == getContigEnd(me);
+}
+
+template <typename TSpec>
+inline bool isValid(Match<TSpec> const & me)
+{
+    return !isInvalid(me);
+}
+
 // ----------------------------------------------------------------------------
 // Function getErrors()
 // ----------------------------------------------------------------------------
@@ -435,8 +446,7 @@ inline unsigned getTemplateLength(Match<TSpec> const & a, Match<TSpec> const & b
 template <typename TSpec>
 inline unsigned getCigarLength(Match<TSpec> const & me)
 {
-    // TODO(esiragusa): refactor checks for invalid matches.
-    return getContigBegin(me) == getContigEnd(me) ? 0 : 2 * getErrors(me) + 1;
+    return isInvalid(me) ? 0 : 2 * getErrors(me) + 1;
 }
 
 // ----------------------------------------------------------------------------
@@ -584,7 +594,7 @@ countMappedReads(TReadSeqs const & readSeqs, TMatches const & matches, TThreadin
 
 template <typename TReadSeqs, typename TMatches>
 inline typename Size<TReadSeqs>::Type
-countMappedPairs(TReadSeqs const & readSeqs, TMatches const & matches)
+countMappedPairs(TReadSeqs const & /* readSeqs */, TMatches const & matches)
 {
     typedef typename Size<TReadSeqs>::Type                      TSize;
     typedef typename Iterator<TMatches const, Standard>::Type   TIter;
@@ -592,9 +602,7 @@ countMappedPairs(TReadSeqs const & readSeqs, TMatches const & matches)
     TSize pairedReads = 0;
 
     for (TIter it = begin(matches, Standard()); !atEnd(it, matches); it++)
-        // TODO(esiragusa): refactor checks for invalid matches.
-        if (getReadId(*it) < getReadsCount(readSeqs))
-            pairedReads++;
+        if (isValid(*it)) pairedReads++;
 
     return pairedReads / 2;
 }
@@ -619,6 +627,20 @@ countBestMatches(TMatches const & matches)
     for (TIter it = itBegin; it != itEnd && getErrors(*it) <= getErrors(*itBegin); it++, count++) ;
 
     return count;
+}
+
+// ----------------------------------------------------------------------------
+// Function getFirstMatch()
+// ----------------------------------------------------------------------------
+
+template <typename TMatches>
+inline typename Value<TMatches>::Type
+getFirstMatch(TMatches const & matches)
+{
+    typename Value<TMatches>::Type invalid;
+    setInvalid(invalid);
+
+    return empty(matches) ? invalid : front(matches);
 }
 
 // ----------------------------------------------------------------------------

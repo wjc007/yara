@@ -296,7 +296,7 @@ inline void _selectPairsImpl(PairsSelector<TSpec, Traits> & me)
 
     clear(me.pairs);
     TMatch unpaired;
-    setUnpaired(unpaired, me.readSeqs);
+    setInvalid(unpaired);
     resize(me.pairs, getReadsCount(me.readSeqs), unpaired, Exact());
 
     // Iterate over all pairs.

@@ -153,7 +153,7 @@ inline void _alignMatchImpl(MatchesAligner<TSpec, Traits> & me, TMatch const & m
     typedef Gaps<TContigInfix, TAnchorGaps>         TContigGaps;
     typedef Gaps<TReadSeq, TAnchorGaps>             TReadGaps;
 
-    if (getReadId(match) >= getReadsCount(me.readSeqs)) return;
+    if (isInvalid(match)) return;
 
     unsigned errors = getErrors(match);
     TReadSeq const & readSeq = me.readSeqs[getReadSeqId(match, me.readSeqs)];
