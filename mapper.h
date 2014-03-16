@@ -170,8 +170,7 @@ struct MapperTraits
     typedef Stream<FileStream<File<> > >                            TOutputStream;
     typedef BamIOContext<TContigNames, TContigNamesCache>           TOutputContext;
 
-    typedef ReadContext<TSpec, TConfig>                             TReadContext;
-    typedef String<TReadContext>                                    TReadsContext;
+    typedef ReadsContext<TSpec, TConfig>                            TReadsContext;
 
     typedef StringSet<TReadSeqs, Segment<TReadSeqs> >               TSeeds;
     typedef Tuple<TSeeds, TConfig::BUCKETS>                         TSeedsBuckets;
@@ -821,8 +820,10 @@ inline void _rankMatchesImpl(Mapper<TSpec, TConfig> & me, TReadSeqs const & read
     if (me.options.verbose > 1)
     {
         std::cout << "Pairing time:\t\t\t" << me.timer << std::endl;
-        std::cout << "Mapped pairs:\t\t\t" << countMappedPairs(readSeqs, me.primaryMatches) << std::endl;
+        std::cout << "Mapped pairs:\t\t\t" << countValidMatches(me.primaryMatches, typename TTraits::TThreading()) / 2 << std::endl;
     }
+
+    transform(me.ctx.paired, me.primaryMatches, isValid<void>, typename TTraits::TThreading());
 
     _sortMatchesImpl(me);
 }

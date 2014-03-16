@@ -42,23 +42,15 @@ using namespace seqan;
 // ============================================================================
 
 // ----------------------------------------------------------------------------
-// Class ReadContext
+// Class ReadsContext
 // ----------------------------------------------------------------------------
 
 template <typename TSpec = void, typename TConfig = void>
-struct ReadContext
+struct ReadsContext
 {
-//    unsigned char stratum       : 4;
-    unsigned char seedErrors     : 2;
-    bool    mapped               : 1;
-    bool    paired               : 1;
-
-    ReadContext() :
-//        stratum(0),
-        seedErrors(0),
-        mapped(false),
-        paired(false)
-    {};
+    String<unsigned char>       seedErrors;
+    String<bool, Packed<> >     mapped;
+    String<bool, Packed<> >     paired;
 };
 
 // ============================================================================
@@ -66,24 +58,28 @@ struct ReadContext
 // ============================================================================
 
 // ----------------------------------------------------------------------------
-// Function getStratum()
+// Function clear()
 // ----------------------------------------------------------------------------
 
-//template <typename TReadsContext, typename TReadSeqId>
-//inline unsigned char getStratum(TReadsContext const & ctx, TReadSeqId readSeqId)
-//{
-//    return ctx[readSeqId].stratum;
-//}
+template <typename TSpec, typename TConfig>
+inline void clear(ReadsContext<TSpec, TConfig> & ctx)
+{
+    clear(ctx.seedErrors);
+    clear(ctx.mapped);
+    clear(ctx.paired);
+}
 
 // ----------------------------------------------------------------------------
-// Function incStratum()
+// Function resize()
 // ----------------------------------------------------------------------------
 
-//template <typename TReadsContext, typename TReadSeqId>
-//inline void incStratum(TReadsContext & ctx, TReadSeqId readSeqId)
-//{
-//    ctx[readSeqId].stratum++;
-//}
+template <typename TSpec, typename TConfig, typename TSize>
+inline void resize(ReadsContext<TSpec, TConfig> & ctx, TSize newLength)
+{
+    resize(ctx.seedErrors, newLength, 0, Exact());
+    resize(ctx.mapped, newLength, false, Exact());
+    resize(ctx.paired, newLength, false, Exact());
+}
 
 // ----------------------------------------------------------------------------
 // Function getSeedErrors()
@@ -92,7 +88,7 @@ struct ReadContext
 template <typename TReadsContext, typename TReadSeqId>
 inline unsigned char getSeedErrors(TReadsContext const & ctx, TReadSeqId readSeqId)
 {
-    return ctx[readSeqId].seedErrors;
+    return ctx.seedErrors[readSeqId];
 }
 
 // ----------------------------------------------------------------------------
@@ -102,7 +98,7 @@ inline unsigned char getSeedErrors(TReadsContext const & ctx, TReadSeqId readSeq
 template <typename TReadsContext, typename TReadSeqId, typename TErrors>
 inline void setSeedErrors(TReadsContext & ctx, TReadSeqId readSeqId, TErrors errors)
 {
-    ctx[readSeqId].seedErrors = errors;
+    assignValue(ctx.seedErrors, readSeqId, errors);
 }
 
 // ----------------------------------------------------------------------------
@@ -112,7 +108,7 @@ inline void setSeedErrors(TReadsContext & ctx, TReadSeqId readSeqId, TErrors err
 template <typename TReadsContext, typename TReadSeqId>
 inline void setMapped(TReadsContext & ctx, TReadSeqId readSeqId)
 {
-    ctx[readSeqId].mapped = true;
+    assignValue(ctx.mapped, readSeqId, true);
 }
 
 // ----------------------------------------------------------------------------
@@ -122,7 +118,7 @@ inline void setMapped(TReadsContext & ctx, TReadSeqId readSeqId)
 template <typename TReadsContext, typename TReadSeqId>
 inline bool isMapped(TReadsContext const & ctx, TReadSeqId readSeqId)
 {
-    return ctx[readSeqId].mapped;
+    return ctx.mapped[readSeqId];
 }
 
 // ----------------------------------------------------------------------------
@@ -132,7 +128,7 @@ inline bool isMapped(TReadsContext const & ctx, TReadSeqId readSeqId)
 template <typename TReadsContext, typename TReadSeqId>
 inline void setPaired(TReadsContext & ctx, TReadSeqId readSeqId)
 {
-    ctx[readSeqId].paired = true;
+    assignValue(ctx.paired, readSeqId, true);
 }
 
 // ----------------------------------------------------------------------------
@@ -142,7 +138,7 @@ inline void setPaired(TReadsContext & ctx, TReadSeqId readSeqId)
 template <typename TReadsContext, typename TReadSeqId>
 inline bool isPaired(TReadsContext const & ctx, TReadSeqId readSeqId)
 {
-    return ctx[readSeqId].paired;
+    return ctx.paired[readSeqId];
 }
 
 #endif  // #ifndef APP_YARA_BITS_CONTEXT_H_
