@@ -1027,6 +1027,8 @@ inline void _mapReadsImpl(Mapper<TSpec, TConfig> & me, TReadSeqs & readSeqs, Str
 template <typename TSpec, typename TConfig, typename TValue>
 inline void printStats(Mapper<TSpec, TConfig> const & me, Timer<TValue> const & timer)
 {
+    printRuler(std::cout);
+
     TValue total = getValue(timer) / 100;
 
     std::cout << "Total time:\t\t\t" << getValue(timer) << " sec" << std::endl;
@@ -1048,9 +1050,9 @@ inline void printStats(Mapper<TSpec, TConfig> const & me, Timer<TValue> const & 
 
     double totalReads = me.stats.loadedReads / 100;
     std::cout << "Total reads:\t\t\t" << me.stats.loadedReads << std::endl;
-    std::cout << "Mapped reads:\t\t\t" << me.stats.mappedReads << "\t\t\t" << me.stats.mappedReads / totalReads << " %" << std::endl;
+    std::cout << "Mapped reads:\t\t\t" << me.stats.mappedReads << "\t\t" << me.stats.mappedReads / totalReads << " %" << std::endl;
     if (IsSameType<typename TConfig::TSequencing, PairedEnd>::VALUE)
-        std::cout << "Paired reads:\t\t\t" << me.stats.pairedReads << "\t\t\t" << me.stats.pairedReads / totalReads << " %" << std::endl;
+        std::cout << "Paired reads:\t\t\t" << me.stats.pairedReads << "\t\t" << me.stats.pairedReads / totalReads << " %" << std::endl;
 }
 
 // ----------------------------------------------------------------------------
@@ -1094,9 +1096,6 @@ inline void runMapper(Mapper<TSpec, TConfig> & me)
     close(me.readsLoader);
 
     stop(timer);
-
-    if (me.options.verbose > 1)
-        printRuler(std::cout);
 
     if (me.options.verbose > 0)
         printStats(me, timer);
