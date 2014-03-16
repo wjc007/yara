@@ -52,6 +52,7 @@ struct MatchesWriter
     typedef typename Traits::TReads            TReads;
     typedef typename Traits::TMatchesSet       TMatchesSet;
     typedef typename Traits::TMatches          TMatches;
+    typedef typename Traits::TCigarSet         TCigarSet;
     typedef typename Traits::TOutputStream     TOutputStream;
     typedef typename Traits::TOutputContext    TOutputContext;
     typedef typename Traits::TReadsContext     TReadsContext;
@@ -67,6 +68,7 @@ struct MatchesWriter
     // Shared-memory read-only data.
     TMatchesSet const &     matchesSet;
     TMatches const &        pairs;
+    TCigarSet const &       cigarSet;
     TReadsContext const &   ctx;
     TContigs const &        contigs;
     TReads const &          reads;
@@ -76,6 +78,7 @@ struct MatchesWriter
                   TOutputContext & outputCtx,
                   TMatchesSet const & matchesSet,
                   TMatches const & pairs,
+                  TCigarSet const & cigarSet,
                   TReadsContext const & ctx,
                   TContigs const & contigs,
                   TReads const & reads,
@@ -84,6 +87,7 @@ struct MatchesWriter
         outputCtx(outputCtx),
         matchesSet(matchesSet),
         pairs(pairs),
+        cigarSet(cigarSet),
         ctx(ctx),
         contigs(contigs),
         reads(reads),
@@ -326,7 +330,7 @@ inline void _fillReadAlignment(MatchesWriter<TSpec, Traits> & me, TMatch const &
 
     me.record.rID = getContigId(match);
     me.record.beginPos = getContigBegin(match);
-//    setAlignment(record, me.contigs, match, match, alignFunctor);
+    me.record.cigar = me.cigarSet[getReadId(match)];
     appendErrors(me.record, getErrors(match));
 }
 

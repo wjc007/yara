@@ -862,7 +862,7 @@ inline void writeMatches(Mapper<TSpec, TConfig> & me)
 
     start(me.timer);
     TMatchesWriter writer(me.outputStream, me.outputCtx,
-                          me.matchesSet, me.pairs,
+                          me.matchesSet, me.pairs, me.cigarSet,
                           me.ctx, me.contigs, me.reads,
                           me.options);
     stop(me.timer);
