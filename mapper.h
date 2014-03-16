@@ -800,6 +800,7 @@ inline void _rankMatchesImpl(Mapper<TSpec, TConfig> & me, TReadSeqs & readSeqs, 
     typedef typename TTraits::TMatchesSet       TMatchesSet;
     typedef typename Value<TMatchesSet>::Type   TMatches;
 
+    // Sort matches by errors.
     _sortMatchesImpl(me);
 
     resize(me.primaryMatches, getReadsCount(readSeqs), Exact());
@@ -811,6 +812,7 @@ inline void _rankMatchesImpl(Mapper<TSpec, TConfig> & me, TReadSeqs const & read
 {
     typedef MapperTraits<TSpec, TConfig>    TTraits;
     typedef PairsSelector<TSpec, TTraits>   TPairsSelector;
+    typedef MatchesSelector<TSpec, TTraits> TMatchesSelector;
 
     start(me.timer);
     TPairsSelector selector(me.primaryMatches, readSeqs, me.matchesSet, me.options);
@@ -823,9 +825,14 @@ inline void _rankMatchesImpl(Mapper<TSpec, TConfig> & me, TReadSeqs const & read
         std::cout << "Mapped pairs:\t\t\t" << countValidMatches(me.primaryMatches, typename TTraits::TThreading()) / 2 << std::endl;
     }
 
+    // Mark paired reads.
     transform(me.ctx.paired, me.primaryMatches, isValid<void>, typename TTraits::TThreading());
 
+    // Sort matches by errors.
     _sortMatchesImpl(me);
+
+    // Select best match for unpaired reads.
+    TMatchesSelector mselector(me.primaryMatches, me.ctx, me.matchesSet);
 }
 
 // ----------------------------------------------------------------------------
