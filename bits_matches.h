@@ -218,11 +218,11 @@ template <typename TSpec = void>
 struct Match
 {
     unsigned        readId       : 22;
-    unsigned char   contigId     : 8;
+    unsigned        contigId     : 8;
     unsigned        contigBegin  : 30;
     unsigned short  contigEnd    : 14;
     bool            isFwd        : 1;
-    unsigned char   errors       : 5;
+    unsigned        errors       : 5;
 }
 __attribute__((packed));
 
