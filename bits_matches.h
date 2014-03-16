@@ -589,22 +589,14 @@ countMappedReads(TReadSeqs const & readSeqs, TMatches const & matches, TThreadin
 }
 
 // ----------------------------------------------------------------------------
-// Function countMappedPairs()
+// Function countValidMatches()
 // ----------------------------------------------------------------------------
 
-template <typename TReadSeqs, typename TMatches>
-inline typename Size<TReadSeqs>::Type
-countMappedPairs(TReadSeqs const & /* readSeqs */, TMatches const & matches)
+template <typename TMatches, typename TThreading>
+inline typename Size<TMatches>::Type
+countValidMatches(TMatches const & matches, TThreading const & threading)
 {
-    typedef typename Size<TReadSeqs>::Type                      TSize;
-    typedef typename Iterator<TMatches const, Standard>::Type   TIter;
-
-    TSize pairedReads = 0;
-
-    for (TIter it = begin(matches, Standard()); !atEnd(it, matches); it++)
-        if (isValid(*it)) pairedReads++;
-
-    return pairedReads / 2;
+    return countIf(matches, isValid<void>, threading);
 }
 
 // ----------------------------------------------------------------------------
