@@ -337,6 +337,7 @@ inline void setContigPosition(Match<TSpec> & me, TContigPos contigBegin, TContig
 template <typename TSpec, typename TReadSeqs>
 inline void setUnpaired(Match<TSpec> & me, TReadSeqs const & readSeqs)
 {
+    // TODO(esiragusa): refactor checks for invalid matches.
     me.readId = (unsigned)getReadsCount(readSeqs);
     me.contigId = 0;
     me.contigBegin = 0;
@@ -425,6 +426,17 @@ inline unsigned getTemplateLength(Match<TSpec> const & a, Match<TSpec> const & b
         return getContigEnd(b) - getContigBegin(a);
     else
         return getContigEnd(a) - getContigBegin(b);
+}
+
+// ----------------------------------------------------------------------------
+// Function cigarLength()
+// ----------------------------------------------------------------------------
+
+template <typename TSpec>
+inline unsigned getCigarLength(Match<TSpec> const & me)
+{
+    // TODO(esiragusa): refactor checks for invalid matches.
+    return getContigBegin(me) == getContigEnd(me) ? 0 : 2 * getErrors(me) + 1;
 }
 
 // ----------------------------------------------------------------------------
@@ -580,6 +592,7 @@ countMappedPairs(TReadSeqs const & readSeqs, TMatches const & matches)
     TSize pairedReads = 0;
 
     for (TIter it = begin(matches, Standard()); !atEnd(it, matches); it++)
+        // TODO(esiragusa): refactor checks for invalid matches.
         if (getReadId(*it) < getReadsCount(readSeqs))
             pairedReads++;
 
