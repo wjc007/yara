@@ -123,16 +123,16 @@ struct PairsSelector
 
     // Shared-memory read-only data.
     TReadSeqs const &   readSeqs;
-    TMatchesSet const & anchorsSet;
+    TMatchesSet const & matchesSet;
     Options const &     options;
 
     PairsSelector(TMatches & pairs,
                   TReadSeqs const & readSeqs,
-                  TMatchesSet const & anchorsSet,
+                  TMatchesSet const & matchesSet,
                   Options const & options) :
         pairs(pairs),
         readSeqs(readSeqs),
-        anchorsSet(anchorsSet),
+        matchesSet(matchesSet),
         options(options)
     {
         _selectPairsImpl(*this);
@@ -319,7 +319,7 @@ inline void _selectPairImpl(PairsSelector<TSpec, Traits> & me, TIterator const &
     TReadId firstId = getFirstMateFwdSeqId(me.readSeqs, pairId);
     TReadId secondId = getSecondMateFwdSeqId(me.readSeqs, pairId);
 
-    bucketMatches(me.anchorsSet[firstId], me.anchorsSet[secondId], me);
+    bucketMatches(me.matchesSet[firstId], me.matchesSet[secondId], me);
 }
 
 // ----------------------------------------------------------------------------
