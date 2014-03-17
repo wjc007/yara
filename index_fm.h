@@ -151,15 +151,36 @@ view(Index<StringSet<TText, TSSetSpec>, FMIndex<TSpec, TConfig> > & index)
 // ----------------------------------------------------------------------------
 // Function _getNodeByChar()
 // ----------------------------------------------------------------------------
-// This function is overloaded for Dna5 to let Ns always mismatch.
+// This function is overloaded for Dna5 and Dna5Q to let Ns always mismatch.
 
 namespace seqan {
+
 template <typename TText, typename TOccSpec, typename TIndexSpec, typename TSpec>
 SEQAN_HOST_DEVICE inline bool
 _getNodeByChar(Iter<Index<TText, FMIndex<TOccSpec, TIndexSpec> >, VSTree<TopDown<TSpec> > > const & it,
                typename VertexDescriptor<Index<TText, FMIndex<TOccSpec, TIndexSpec> > >::Type const & vDesc,
                Pair<typename Size<Index<TText, FMIndex<TOccSpec, TIndexSpec> > >::Type> & _range,
                Dna5 c)
+{
+    return _getNodeByCharImpl(it, vDesc, _range, c);
+}
+
+template <typename TText, typename TOccSpec, typename TIndexSpec, typename TSpec>
+SEQAN_HOST_DEVICE inline bool
+_getNodeByChar(Iter<Index<TText, FMIndex<TOccSpec, TIndexSpec> >, VSTree<TopDown<TSpec> > > const & it,
+               typename VertexDescriptor<Index<TText, FMIndex<TOccSpec, TIndexSpec> > >::Type const & vDesc,
+               Pair<typename Size<Index<TText, FMIndex<TOccSpec, TIndexSpec> > >::Type> & _range,
+               Dna5Q c)
+{
+    return _getNodeByCharImpl(it, vDesc, _range, c);
+}
+
+template <typename TText, typename TOccSpec, typename TIndexSpec, typename TSpec, typename TChar>
+SEQAN_HOST_DEVICE inline bool
+_getNodeByCharImpl(Iter<Index<TText, FMIndex<TOccSpec, TIndexSpec> >, VSTree<TopDown<TSpec> > > const & it,
+               typename VertexDescriptor<Index<TText, FMIndex<TOccSpec, TIndexSpec> > >::Type const & vDesc,
+               Pair<typename Size<Index<TText, FMIndex<TOccSpec, TIndexSpec> > >::Type> & _range,
+               TChar c)
 {
     typedef Index<TText, FMIndex<TOccSpec, TIndexSpec> >        TIndex;
     typedef typename Fibre<TIndex, FibreLF>::Type               TLF;
