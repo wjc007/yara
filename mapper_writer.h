@@ -149,10 +149,11 @@ template <typename TSpec, typename Traits, typename TReadId>
 inline void _writeUnmappedRead(MatchesWriter<TSpec, Traits> & me, TReadId readId)
 {
     clear(me.record);
-    _fillReadInfo(me, readId);
+    _fillReadName(me, readId);
+    _fillReadSeqQual(me, readId);
     _fillMateInfo(me, readId);
     me.record.flag |= BAM_FLAG_UNMAPPED;
-    write2(me.outputStream, me.record, me.outputCtx, typename Traits::TOutputFormat());
+    _writeRecord(me);
 }
 
 // ----------------------------------------------------------------------------
@@ -169,25 +170,42 @@ inline void _writeMappedRead(MatchesWriter<TSpec, Traits> & me, TReadId readId, 
 template <typename TSpec, typename Traits, typename TReadId, typename TMatch>
 inline void _writeMappedReadImpl(MatchesWriter<TSpec, Traits> & me, TReadId readId, TMatch const & primary, SingleEnd)
 {
+    typedef typename Traits::TMatches           TMatches;
+    typedef typename Size<TMatches>::Type       TSize;
+
     clear(me.record);
-    _fillReadInfo(me, getReadSeqId(primary, me.reads.seqs));
+    _fillReadName(me, getReadSeqId(primary, me.reads.seqs));
+    _fillReadSeqQual(me, getReadSeqId(primary, me.reads.seqs));
+    _fillReadPosition(me, primary);
     _fillReadAlignment(me, primary);
     _fillMateInfo(me, readId);
-    _fillLocations(me, me.matchesSet[readId], 0u);
 
-    write2(me.outputStream, me.record, me.outputCtx, typename Traits::TOutputFormat());
+    TMatches const & matches = me.matchesSet[readId];
+    TSize bestCount = countBestMatches(matches);
+    _fillReadInfo(me, matches, bestCount);
+
+    if (!me.options.outputSecondary)
+        _fillXa(me, matches, bestCount, 0u);
+
+    _writeRecord(me);
+
+    if (me.options.outputSecondary)
+        _writeSecondary(me, matches, bestCount, 0u);
 }
 
 template <typename TSpec, typename Traits, typename TReadId, typename TMatch>
 inline void _writeMappedReadImpl(MatchesWriter<TSpec, Traits> & me, TReadId readId, TMatch const & primary, PairedEnd)
 {
     typedef typename Traits::TMatches                           TMatches;
+    typedef typename Size<TMatches>::Type                       TSize;
     typedef typename Iterator<TMatches const, Standard>::Type   TIter;
 
     clear(me.record);
-    _fillReadInfo(me, getReadSeqId(primary, me.reads.seqs));
+    _fillReadName(me, getReadSeqId(primary, me.reads.seqs));
+    _fillReadSeqQual(me, getReadSeqId(primary, me.reads.seqs));
+    _fillReadPosition(me, primary);
     _fillReadAlignment(me, primary);
-    _fillMateInfo(me, getReadId(primary));
+    _fillMateInfo(me, readId);
 
     if (isPaired(me.ctx, readId))
     {
@@ -196,12 +214,65 @@ inline void _writeMappedReadImpl(MatchesWriter<TSpec, Traits> & me, TReadId read
         _fillMatePosition(me, primary, mate);
     }
 
-    // Find the primary match in the list of matches.
     TMatches const & matches = me.matchesSet[readId];
-    TIter it = findMatch(matches, primary);
-    _fillLocations(me, matches, position(it, matches));
+    TSize bestCount = countBestMatches(matches);
+    _fillReadInfo(me, matches, bestCount);
 
-    write2(me.outputStream, me.record, me.outputCtx, typename Traits::TOutputFormat());
+    // Find the primary match in the list of matches.
+    TIter it = findMatch(matches, primary);
+    TSize primaryPos = position(it, matches);
+
+    if (!me.options.outputSecondary)
+        _fillXa(me, matches, bestCount, primaryPos);
+
+    _writeRecord(me);
+
+    if (me.options.outputSecondary)
+        _writeSecondary(me, matches, bestCount, primaryPos);
+}
+
+// ----------------------------------------------------------------------------
+// Function _writeSecondary()
+// ----------------------------------------------------------------------------
+
+template <typename TSpec, typename Traits, typename TMatches, typename TCount, typename TPos>
+inline void _writeSecondary(MatchesWriter<TSpec, Traits> & me, TMatches const & matches, TCount bestCount, TPos primaryPos)
+{
+    _writeSecondaryImpl(me, matches, bestCount, primaryPos, typename Traits::TStrategy());
+}
+
+template <typename TSpec, typename Traits, typename TMatches, typename TCount, typename TPos>
+inline void _writeSecondaryImpl(MatchesWriter<TSpec, Traits> & me, TMatches const & matches, TCount /* bestCount */, TPos primaryPos, All)
+{
+    _writeSecondary(me, prefix(matches, primaryPos));
+    _writeSecondary(me, suffix(matches, primaryPos + 1));
+}
+
+template <typename TSpec, typename Traits, typename TMatches, typename TCount, typename TPos>
+inline void _writeSecondaryImpl(MatchesWriter<TSpec, Traits> & me, TMatches const & matches, TCount bestCount, TPos primaryPos, Strata)
+{
+    if (primaryPos < bestCount)
+    {
+        TMatches const & cooptimal = prefix(matches, bestCount);
+        _writeSecondary(me, prefix(cooptimal, primaryPos));
+        _writeSecondary(me, suffix(cooptimal, primaryPos + 1));
+    }
+}
+
+template <typename TSpec, typename Traits, typename TMatches>
+inline void _writeSecondary(MatchesWriter<TSpec, Traits> & me, TMatches const & matches)
+{
+    typedef typename Iterator<TMatches const, Standard>::Type   TIter;
+
+    TIter itEnd = end(matches, Standard());
+    for (TIter it = begin(matches, Standard()); it != itEnd; ++it)
+    {
+        clear(me.record);
+        _fillReadName(me, getReadSeqId(value(it), me.reads.seqs));
+        _fillReadPosition(me, value(it));
+        me.record.flag |= BAM_FLAG_SECONDARY;
+        _writeRecord(me);
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -280,12 +351,6 @@ inline void appendSuboptimalCount(BamAlignmentRecord & record, TCount count)
     appendTagValue(record.tags, "X1", count, 'i');
 }
 
-template <typename TCount>
-inline void appendPairsCount(BamAlignmentRecord & record, TCount count)
-{
-    appendTagValue(record.tags, "XP", count, 'i');
-}
-
 inline void appendType(BamAlignmentRecord & record, bool unique)
 {
     appendTagValue(record.tags, "XT", unique ? 'U' : 'R', 'A');
@@ -294,20 +359,43 @@ inline void appendType(BamAlignmentRecord & record, bool unique)
 template <typename TString>
 inline void appendAlignments(BamAlignmentRecord & record, TString const & xa)
 {
-    // XA:Z:(chr,pos,strand,CIGAR,NM;)+
     if (!empty(xa)) appendTagValue(record.tags, "XA", xa, 'Z');
 }
 
 // ----------------------------------------------------------------------------
-// Function _fillReadInfo()
+// Function _fillReadName()
 // ----------------------------------------------------------------------------
 
 template <typename TSpec, typename Traits, typename TReadSeqId>
-inline void _fillReadInfo(MatchesWriter<TSpec, Traits> & me, TReadSeqId readSeqId)
+inline void _fillReadName(MatchesWriter<TSpec, Traits> & me, TReadSeqId readSeqId)
 {
     me.record.qName = me.reads.names[getReadId(me.reads.seqs, readSeqId)];
+}
+
+// ----------------------------------------------------------------------------
+// Function _fillReadSeqQual()
+// ----------------------------------------------------------------------------
+
+template <typename TSpec, typename Traits, typename TReadSeqId>
+inline void _fillReadSeqQual(MatchesWriter<TSpec, Traits> & me, TReadSeqId readSeqId)
+{
     me.record.seq = me.reads.seqs[readSeqId];
     setQual(me.record, me.reads.seqs[readSeqId]);
+}
+
+// ----------------------------------------------------------------------------
+// Function _fillReadPosition()
+// ----------------------------------------------------------------------------
+
+template <typename TSpec, typename Traits, typename TMatch>
+inline void _fillReadPosition(MatchesWriter<TSpec, Traits> & me, TMatch const & match)
+{
+    if (onReverseStrand(match))
+        me.record.flag |= BAM_FLAG_RC;
+
+    me.record.rID = getContigId(match);
+    me.record.beginPos = getContigBegin(match);
+    appendErrors(me.record, getErrors(match));
 }
 
 // ----------------------------------------------------------------------------
@@ -317,13 +405,7 @@ inline void _fillReadInfo(MatchesWriter<TSpec, Traits> & me, TReadSeqId readSeqI
 template <typename TSpec, typename Traits, typename TMatch>
 inline void _fillReadAlignment(MatchesWriter<TSpec, Traits> & me, TMatch const & match)
 {
-    if (onReverseStrand(match))
-        me.record.flag |= BAM_FLAG_RC;
-
-    me.record.rID = getContigId(match);
-    me.record.beginPos = getContigBegin(match);
     me.record.cigar = me.cigarSet[getReadId(match)];
-    appendErrors(me.record, getErrors(match));
 }
 
 // --------------------------------------------------------------------------
@@ -389,8 +471,68 @@ inline void _fillMapq(MatchesWriter<TSpec, Traits> & me, TCount count)
 }
 
 // ----------------------------------------------------------------------------
+// Function _fillReadInfo()
+// ----------------------------------------------------------------------------
+
+template <typename TSpec, typename Traits, typename TMatches, typename TCount>
+inline void _fillReadInfo(MatchesWriter<TSpec, Traits> & me, TMatches const & matches, TCount bestCount)
+{
+    _fillReadInfoImpl(me, matches, bestCount, typename Traits::TStrategy());
+}
+
+template <typename TSpec, typename Traits, typename TMatches, typename TCount>
+inline void _fillReadInfoImpl(MatchesWriter<TSpec, Traits> & me, TMatches const & matches, TCount bestCount, All)
+{
+    _fillMapq(me, bestCount);
+    appendCooptimalCount(me.record, bestCount);
+    appendSuboptimalCount(me.record, length(matches) - bestCount);
+    appendType(me.record, bestCount == 1);
+    // Set number of secondary alignments and hit index.
+//    appendTagValue(me.record.tags, "NH", 1, 'i');
+//    appendTagValue(me.record.tags, "HI", 1, 'i');
+}
+
+template <typename TSpec, typename Traits, typename TMatches, typename TCount>
+inline void _fillReadInfoImpl(MatchesWriter<TSpec, Traits> & me, TMatches const & /* matches */, TCount bestCount, Strata)
+{
+    _fillMapq(me, bestCount);
+    appendCooptimalCount(me.record, bestCount);
+//    appendSuboptimalCount(me.record, 0);
+    appendType(me.record, bestCount == 1);
+}
+
+// ----------------------------------------------------------------------------
 // Function _fillXa()
 // ----------------------------------------------------------------------------
+
+template <typename TSpec, typename Traits, typename TMatches, typename TCount, typename TPos>
+inline void _fillXa(MatchesWriter<TSpec, Traits> & me, TMatches const & matches, TCount bestCount, TPos primaryPos)
+{
+    _fillXaImpl(me, matches, bestCount, primaryPos, typename Traits::TStrategy());
+}
+
+template <typename TSpec, typename Traits, typename TMatches, typename TCount, typename TPos>
+inline void _fillXaImpl(MatchesWriter<TSpec, Traits> & me, TMatches const & matches, TCount /* bestCount */, TPos primaryPos, All)
+{
+    // Exclude primary match from matches list.
+    clear(me.xa);
+    _fillXa(me, prefix(matches, primaryPos));
+    _fillXa(me, suffix(matches, primaryPos + 1));
+    appendAlignments(me.record, me.xa);
+}
+
+template <typename TSpec, typename Traits, typename TMatches, typename TCount, typename TPos>
+inline void _fillXaImpl(MatchesWriter<TSpec, Traits> & me, TMatches const & matches, TCount bestCount, TPos primaryPos, Strata)
+{
+    if (primaryPos < bestCount)
+    {
+        clear(me.xa);
+        TMatches const & cooptimal = prefix(matches, bestCount);
+        _fillXa(me, prefix(cooptimal, primaryPos));
+        _fillXa(me, suffix(cooptimal, primaryPos + 1));
+        appendAlignments(me.record, me.xa);
+    }
+}
 
 template <typename TSpec, typename Traits, typename TMatches>
 inline void _fillXa(MatchesWriter<TSpec, Traits> & me, TMatches const & matches)
@@ -416,59 +558,13 @@ inline void _fillXa(MatchesWriter<TSpec, Traits> & me, TMatches const & matches)
 }
 
 // ----------------------------------------------------------------------------
-// Function _fillLocations()
+// Function _writeRecord()
 // ----------------------------------------------------------------------------
 
-template <typename TSpec, typename Traits, typename TMatches, typename TPos>
-inline void _fillLocations(MatchesWriter<TSpec, Traits> & me, TMatches const & matches, TPos primary)
+template <typename TSpec, typename Traits>
+inline void _writeRecord(MatchesWriter<TSpec, Traits> & me)
 {
-    _fillLocationsImpl(me, matches, primary, typename Traits::TStrategy());
-}
-
-template <typename TSpec, typename Traits, typename TMatches, typename TPos>
-inline void _fillLocationsImpl(MatchesWriter<TSpec, Traits> & me, TMatches const & matches, TPos primaryPos, All)
-{
-    typedef typename Size<TMatches>::Type           TSize;
-
-    TSize bestCount = countBestMatches(matches);
-
-    _fillMapq(me, bestCount);
-    appendCooptimalCount(me.record, bestCount);
-    appendSuboptimalCount(me.record, length(matches) - bestCount);
-    appendType(me.record, bestCount == 1);
-
-    // Set number of secondary alignments.
-//    appendTagValue(me.record.tags, "NH", 1, 'i');
-    // Set hit index.
-//    appendTagValue(me.record.tags, "HI", 1, 'i');
-
-    // Exclude primary match from matches list.
-    clear(me.xa);
-    _fillXa(me, prefix(matches, primaryPos));
-    _fillXa(me, suffix(matches, primaryPos + 1));
-    appendAlignments(me.record, me.xa);
-}
-
-template <typename TSpec, typename Traits, typename TMatches, typename TPos>
-inline void _fillLocationsImpl(MatchesWriter<TSpec, Traits> & me, TMatches const & matches, TPos primaryPos, Strata)
-{
-    typedef typename Size<TMatches>::Type           TSize;
-
-    TSize bestCount = countBestMatches(matches);
-
-    _fillMapq(me, bestCount);
-    appendCooptimalCount(me.record, bestCount);
-//    appendSuboptimalCount(me.record, 0);
-    appendType(me.record, bestCount == 1);
-
-    if (primaryPos < bestCount)
-    {
-        clear(me.xa);
-        TMatches const & cooptimal = prefix(matches, bestCount);
-        _fillXa(me, prefix(cooptimal, primaryPos));
-        _fillXa(me, suffix(cooptimal, primaryPos + 1));
-        appendAlignments(me.record, me.xa);
-    }
+    write2(me.outputStream, me.record, me.outputCtx, typename Traits::TOutputFormat());
 }
 
 #endif  // #ifndef APP_YARA_MAPPER_WRITER_H_
