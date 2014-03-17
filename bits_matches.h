@@ -569,26 +569,6 @@ inline void removeDuplicates(TMatchesSet & matchesSet, TThreading const & thread
 }
 
 // ----------------------------------------------------------------------------
-// Function countMappedReads()
-// ----------------------------------------------------------------------------
-
-template <typename TReadSeqs, typename TMatches, typename TThreading>
-inline typename Size<TReadSeqs>::Type
-countMappedReads(TReadSeqs const & readSeqs, TMatches const & matches, TThreading const & threading)
-{
-    typedef String<bool>                            TIndicators;
-    typedef typename Value<TMatches const>::Type    TMatch;
-    typedef Getter<TMatch, SortReadId>              TGetter;
-    typedef KeyIndicator<TIndicators, TGetter>      TIndicator;
-
-    TIndicators isMapped;
-    resize(isMapped, getReadsCount(readSeqs), false, Exact());
-    forEach(matches, TIndicator(isMapped, TGetter()), threading);
-
-    return count(isMapped, true, threading);
-}
-
-// ----------------------------------------------------------------------------
 // Function countValidMatches()
 // ----------------------------------------------------------------------------
 
