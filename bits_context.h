@@ -49,6 +49,7 @@ template <typename TSpec = void, typename TConfig = void>
 struct ReadsContext
 {
     String<unsigned char>       seedErrors;
+    String<unsigned char>       minErrors;
     String<bool, Packed<> >     mapped;
     String<bool, Packed<> >     paired;
 };
@@ -65,6 +66,7 @@ template <typename TSpec, typename TConfig>
 inline void clear(ReadsContext<TSpec, TConfig> & ctx)
 {
     clear(ctx.seedErrors);
+    clear(ctx.minErrors);
     clear(ctx.mapped);
     clear(ctx.paired);
 }
@@ -77,6 +79,7 @@ template <typename TSpec, typename TConfig, typename TSize>
 inline void resize(ReadsContext<TSpec, TConfig> & ctx, TSize newLength)
 {
     resize(ctx.seedErrors, newLength, 0, Exact());
+    resize(ctx.minErrors, newLength, MaxValue<unsigned char>::VALUE, Exact());
     resize(ctx.mapped, newLength, false, Exact());
     resize(ctx.paired, newLength, false, Exact());
 }
@@ -99,6 +102,27 @@ template <typename TReadsContext, typename TReadSeqId, typename TErrors>
 inline void setSeedErrors(TReadsContext & ctx, TReadSeqId readSeqId, TErrors errors)
 {
     assignValue(ctx.seedErrors, readSeqId, errors);
+}
+
+// ----------------------------------------------------------------------------
+// Function getMinErrors()
+// ----------------------------------------------------------------------------
+
+template <typename TReadsContext, typename TReadSeqId>
+inline unsigned char getMinErrors(TReadsContext const & ctx, TReadSeqId readSeqId)
+{
+    return ctx.minErrors[readSeqId];
+}
+
+// ----------------------------------------------------------------------------
+// Function setMinErrors()
+// ----------------------------------------------------------------------------
+
+template <typename TReadsContext, typename TReadSeqId, typename TErrors>
+inline void setMinErrors(TReadsContext & ctx, TReadSeqId readSeqId, TErrors errors)
+{
+    if (errors < getMinErrors(ctx,readSeqId))
+        assignValue(ctx.minErrors, readSeqId, errors);
 }
 
 // ----------------------------------------------------------------------------
