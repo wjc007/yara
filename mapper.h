@@ -58,6 +58,7 @@ struct Options
     OutputFormat        outputFormat;
     TList               outputFormatList;
     TList               outputFormatExtensions;
+    bool                outputSecondary;
 
     MappingMode         mappingMode;
     unsigned            errorRate;
@@ -82,6 +83,7 @@ struct Options
 
     Options() :
         outputFormat(SAM),
+        outputSecondary(false),
         mappingMode(STRATA),
         errorRate(5),
 //        strataRate(0),

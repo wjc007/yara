@@ -119,7 +119,7 @@ void setupArgumentParser(ArgumentParser & parser, Options const & options)
     setValidValues(parser, 1, "fastq fasta fa");
     setHelpText(parser, 1, "Either one single-end or two paired-end / mate-pairs read files.");
 
-    addOption(parser, ArgParseOption("v", "verbose", "Displays total elapsed time."));
+    addOption(parser, ArgParseOption("v", "verbose", "Displays global statistics."));
     addOption(parser, ArgParseOption("vv", "vverbose", "Displays diagnostic output per batch of reads."));
 
     // Setup index options.
@@ -132,18 +132,21 @@ void setupArgumentParser(ArgumentParser & parser, Options const & options)
 
     setOutputFile(parser, options);
 
+    addOption(parser, ArgParseOption("os", "output-secondary", "Output suboptimal alignments as secondary alignments. \
+                                                                Default: output suboptimal alignments inside XA tag."));
+
     // Setup mapping options.
     addSection(parser, "Mapping Options");
 
-    addOption(parser, ArgParseOption("e", "error-rate", "Consider mapping locations within this error rate.", ArgParseOption::INTEGER));
+    addOption(parser, ArgParseOption("e", "error-rate", "Consider alignments within this error rate.", ArgParseOption::INTEGER));
     setMinValue(parser, "error-rate", "0");
     setMaxValue(parser, "error-rate", "10");
     setDefaultValue(parser, "error-rate", options.errorRate);
 
-    addOption(parser, ArgParseOption("a", "all", "Report all suboptimal mapping locations. Default: report only cooptimal mapping locations."));
+    addOption(parser, ArgParseOption("a", "all", "Report all suboptimal alignments. Default: report only cooptimal alignments."));
     addOption(parser, ArgParseOption("q", "quick", "Be quicker by loosely mapping a few very repetitive reads."));
 
-//    addOption(parser, ArgParseOption("s", "strata-rate", "Report found suboptimal mapping locations within this error rate from the optimal one. Note that strata-rate << error-rate.", ArgParseOption::STRING));
+//    addOption(parser, ArgParseOption("s", "strata-rate", "Report found suboptimal alignments within this error rate from the optimal one. Note that strata-rate << error-rate.", ArgParseOption::STRING));
 //    setMinValue(parser, "strata-rate", "0");
 //    setMaxValue(parser, "strata-rate", "10");
 //    setDefaultValue(parser, "strata-rate", options.strataRate);
@@ -222,6 +225,7 @@ parseCommandLine(Options & options, ArgumentParser & parser, int argc, char cons
 
     // Parse output format.
     getOutputFormat(options, options.outputFile);
+    getOptionValue(options.outputSecondary, parser, "output-secondary");
 
     // Parse genome index prefix.
     getIndexPrefix(options, parser);
