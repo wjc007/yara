@@ -135,6 +135,8 @@ void setupArgumentParser(ArgumentParser & parser, Options const & options)
     addOption(parser, ArgParseOption("os", "output-secondary", "Output suboptimal alignments as secondary alignments. \
                                                                 Default: output suboptimal alignments inside XA tag."));
 
+    addOption(parser, ArgParseOption("nh", "no-header", "Do not output SAM/BAM header. Default: output header."));
+
     // Setup mapping options.
     addSection(parser, "Mapping Options");
 
@@ -226,6 +228,7 @@ parseCommandLine(Options & options, ArgumentParser & parser, int argc, char cons
     // Parse output format.
     getOutputFormat(options, options.outputFile);
     getOptionValue(options.outputSecondary, parser, "output-secondary");
+    options.outputHeader = !isSet(parser, "no-header");
 
     // Parse genome index prefix.
     getIndexPrefix(options, parser);

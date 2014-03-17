@@ -59,6 +59,7 @@ struct Options
     TList               outputFormatList;
     TList               outputFormatExtensions;
     bool                outputSecondary;
+    bool                outputHeader;
 
     MappingMode         mappingMode;
     unsigned            errorRate;
@@ -84,6 +85,7 @@ struct Options
     Options() :
         outputFormat(SAM),
         outputSecondary(false),
+        outputHeader(true),
         mappingMode(STRATA),
         errorRate(5),
 //        strataRate(0),
@@ -440,16 +442,19 @@ inline void initOutput(Mapper<TSpec, TConfig> & me)
 {
     typedef MapperTraits<TSpec, TConfig>            TTraits;
 
-    BamHeader header;
-
     if (!open(me.outputStream, toCString(me.options.outputFile), OPEN_RDWR | OPEN_CREATE))
         throw RuntimeError("Error while opening output file.");
 
-    // Fill header.
-    fillHeader(header, me.options, me.contigs.seqs, me.contigs.names);
+    if (me.options.outputHeader)
+    {
+        BamHeader header;
 
-    // Write header to stream.
-    write2(me.outputStream, header, me.outputCtx, typename TTraits::TOutputFormat());
+        // Fill header.
+        fillHeader(header, me.options, me.contigs.seqs, me.contigs.names);
+
+        // Write header to stream.
+        write2(me.outputStream, header, me.outputCtx, typename TTraits::TOutputFormat());
+    }
 }
 
 // ----------------------------------------------------------------------------
