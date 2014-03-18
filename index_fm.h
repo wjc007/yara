@@ -185,7 +185,6 @@ _getNodeByCharImpl(Iter<Index<TText, FMIndex<TOccSpec, TIndexSpec> >, VSTree<Top
     typedef Index<TText, FMIndex<TOccSpec, TIndexSpec> >        TIndex;
     typedef typename Fibre<TIndex, FibreLF>::Type               TLF;
     typedef typename Value<TIndex>::Type                        TAlphabet;
-    typedef typename ValueSize<TAlphabet>::Type                 TAlphabetSize;
 
     TIndex const & index = container(it);
     TLF const & lf = indexLF(index);
@@ -201,4 +200,16 @@ _getNodeByCharImpl(Iter<Index<TText, FMIndex<TOccSpec, TIndexSpec> >, VSTree<Top
 }
 }
 
+// ----------------------------------------------------------------------------
+// Function ordEqual()
+// ----------------------------------------------------------------------------
+// This function is overloaded for Dna to let Ns always mismatch.
+
+namespace seqan {
+template <typename TValue2>
+SEQAN_HOST_DEVICE inline bool ordEqual(Dna const & left, TValue2 const & right)
+{
+    return ordValue(left) == ordValue(right);
+}
+}
 #endif  // #ifndef APP_YARA_INDEX_FM_H_
