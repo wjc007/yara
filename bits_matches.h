@@ -218,10 +218,10 @@ template <typename TSpec = void>
 struct Match
 {
     unsigned        readId       : 22;
-    unsigned        contigId     : 8;
+    unsigned char   contigId; // : 8;
+    bool            isRev        : 1;
     unsigned        contigBegin  : 30;
     unsigned short  contigEnd    : 14;
-    bool            isFwd        : 1;
     unsigned        errors       : 5;
 }
 __attribute__((packed));
@@ -260,7 +260,7 @@ struct MatchSorter<TMatch, SortBeginPos>
 {
     inline bool operator()(TMatch const & a, TMatch const & b) const
     {
-        return contigLess(a, b) || (contigEqual(a, b) && getContigBegin(a) < getContigBegin(b));
+        return getSortKey(a, SortBeginPos()) < getSortKey(b, SortBeginPos());
     }
 };
 
@@ -269,7 +269,7 @@ struct MatchSorter<TMatch, SortEndPos>
 {
     inline bool operator()(TMatch const & a, TMatch const & b) const
     {
-        return contigLess(a, b) || (contigEqual(a, b) && getContigEnd(a) < getContigEnd(b));
+        return getSortKey(a, SortEndPos()) < getSortKey(b, SortEndPos());
     }
 };
 
@@ -320,7 +320,7 @@ template <typename TSpec, typename TReadSeqs, typename TReadSeqId>
 inline void setReadId(Match<TSpec> & me, TReadSeqs const & readSeqs, TReadSeqId readSeqId)
 {
     me.readId = getReadId(readSeqs, readSeqId);
-    me.isFwd = isFwdReadSeq(readSeqs, readSeqId);
+    me.isRev = isRevReadSeq(readSeqs, readSeqId);
 }
 
 template <typename TSpec, typename TContigPos>
@@ -339,6 +339,7 @@ inline void setInvalid(Match<TSpec> & me)
 {
     me.readId = 0;
     me.contigId = 0;
+    me.isRev = 0;
     me.contigBegin = 0;
     me.contigEnd = 0;
     me.errors = 31;
@@ -363,7 +364,7 @@ inline unsigned getReadId(Match<TSpec> const & me)
 }
 
 template <typename TSpec>
-inline unsigned getContigId(Match<TSpec> const & me)
+inline unsigned char getContigId(Match<TSpec> const & me)
 {
     return me.contigId;
 }
@@ -381,21 +382,15 @@ inline unsigned getContigEnd(Match<TSpec> const & me)
 }
 
 template <typename TSpec>
-inline bool onForwardStrand(Match<TSpec> const & me)
-{
-    return me.isFwd;
-}
-
-template <typename TSpec>
 inline bool onReverseStrand(Match<TSpec> const & me)
 {
-    return !onForwardStrand(me);
+    return me.isRev;
 }
 
 template <typename TSpec>
-inline unsigned char getScore(Match<TSpec> const & /* me */)
+inline bool onForwardStrand(Match<TSpec> const & me)
 {
-    return 254;
+    return !onReverseStrand(me);
 }
 
 template <typename TSpec>
@@ -450,6 +445,32 @@ inline unsigned getCigarLength(Match<TSpec> const & me)
 }
 
 // ----------------------------------------------------------------------------
+// Function getSortKey(SortBeginPos)
+// ----------------------------------------------------------------------------
+
+template <typename TSpec>
+inline unsigned long getSortKey(Match<TSpec> const & me, SortBeginPos)
+{
+    return ((unsigned long)getContigId(me)     << (22+1+5)) |
+           ((unsigned long)onReverseStrand(me) << (22+5))   |
+           ((unsigned long)getContigBegin(me)  << 5)        |
+           ((unsigned long)getErrors(me));
+}
+
+// ----------------------------------------------------------------------------
+// Function getSortKey(SortEndPos)
+// ----------------------------------------------------------------------------
+
+template <typename TSpec>
+inline unsigned long getSortKey(Match<TSpec> const & me, SortEndPos)
+{
+    return ((unsigned long)getContigId(me)     << (22+1+5)) |
+           ((unsigned long)onReverseStrand(me) << (22+5))   |
+           ((unsigned long)getContigEnd(me)  << 5)          |
+           ((unsigned long)getErrors(me));
+}
+
+// ----------------------------------------------------------------------------
 // Function strandEqual()
 // ----------------------------------------------------------------------------
 
@@ -460,16 +481,6 @@ inline bool strandEqual(Match<TSpec> const & a, Match<TSpec> const & b)
 }
 
 // ----------------------------------------------------------------------------
-// Function strandLess()
-// ----------------------------------------------------------------------------
-
-template <typename TSpec>
-inline bool strandLess(Match<TSpec> const & a, Match<TSpec> const & b)
-{
-    return onForwardStrand(a) && onReverseStrand(b);
-}
-
-// ----------------------------------------------------------------------------
 // Function contigEqual()
 // ----------------------------------------------------------------------------
 
@@ -477,16 +488,6 @@ template <typename TSpec>
 inline bool contigEqual(Match<TSpec> const & a, Match<TSpec> const & b)
 {
     return getContigId(a) == getContigId(b) && strandEqual(a, b);
-}
-
-// ----------------------------------------------------------------------------
-// Function contigLess()
-// ----------------------------------------------------------------------------
-
-template <typename TSpec>
-inline bool contigLess(Match<TSpec> const & a, Match<TSpec> const & b)
-{
-    return getContigId(a) < getContigId(b) || (getContigId(a) == getContigId(b) && strandLess(a, b));
 }
 
 // ----------------------------------------------------------------------------
