@@ -60,22 +60,22 @@ struct SeedsCollector
     TSeedsCount &       seedsCount;
 
     // Shared-memory read-only data.
+    unsigned            seedErrors;
     TReadSeqs const &   readSeqs;
     Options const &     options;
-    unsigned            seedErrors;
 
     SeedsCollector(TReadsContext & ctx,
                    TSeeds & seeds,
                    TSeedsCount & seedsCount,
+                   unsigned seedErrors,
                    TReadSeqs const & readSeqs,
-                   Options const & options,
-                   unsigned seedErrors) :
+                   Options const & options) :
         ctx(ctx),
         seeds(seeds),
         seedsCount(seedsCount),
+        seedErrors(seedErrors),
         readSeqs(readSeqs),
-        options(options),
-        seedErrors(seedErrors)
+        options(options)
     {
         _init(*this);
 

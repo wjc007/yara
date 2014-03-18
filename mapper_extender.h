@@ -79,6 +79,7 @@ struct HitsExtender
     TSeeds const &      seeds;
     THits const &       hits;
     TRanks const &      ranks;
+    unsigned            seedErrors;
     TSA const &         sa;
     Options const &     options;
 
@@ -88,6 +89,7 @@ struct HitsExtender
                  TSeeds const & seeds,
                  THits const & hits,
                  TRanks const & ranks,
+                 unsigned seedErrors,
                  TSA const & sa,
                  Options const & options) :
         extender(contigSeqs),
@@ -99,6 +101,7 @@ struct HitsExtender
         seeds(seeds),
         hits(hits),
         ranks(ranks),
+        seedErrors(seedErrors),
         sa(sa),
         options(options)
     {
@@ -279,11 +282,8 @@ inline void _extendHitImpl(HitsExtender<TSpec, Traits> & me, TReadSeqsIterator c
             _extendHitImpl(me, it, All());
 
         // Mark mapped reads.
-        if (getMinErrors(me.ctx, readId) <= seedRank * (getSeedErrors(me.ctx, readId) + 1))
-        {
-            setMapped(me.ctx, fwdSeqId);
-            setMapped(me.ctx, revSeqId);
-        }
+        if (getMinErrors(me.ctx, readId) <= seedRank * me.seedErrors + 1)
+            setMapped(me.ctx, readId);
     }
 }
 
@@ -305,10 +305,8 @@ inline void _addMatchImpl(HitsExtender<TSpec, Traits> & me,
     me.prototype.errors = matchErrors;
     appendValue(me.matches, me.prototype, Insist(), typename Traits::TThreading());
 
-    TReadSeqId readId = getReadId(me.readSeqs, me.prototype.readId);
+    TReadSeqId readId = getReadId(me.prototype);
     setMinErrors(me.ctx, readId, matchErrors);
-//    setMapped(me.ctx, getFirstMateFwdSeqId(me.readSeqs, readId));
-//    setMapped(me.ctx, getFirstMateRevSeqId(me.readSeqs, readId));
 }
 
 #endif  // #ifndef APP_YARA_MAPPER_EXTENDER_H_

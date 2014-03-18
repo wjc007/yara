@@ -510,8 +510,8 @@ inline void collectSeeds(Mapper<TSpec, TConfig> & me, TReadSeqs const & readSeqs
     typename TTraits::TSeedsCount seedsCounts;
 
     start(me.timer);
-    TCounter counter(me.ctx, me.seeds[ERRORS], seedsCounts, readSeqs, me.options, ERRORS);
-    TFiller filler(me.ctx, me.seeds[ERRORS], seedsCounts, readSeqs, me.options, ERRORS);
+    TCounter counter(me.ctx, me.seeds[ERRORS], seedsCounts, ERRORS, readSeqs, me.options);
+    TFiller filler(me.ctx, me.seeds[ERRORS], seedsCounts, ERRORS, readSeqs, me.options);
     stop(me.timer);
     me.stats.collectSeeds += getValue(me.timer);
 
@@ -664,7 +664,7 @@ inline void extendHits(Mapper<TSpec, TConfig> & me, TBucketId bucketId)
 
     start(me.timer);
     THitsExtender extender(me.ctx, me.matches, me.contigs.seqs,
-                           me.seeds[bucketId], me.hits[bucketId], me.ranks[bucketId],
+                           me.seeds[bucketId], me.hits[bucketId], me.ranks[bucketId], bucketId,
                            indexSA(me.index), me.options);
     stop(me.timer);
     me.stats.extendHits += getValue(me.timer);
