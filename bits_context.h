@@ -69,6 +69,10 @@ inline void clear(ReadsContext<TSpec, TConfig> & ctx)
     clear(ctx.minErrors);
     clear(ctx.mapped);
     clear(ctx.paired);
+    shrinkToFit(ctx.seedErrors);
+    shrinkToFit(ctx.minErrors);
+    shrinkToFit(ctx.mapped);
+    shrinkToFit(ctx.paired);
 }
 
 // ----------------------------------------------------------------------------
