@@ -239,8 +239,8 @@ inline void _extendHitImpl(HitsExtender<TSpec, Traits> & me, TReadSeqsIterator c
     typedef typename Value<THits>::Type                 THit;
     typedef typename Id<THit>::Type                     THitId;
     typedef Pair<THitId>                                THitIds;
-    typedef typename Iterator<THits const, Standard>::Type  THitsIt;
     typedef typename Size<THit>::Type                   THitSize;
+    typedef typename Iterator<THits const, Standard>::Type  THitsIt;
 
     typedef typename Traits::TRanks                     TRanks;
     typedef typename Reference<TRanks const>::Type      TRank;
@@ -261,7 +261,7 @@ inline void _extendHitImpl(HitsExtender<TSpec, Traits> & me, TReadSeqsIterator c
 
     // Iterate fwd and rev seeds by rank.
     TSeedId seedRanks = length(fwdRank);
-    for (TSeedId seedRank = 0; seedRank < seedRanks && !isMapped(me.ctx, readId); ++seedRank)
+    for (TSeedId seedRank = 0; seedRank < seedRanks; ++seedRank)
     {
         // Get seedIds by rank.
         TSeedId fwdSeedId = fwdRank[seedRank];
@@ -283,6 +283,7 @@ inline void _extendHitImpl(HitsExtender<TSpec, Traits> & me, TReadSeqsIterator c
         {
             setMapped(me.ctx, fwdSeqId);
             setMapped(me.ctx, revSeqId);
+            break;
         }
     }
 }

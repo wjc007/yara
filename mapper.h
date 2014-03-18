@@ -652,21 +652,18 @@ inline unsigned long countHits(Mapper<TSpec, TConfig> const & me)
 // ----------------------------------------------------------------------------
 // Function extendHits()
 // ----------------------------------------------------------------------------
-// Extends the hits in all buckets.
+// Extends the hits in a bucket.
 
-template <typename TSpec, typename TConfig>
-inline void extendHits(Mapper<TSpec, TConfig> & me)
+template <typename TSpec, typename TConfig, typename TBucketId>
+inline void extendHits(Mapper<TSpec, TConfig> & me, TBucketId bucketId)
 {
     typedef MapperTraits<TSpec, TConfig>    TTraits;
     typedef HitsExtender<TSpec, TTraits>    THitsExtender;
 
     start(me.timer);
-    for (unsigned bucketId = 0; bucketId < TConfig::BUCKETS; bucketId++)
-    {
-        THitsExtender extender(me.ctx, me.matches, me.contigs.seqs,
-                               me.seeds[bucketId], me.hits[bucketId], me.ranks[bucketId],
-                               indexSA(me.index), me.options);
-    }
+    THitsExtender extender(me.ctx, me.matches, me.contigs.seqs,
+                           me.seeds[bucketId], me.hits[bucketId], me.ranks[bucketId],
+                           indexSA(me.index), me.options);
     stop(me.timer);
     me.stats.extendHits += getValue(me.timer);
 
@@ -960,7 +957,9 @@ inline void _mapReadsImpl(Mapper<TSpec, TConfig> & me, TReadSeqs & readSeqs, All
     else
         findSeeds<2>(me, 2);
     reserveMatches(me);
-    extendHits(me);
+    extendHits(me, 0);
+    extendHits(me, 1);
+    extendHits(me, 2);
     clearSeeds(me);
     clearHits(me);
     aggregateMatches(me, readSeqs);
@@ -991,7 +990,9 @@ inline void _mapReadsImpl(Mapper<TSpec, TConfig> & me, TReadSeqs & readSeqs, Str
     findSeeds<0>(me, 2);
     rankSeeds(me);
     reserveMatches(me);
-    extendHits(me);
+    extendHits(me, 0);
+    extendHits(me, 1);
+    extendHits(me, 2);
     clearSeeds(me);
     clearHits(me);
 
@@ -1002,7 +1003,8 @@ inline void _mapReadsImpl(Mapper<TSpec, TConfig> & me, TReadSeqs & readSeqs, Str
     findSeeds<1>(me, 2);
 //    rankSeeds(me);
     // TODO(esiragusa): filter out hits with distance < 1.
-    extendHits(me);
+    extendHits(me, 1);
+    extendHits(me, 2);
     clearSeeds(me);
     clearHits(me);
 
@@ -1013,7 +1015,7 @@ inline void _mapReadsImpl(Mapper<TSpec, TConfig> & me, TReadSeqs & readSeqs, Str
         findSeeds<2>(me, 2);
 //        rankSeeds(me);
     // TODO(esiragusa): filter out hits with distance < 2.
-        extendHits(me);
+        extendHits(me, 2);
         clearHits(me);
         clearSeeds(me);
     }
