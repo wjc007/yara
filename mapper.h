@@ -478,7 +478,9 @@ inline void clearSeeds(Mapper<TSpec, TConfig> & me)
     for (unsigned bucketId = 0; bucketId < TConfig::BUCKETS; bucketId++)
     {
         clear(me.seeds[bucketId]);
+        clear(me.ranks[bucketId]);
         shrinkToFit(me.seeds[bucketId]);
+        shrinkToFit(me.ranks[bucketId]);
     }
 }
 
@@ -1001,7 +1003,7 @@ inline void _mapReadsImpl(Mapper<TSpec, TConfig> & me, TReadSeqs & readSeqs, Str
     findSeeds<1>(me, 1);
     collectSeeds<2>(me, readSeqs);
     findSeeds<1>(me, 2);
-//    rankSeeds(me);
+    rankSeeds(me);
     // TODO(esiragusa): filter out hits with distance < 1.
     extendHits(me, 1);
     extendHits(me, 2);
@@ -1013,7 +1015,7 @@ inline void _mapReadsImpl(Mapper<TSpec, TConfig> & me, TReadSeqs & readSeqs, Str
         initSeeds(me, readSeqs);
         collectSeeds<2>(me, readSeqs);
         findSeeds<2>(me, 2);
-//        rankSeeds(me);
+        rankSeeds(me);
     // TODO(esiragusa): filter out hits with distance < 2.
         extendHits(me, 2);
         clearHits(me);

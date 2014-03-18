@@ -261,7 +261,7 @@ inline void _extendHitImpl(HitsExtender<TSpec, Traits> & me, TReadSeqsIterator c
 
     // Iterate fwd and rev seeds by rank.
     TSeedId seedRanks = length(fwdRank);
-    for (TSeedId seedRank = 0; seedRank < seedRanks; ++seedRank)
+    for (TSeedId seedRank = 0; seedRank < seedRanks && !isMapped(me.ctx, readId); ++seedRank)
     {
         // Get seedIds by rank.
         TSeedId fwdSeedId = fwdRank[seedRank];
@@ -283,7 +283,6 @@ inline void _extendHitImpl(HitsExtender<TSpec, Traits> & me, TReadSeqsIterator c
         {
             setMapped(me.ctx, fwdSeqId);
             setMapped(me.ctx, revSeqId);
-            break;
         }
     }
 }
