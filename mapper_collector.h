@@ -130,8 +130,9 @@ inline void _collectSeedsImpl(SeedsCollector<TSpec, Traits> & me, TReadSeqsItera
     typedef typename Id<TReadSeqs>::Type                TReadSeqId;
 
     TReadSeqId readSeqId = position(it);
+    TReadSeqId readId = getReadId(me.readSeqs, readSeqId);
 
-    if (!isMapped(me.ctx, readSeqId) && getSeedErrors(me.ctx, readSeqId) == me.seedErrors)
+    if (!isMapped(me.ctx, readId) && getSeedErrors(me.ctx, readSeqId) == me.seedErrors)
         _getSeeds(me, readSeqId);
 }
 

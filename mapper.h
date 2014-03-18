@@ -492,7 +492,7 @@ template <typename TSpec, typename TConfig, typename TReadSeqs>
 inline void initReadsContext(Mapper<TSpec, TConfig> & me, TReadSeqs const & readSeqs)
 {
     clear(me.ctx);
-    resize(me.ctx, getReadSeqsCount(readSeqs));
+    resize(me.ctx, readSeqs);
 }
 
 // ----------------------------------------------------------------------------
