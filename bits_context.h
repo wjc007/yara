@@ -49,6 +49,7 @@ template <typename TSpec = void, typename TConfig = void>
 struct ReadsContext
 {
     String<unsigned char>       seedErrors;
+    String<unsigned char>       minErrors;
     String<bool, Packed<> >     mapped;
     String<bool, Packed<> >     paired;
 };
@@ -65,20 +66,26 @@ template <typename TSpec, typename TConfig>
 inline void clear(ReadsContext<TSpec, TConfig> & ctx)
 {
     clear(ctx.seedErrors);
+    clear(ctx.minErrors);
     clear(ctx.mapped);
     clear(ctx.paired);
+    shrinkToFit(ctx.seedErrors);
+    shrinkToFit(ctx.minErrors);
+    shrinkToFit(ctx.mapped);
+    shrinkToFit(ctx.paired);
 }
 
 // ----------------------------------------------------------------------------
 // Function resize()
 // ----------------------------------------------------------------------------
 
-template <typename TSpec, typename TConfig, typename TSize>
-inline void resize(ReadsContext<TSpec, TConfig> & ctx, TSize newLength)
+template <typename TSpec, typename TConfig, typename TReadSeqs>
+inline void resize(ReadsContext<TSpec, TConfig> & ctx, TReadSeqs const & readSeqs)
 {
-    resize(ctx.seedErrors, newLength, 0, Exact());
-    resize(ctx.mapped, newLength, false, Exact());
-    resize(ctx.paired, newLength, false, Exact());
+    resize(ctx.seedErrors, getReadSeqsCount(readSeqs), 0, Exact());
+    resize(ctx.minErrors, getReadSeqsCount(readSeqs), MaxValue<unsigned char>::VALUE, Exact());
+    resize(ctx.mapped, getReadsCount(readSeqs), false, Exact());
+    resize(ctx.paired, getReadsCount(readSeqs), false, Exact());
 }
 
 // ----------------------------------------------------------------------------
@@ -102,43 +109,64 @@ inline void setSeedErrors(TReadsContext & ctx, TReadSeqId readSeqId, TErrors err
 }
 
 // ----------------------------------------------------------------------------
+// Function getMinErrors()
+// ----------------------------------------------------------------------------
+
+template <typename TReadsContext, typename TReadId>
+inline unsigned char getMinErrors(TReadsContext const & ctx, TReadId readId)
+{
+    return ctx.minErrors[readId];
+}
+
+// ----------------------------------------------------------------------------
+// Function setMinErrors()
+// ----------------------------------------------------------------------------
+
+template <typename TReadsContext, typename TReadId, typename TErrors>
+inline void setMinErrors(TReadsContext & ctx, TReadId readId, TErrors errors)
+{
+    if (errors < getMinErrors(ctx,readId))
+        assignValue(ctx.minErrors, readId, errors);
+}
+
+// ----------------------------------------------------------------------------
 // Function setMapped()
 // ----------------------------------------------------------------------------
 
-template <typename TReadsContext, typename TReadSeqId>
-inline void setMapped(TReadsContext & ctx, TReadSeqId readSeqId)
+template <typename TReadsContext, typename TReadId>
+inline void setMapped(TReadsContext & ctx, TReadId readId)
 {
-    assignValue(ctx.mapped, readSeqId, true);
+    assignValue(ctx.mapped, readId, true);
 }
 
 // ----------------------------------------------------------------------------
 // Function isMapped()
 // ----------------------------------------------------------------------------
 
-template <typename TReadsContext, typename TReadSeqId>
-inline bool isMapped(TReadsContext const & ctx, TReadSeqId readSeqId)
+template <typename TReadsContext, typename TReadId>
+inline bool isMapped(TReadsContext const & ctx, TReadId readId)
 {
-    return ctx.mapped[readSeqId];
+    return ctx.mapped[readId];
 }
 
 // ----------------------------------------------------------------------------
 // Function setPaired()
 // ----------------------------------------------------------------------------
 
-template <typename TReadsContext, typename TReadSeqId>
-inline void setPaired(TReadsContext & ctx, TReadSeqId readSeqId)
+template <typename TReadsContext, typename TReadId>
+inline void setPaired(TReadsContext & ctx, TReadId readId)
 {
-    assignValue(ctx.paired, readSeqId, true);
+    assignValue(ctx.paired, readId, true);
 }
 
 // ----------------------------------------------------------------------------
 // Function isPaired()
 // ----------------------------------------------------------------------------
 
-template <typename TReadsContext, typename TReadSeqId>
-inline bool isPaired(TReadsContext const & ctx, TReadSeqId readSeqId)
+template <typename TReadsContext, typename TReadId>
+inline bool isPaired(TReadsContext const & ctx, TReadId readId)
 {
-    return ctx.paired[readSeqId];
+    return ctx.paired[readId];
 }
 
 #endif  // #ifndef APP_YARA_BITS_CONTEXT_H_

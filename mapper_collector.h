@@ -60,22 +60,22 @@ struct SeedsCollector
     TSeedsCount &       seedsCount;
 
     // Shared-memory read-only data.
+    unsigned            seedErrors;
     TReadSeqs const &   readSeqs;
     Options const &     options;
-    unsigned            seedErrors;
 
     SeedsCollector(TReadsContext & ctx,
                    TSeeds & seeds,
                    TSeedsCount & seedsCount,
+                   unsigned seedErrors,
                    TReadSeqs const & readSeqs,
-                   Options const & options,
-                   unsigned seedErrors) :
+                   Options const & options) :
         ctx(ctx),
         seeds(seeds),
         seedsCount(seedsCount),
+        seedErrors(seedErrors),
         readSeqs(readSeqs),
-        options(options),
-        seedErrors(seedErrors)
+        options(options)
     {
         _init(*this);
 
@@ -130,8 +130,9 @@ inline void _collectSeedsImpl(SeedsCollector<TSpec, Traits> & me, TReadSeqsItera
     typedef typename Id<TReadSeqs>::Type                TReadSeqId;
 
     TReadSeqId readSeqId = position(it);
+    TReadSeqId readId = getReadId(me.readSeqs, readSeqId);
 
-    if (!isMapped(me.ctx, readSeqId) && getSeedErrors(me.ctx, readSeqId) == me.seedErrors)
+    if (!isMapped(me.ctx, readId) && getSeedErrors(me.ctx, readSeqId) == me.seedErrors)
         _getSeeds(me, readSeqId);
 }
 

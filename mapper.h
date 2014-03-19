@@ -59,6 +59,7 @@ struct Options
     TList               outputFormatList;
     TList               outputFormatExtensions;
     bool                outputSecondary;
+    bool                outputHeader;
 
     MappingMode         mappingMode;
     unsigned            errorRate;
@@ -84,6 +85,7 @@ struct Options
     Options() :
         outputFormat(SAM),
         outputSecondary(false),
+        outputHeader(true),
         mappingMode(STRATA),
         errorRate(5),
 //        strataRate(0),
@@ -440,16 +442,19 @@ inline void initOutput(Mapper<TSpec, TConfig> & me)
 {
     typedef MapperTraits<TSpec, TConfig>            TTraits;
 
-    BamHeader header;
-
     if (!open(me.outputStream, toCString(me.options.outputFile), OPEN_RDWR | OPEN_CREATE))
         throw RuntimeError("Error while opening output file.");
 
-    // Fill header.
-    fillHeader(header, me.options, me.contigs.seqs, me.contigs.names);
+    if (me.options.outputHeader)
+    {
+        BamHeader header;
 
-    // Write header to stream.
-    write2(me.outputStream, header, me.outputCtx, typename TTraits::TOutputFormat());
+        // Fill header.
+        fillHeader(header, me.options, me.contigs.seqs, me.contigs.names);
+
+        // Write header to stream.
+        write2(me.outputStream, header, me.outputCtx, typename TTraits::TOutputFormat());
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -473,7 +478,9 @@ inline void clearSeeds(Mapper<TSpec, TConfig> & me)
     for (unsigned bucketId = 0; bucketId < TConfig::BUCKETS; bucketId++)
     {
         clear(me.seeds[bucketId]);
+        clear(me.ranks[bucketId]);
         shrinkToFit(me.seeds[bucketId]);
+        shrinkToFit(me.ranks[bucketId]);
     }
 }
 
@@ -485,7 +492,7 @@ template <typename TSpec, typename TConfig, typename TReadSeqs>
 inline void initReadsContext(Mapper<TSpec, TConfig> & me, TReadSeqs const & readSeqs)
 {
     clear(me.ctx);
-    resize(me.ctx, getReadSeqsCount(readSeqs));
+    resize(me.ctx, readSeqs);
 }
 
 // ----------------------------------------------------------------------------
@@ -503,8 +510,8 @@ inline void collectSeeds(Mapper<TSpec, TConfig> & me, TReadSeqs const & readSeqs
     typename TTraits::TSeedsCount seedsCounts;
 
     start(me.timer);
-    TCounter counter(me.ctx, me.seeds[ERRORS], seedsCounts, readSeqs, me.options, ERRORS);
-    TFiller filler(me.ctx, me.seeds[ERRORS], seedsCounts, readSeqs, me.options, ERRORS);
+    TCounter counter(me.ctx, me.seeds[ERRORS], seedsCounts, ERRORS, readSeqs, me.options);
+    TFiller filler(me.ctx, me.seeds[ERRORS], seedsCounts, ERRORS, readSeqs, me.options);
     stop(me.timer);
     me.stats.collectSeeds += getValue(me.timer);
 
@@ -647,21 +654,18 @@ inline unsigned long countHits(Mapper<TSpec, TConfig> const & me)
 // ----------------------------------------------------------------------------
 // Function extendHits()
 // ----------------------------------------------------------------------------
-// Extends the hits in all buckets.
+// Extends the hits in a bucket.
 
-template <typename TSpec, typename TConfig>
-inline void extendHits(Mapper<TSpec, TConfig> & me)
+template <unsigned ERRORS, typename TSpec, typename TConfig, typename TBucketId>
+inline void extendHits(Mapper<TSpec, TConfig> & me, TBucketId bucketId)
 {
     typedef MapperTraits<TSpec, TConfig>    TTraits;
     typedef HitsExtender<TSpec, TTraits>    THitsExtender;
 
     start(me.timer);
-    for (unsigned bucketId = 0; bucketId < TConfig::BUCKETS; bucketId++)
-    {
-        THitsExtender extender(me.ctx, me.matches, me.contigs.seqs,
-                               me.seeds[bucketId], me.hits[bucketId], me.ranks[bucketId],
-                               indexSA(me.index), me.options);
-    }
+    THitsExtender extender(me.ctx, me.matches, me.contigs.seqs,
+                           me.seeds[bucketId], me.hits[bucketId], me.ranks[bucketId], ERRORS,
+                           indexSA(me.index), me.options);
     stop(me.timer);
     me.stats.extendHits += getValue(me.timer);
 
@@ -955,7 +959,9 @@ inline void _mapReadsImpl(Mapper<TSpec, TConfig> & me, TReadSeqs & readSeqs, All
     else
         findSeeds<2>(me, 2);
     reserveMatches(me);
-    extendHits(me);
+    extendHits<0>(me, 0);
+    extendHits<1>(me, 1);
+    extendHits<2>(me, 2);
     clearSeeds(me);
     clearHits(me);
     aggregateMatches(me, readSeqs);
@@ -986,7 +992,9 @@ inline void _mapReadsImpl(Mapper<TSpec, TConfig> & me, TReadSeqs & readSeqs, Str
     findSeeds<0>(me, 2);
     rankSeeds(me);
     reserveMatches(me);
-    extendHits(me);
+    extendHits<0>(me, 0);
+    extendHits<0>(me, 1);
+    extendHits<0>(me, 2);
     clearSeeds(me);
     clearHits(me);
 
@@ -995,9 +1003,10 @@ inline void _mapReadsImpl(Mapper<TSpec, TConfig> & me, TReadSeqs & readSeqs, Str
     findSeeds<1>(me, 1);
     collectSeeds<2>(me, readSeqs);
     findSeeds<1>(me, 2);
-//    rankSeeds(me);
+    rankSeeds(me);
     // TODO(esiragusa): filter out hits with distance < 1.
-    extendHits(me);
+    extendHits<1>(me, 1);
+    extendHits<1>(me, 2);
     clearSeeds(me);
     clearHits(me);
 
@@ -1006,9 +1015,9 @@ inline void _mapReadsImpl(Mapper<TSpec, TConfig> & me, TReadSeqs & readSeqs, Str
         initSeeds(me, readSeqs);
         collectSeeds<2>(me, readSeqs);
         findSeeds<2>(me, 2);
-//        rankSeeds(me);
+        rankSeeds(me);
     // TODO(esiragusa): filter out hits with distance < 2.
-        extendHits(me);
+        extendHits<2>(me, 2);
         clearHits(me);
         clearSeeds(me);
     }
