@@ -282,7 +282,7 @@ inline void _extendHitImpl(HitsExtender<TSpec, Traits> & me, TReadSeqsIterator c
             _extendHitImpl(me, it, All());
 
         // Mark mapped reads.
-        if (getMinErrors(me.ctx, readId) <= seedRank * me.seedErrors + 1)
+        if (getMinErrors(me.ctx, readId) <= seedRank * (me.seedErrors + 1))
             setMapped(me.ctx, readId);
     }
 }
