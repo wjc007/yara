@@ -537,11 +537,13 @@ inline void findSeeds(Mapper<TSpec, TConfig> & me, TBucketId bucketId)
     if (ERRORS > 0)
     {
         setScoreThreshold(me.finderApx, ERRORS);
+        // TODO(esiragusa): guess the number of hits.
         reserve(me.hits[bucketId], lengthSum(me.seeds[bucketId]) * Power<ERRORS, 2>::VALUE, Exact());
         _findSeedsImpl(me, me.hits[bucketId], me.seeds[bucketId], me.finderApx, TPatternApx());
     }
     else
     {
+        // TODO(esiragusa): guess the number of hits.
         reserve(me.hits[bucketId], length(me.seeds[bucketId]), Exact());
         _findSeedsImpl(me, me.hits[bucketId], me.seeds[bucketId], me.finderExt, TPatternExt());
     }
