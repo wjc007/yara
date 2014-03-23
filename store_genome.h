@@ -57,9 +57,10 @@ using namespace seqan;
 template <typename TSpec = void>
 struct ContigsConfig
 {
-    typedef String<Dna5, Packed<> > TContigSeq;
-    typedef Owner<ConcatDirect<> >  TContigSpec;
-    typedef Owner<ConcatDirect<> >  TContigNameSpec;
+    typedef Dna5                        TContigValue;
+    typedef Packed<MMap<> >             TContigSpec;
+    typedef Owner<ConcatDirect<> >      TContigsSpec;
+    typedef Owner<ConcatDirect<> >      TContigNameSpec;
 };
 
 // ----------------------------------------------------------------------------
@@ -69,11 +70,13 @@ struct ContigsConfig
 template <typename TSpec = void, typename TConfig = ContigsConfig<TSpec> >
 struct Contigs
 {
-    typedef typename TConfig::TContigSeq                TContigSeq;
+    typedef typename TConfig::TContigValue              TContigValue;
     typedef typename TConfig::TContigSpec               TContigSpec;
+    typedef typename TConfig::TContigsSpec              TContigsSpec;
     typedef typename TConfig::TContigNameSpec           TContigNameSpec;
 
-    typedef StringSet<TContigSeq, TContigSpec>          TContigSeqs;
+    typedef String<TContigValue, TContigSpec>           TContigSeq;
+    typedef StringSet<TContigSeq, TContigsSpec>         TContigSeqs;
 	typedef StringSet<CharString, TContigNameSpec>      TContigNames;
 	typedef NameStoreCache<TContigNames, CharString>    TContigNamesCache;
 
