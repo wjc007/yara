@@ -44,8 +44,6 @@ using namespace seqan;
 // Global Types
 // ============================================================================
 
-typedef StringSet<DnaString, Owner<ConcatDirect<> > >           TFMContigs;
-
 // ----------------------------------------------------------------------------
 // ReadSeqs Size
 // ----------------------------------------------------------------------------
@@ -111,6 +109,24 @@ typedef StringSet<DnaString, Owner<ConcatDirect<> > >           TFMContigs;
 // ============================================================================
 // Index Types
 // ============================================================================
+
+// ----------------------------------------------------------------------------
+// Index Text Type
+// ----------------------------------------------------------------------------
+
+typedef StringSet<DnaString, Owner<ConcatDirect<> > >           TFMContigs;
+
+// ----------------------------------------------------------------------------
+// Default Index Fibre Specs
+// ----------------------------------------------------------------------------
+
+namespace seqan {
+template <>
+struct DefaultIndexStringSpec<TFMContigs>
+{
+    typedef MMap<> Type;
+};
+}
 
 // ----------------------------------------------------------------------------
 // Suffix Array Value Type
@@ -218,6 +234,30 @@ template <typename TSpec>
 struct Size<RankDictionary<bool, Naive<TSpec> > >
 {
     typedef __uint32 Type;
+};
+}
+
+// ----------------------------------------------------------------------------
+// Rank Dictionary Fibre Specs
+// ----------------------------------------------------------------------------
+
+namespace seqan {
+template <typename TSpec>
+struct RankDictionaryFibreSpec<RankDictionary<Dna, TwoLevels<TSpec> > >
+{
+    typedef MMap<> Type;
+};
+
+template <typename TSpec>
+struct RankDictionaryFibreSpec<RankDictionary<bool, TwoLevels<TSpec> > >
+{
+    typedef MMap<> Type;
+};
+
+template <typename TSpec>
+struct RankDictionaryFibreSpec<RankDictionary<bool, Naive<TSpec> > >
+{
+    typedef MMap<> Type;
 };
 }
 
