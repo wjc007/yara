@@ -54,11 +54,11 @@ using namespace seqan;
 // Class ContigsConfig
 // ----------------------------------------------------------------------------
 
-template <typename TSpec = void>
+template <typename TSpec = Alloc<> >
 struct ContigsConfig
 {
     typedef Dna5                        TContigValue;
-    typedef Packed<MMap<> >             TContigSpec;
+    typedef Packed<TSpec>               TContigSpec;
     typedef Owner<ConcatDirect<> >      TContigsSpec;
     typedef Owner<ConcatDirect<> >      TContigNameSpec;
 };
@@ -67,7 +67,7 @@ struct ContigsConfig
 // Class Contigs
 // ----------------------------------------------------------------------------
 
-template <typename TSpec = void, typename TConfig = ContigsConfig<TSpec> >
+template <typename TSpec = Alloc<>, typename TConfig = ContigsConfig<TSpec> >
 struct Contigs
 {
     typedef typename TConfig::TContigValue              TContigValue;
