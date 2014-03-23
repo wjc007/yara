@@ -176,7 +176,7 @@ struct DefaultIndexStringSpec<YaraContigsFM>
 };
 
 template <>
-struct DefaultIndexStringSpec<Fibre<YaraContigsFM, FibreSA>::Type>
+struct DefaultIndexStringSpec<CompressedSA<YaraContigsFM, void, YaraFMIndexConfig> >
 {
     typedef MMap<> Type;
 };
