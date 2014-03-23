@@ -174,6 +174,12 @@ struct DefaultIndexStringSpec<YaraContigsFM>
 {
     typedef MMap<> Type;
 };
+
+template <>
+struct DefaultIndexStringSpec<Fibre<YaraContigsFM, FibreSA>::Type>
+{
+    typedef MMap<> Type;
+};
 }
 
 // ----------------------------------------------------------------------------
@@ -182,7 +188,7 @@ struct DefaultIndexStringSpec<YaraContigsFM>
 
 namespace seqan {
 template <>
-struct SAValue<YaraContigs>
+struct StringSetPosition<YaraContigs>
 {
     typedef Pair<__uint8, __uint32, Pack> Type;
 };
@@ -190,20 +196,20 @@ struct SAValue<YaraContigs>
 
 namespace seqan {
 template <>
-struct SAValue<YaraContigsFM>
+struct StringSetPosition<YaraContigsFM>
 {
     typedef Pair<__uint8, __uint32, Pack> Type;
 };
 
 template <>
-struct SAValue<View<YaraContigsFM>::Type>
+struct StringSetPosition<View<YaraContigsFM>::Type>
 {
     typedef Pair<__uint8, __uint32, Pack> Type;
 };
 
 #ifdef PLATFORM_CUDA
 template <>
-struct SAValue<Device<YaraContigsFM>::Type>
+struct StringSetPosition<Device<YaraContigsFM>::Type>
 {
     typedef Pair<__uint8, __uint32, Pack> Type;
 };
