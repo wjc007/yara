@@ -41,8 +41,18 @@
 using namespace seqan;
 
 // ============================================================================
-// Global Types
+// String Types
 // ============================================================================
+
+// ----------------------------------------------------------------------------
+// String Spec
+// ----------------------------------------------------------------------------
+
+#ifndef YARA_DISABLE_MMAP
+typedef MMap<>  YaraStringSpec;
+#else
+typedef Alloc<> YaraStringSpec;
+#endif
 
 // ----------------------------------------------------------------------------
 // ReadSeqs Size
@@ -114,8 +124,8 @@ using namespace seqan;
 // Index Text Type
 // ----------------------------------------------------------------------------
 
-typedef StringSet<String<Dna5, Packed<MMap<> > >, Owner<ConcatDirect<> > >  YaraContigs;
-typedef StringSet<String<Dna>, Owner<ConcatDirect<> > >                     YaraContigsFM;
+typedef StringSet<String<Dna5, Packed<YaraStringSpec> >, Owner<ConcatDirect<> > >   YaraContigs;
+typedef StringSet<String<Dna>, Owner<ConcatDirect<> > >                             YaraContigsFM;
 
 // ----------------------------------------------------------------------------
 // FM Index Fibres
@@ -172,13 +182,13 @@ namespace seqan {
 template <>
 struct DefaultIndexStringSpec<YaraContigsFM>
 {
-    typedef MMap<> Type;
+    typedef YaraStringSpec Type;
 };
 
 template <>
 struct DefaultIndexStringSpec<CompressedSA<YaraContigsFM, void, YaraFMIndexConfig> >
 {
-    typedef MMap<> Type;
+    typedef YaraStringSpec Type;
 };
 }
 
@@ -192,9 +202,7 @@ struct StringSetPosition<YaraContigs>
 {
     typedef Pair<__uint8, __uint32, Pack> Type;
 };
-}
 
-namespace seqan {
 template <>
 struct StringSetPosition<YaraContigsFM>
 {
@@ -260,19 +268,19 @@ namespace seqan {
 template <typename TSpec>
 struct RankDictionaryFibreSpec<RankDictionary<Dna, TwoLevels<TSpec> > >
 {
-    typedef MMap<> Type;
+    typedef YaraStringSpec Type;
 };
 
 template <typename TSpec>
 struct RankDictionaryFibreSpec<RankDictionary<bool, TwoLevels<TSpec> > >
 {
-    typedef MMap<> Type;
+    typedef YaraStringSpec Type;
 };
 
 template <typename TSpec>
 struct RankDictionaryFibreSpec<RankDictionary<bool, Naive<TSpec> > >
 {
-    typedef MMap<> Type;
+    typedef YaraStringSpec Type;
 };
 }
 
