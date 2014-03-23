@@ -210,9 +210,7 @@ void open(ReadsLoader<TSpec, TConfig> & loader, TString const & readsFile)
     typedef typename TReadsLoader::TRecordReader    TRecordReader;
 
     // Open file.
-    loader._file.open(toCString(readsFile), std::ios::binary | std::ios::in);
-
-    if (!loader._file.is_open())
+    if (!open(loader._file, toCString(readsFile), OPEN_RDONLY))
         throw RuntimeError("Error while opening reads file.");
 
     // Initialize record reader.
@@ -230,10 +228,10 @@ void open(ReadsLoader<PairedEnd, TConfig> & loader, Pair<TString> const & readsF
     typedef typename TReadsLoader::TRecordReader    TRecordReader;
 
     // Open files.
-    loader._file1.open(toCString(readsFile.i1), std::ios::binary | std::ios::in);
-    loader._file2.open(toCString(readsFile.i2), std::ios::binary | std::ios::in);
+    if (!open(loader._file1, toCString(readsFile.i1), OPEN_RDONLY))
+        throw RuntimeError("Error while opening reads file.");
 
-    if (!loader._file1.is_open() || !loader._file2.is_open())
+    if (!open(loader._file2, toCString(readsFile.i2), OPEN_RDONLY))
         throw RuntimeError("Error while opening reads file.");
 
     // Initialize record reader.
@@ -253,14 +251,14 @@ void open(ReadsLoader<PairedEnd, TConfig> & loader, Pair<TString> const & readsF
 template <typename TSpec, typename TConfig>
 void close(ReadsLoader<TSpec, TConfig> & loader)
 {
-    loader._file.close();
+    close(loader._file);
 }
 
 template <typename TConfig>
 void close(ReadsLoader<PairedEnd, TConfig> & loader)
 {
-    loader._file1.close();
-    loader._file2.close();
+    close(loader._file1);
+    close(loader._file2);
 }
 
 // ----------------------------------------------------------------------------

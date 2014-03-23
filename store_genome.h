@@ -259,9 +259,7 @@ inline void open(ContigsLoader<TSpec, TConfig> & loader, TFileName const & conti
     typedef typename TContigsLoader::TRecordReader   TRecordReader;
 
     // Open file.
-    loader._file.open(toCString(contigsFile), std::ios::binary | std::ios::in);
-
-    if (!loader._file.is_open())
+    if (!open(loader._file, toCString(contigsFile), OPEN_RDONLY))
         throw RuntimeError("Error while opening contigs file.");
 
     // Compute file size.
