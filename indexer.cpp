@@ -52,6 +52,10 @@
 // I/O and options
 // ----------------------------------------------------------------------------
 
+#ifndef YARA_DISABLE_MMAP
+#define YARA_DISABLE_MMAP
+#endif
+
 #include "store_genome.h"
 
 // ----------------------------------------------------------------------------
@@ -289,7 +293,7 @@ int main(int argc, char const ** argv)
 
     try
     {
-        Indexer<YaraIndexSpec, void> indexer;
+        Indexer<YaraIndexSpec, YaraStringSpec> indexer;
         runIndexer(indexer, options);
     }
     catch (Exception const & e)
