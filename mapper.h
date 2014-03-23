@@ -156,7 +156,7 @@ struct MapperTraits
     typedef typename Value<TContigSeqs>::Type                       TContig;
     typedef typename StringSetPosition<TContigSeqs>::Type           TContigsPos;
 
-    typedef Index<TFMContigs, TGenomeIndexSpec>                     THostIndex;
+    typedef Index<YaraContigsFM, YaraIndexSpec>                     THostIndex;
     typedef typename Space<THostIndex, TExecSpace>::Type            TIndex;
     typedef typename Size<TIndex>::Type                             TIndexSize;
     typedef typename Fibre<TIndex, FibreSA>::Type                   TSA;
