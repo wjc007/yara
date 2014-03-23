@@ -125,7 +125,7 @@ template <typename TExecSpace_      = ExecHost,
           typename TStrategy_       = Strata,
           typename TAnchoring_      = Nothing,
           unsigned BUCKETS_         = 3>
-struct ReadMapperConfig : public ContigsConfig<void>, public ReadsConfig<void>
+struct ReadMapperConfig : public ContigsConfig<YaraStringSpec>, public ReadsConfig<void>
 {
     typedef TExecSpace_     TExecSpace;
     typedef TThreading_     TThreading;
