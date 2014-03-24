@@ -59,8 +59,8 @@ struct MatchesWriter
 
     // Thread-private data.
     BamAlignmentRecord      record;
+    CharString              recordBuffer;
     CharString              xa;
-    CharString              buffer;
 
     // Shared-memory read-write data.
     TOutputStream &         outputStream;
@@ -102,6 +102,12 @@ struct MatchesWriter
     void operator() (TIterator const & it)
     {
         _writeMatchesImpl(*this, it);
+    }
+
+    ~MatchesWriter()
+    {
+        if (!empty(recordBuffer))
+            _writeRecordBufferImpl(*this, typename Traits::TThreading());
     }
 };
 
@@ -293,7 +299,7 @@ inline void fillHeader(BamHeader & header, TOptions const & options, TContigSeqs
     BamHeaderRecord firstRecord;
     firstRecord.type = BAM_HEADER_FIRST;
     appendValue(firstRecord.tags, TTag("VN", "1.4"));
-    appendValue(firstRecord.tags, TTag("SO", "queryname"));
+    appendValue(firstRecord.tags, TTag("SO", "unsorted"));
     appendValue(header.records, firstRecord);
 
     // Fill sequence info header line.
@@ -577,10 +583,25 @@ inline void _writeRecordImpl(MatchesWriter<TSpec, Traits> & me, TThreading const
 template <typename TSpec, typename Traits>
 inline void _writeRecordImpl(MatchesWriter<TSpec, Traits> & me, Parallel)
 {
-    clear(me.buffer);
-    write2(me.buffer, me.record, me.outputCtx, typename Traits::TOutputFormat());
+    write2(me.recordBuffer, me.record, me.outputCtx, typename Traits::TOutputFormat());
+
+    if (length(me.recordBuffer) > Power<2, 16>::VALUE)
+        _writeRecordBufferImpl(me, Parallel());
+}
+
+// ----------------------------------------------------------------------------
+// Function _writeRecordBufferImpl()
+// ----------------------------------------------------------------------------
+
+template <typename TSpec, typename Traits, typename TThreading>
+inline void _writeRecordBufferImpl(MatchesWriter<TSpec, Traits> & /* me */, TThreading const & /* tag */) {}
+
+template <typename TSpec, typename Traits>
+inline void _writeRecordBufferImpl(MatchesWriter<TSpec, Traits> & me, Parallel)
+{
     SEQAN_OMP_PRAGMA(critical(MatchesWriter_writeRecord))
-    streamWriteBlock(me.outputStream, begin(me.buffer, Standard()), length(me.buffer));
+    streamWriteBlock(me.outputStream, begin(me.recordBuffer, Standard()), length(me.recordBuffer));
+    clear(me.recordBuffer);
 }
 
 #endif  // #ifndef APP_YARA_MAPPER_WRITER_H_
