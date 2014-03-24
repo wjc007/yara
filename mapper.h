@@ -171,7 +171,7 @@ struct MapperTraits
 
     typedef typename TContigs::TContigNames                         TContigNames;
     typedef typename TContigs::TContigNamesCache                    TContigNamesCache;
-    typedef Stream<FileStream<File<> > >                            TOutputStream;
+    typedef Stream<FileStream<File<MMap<> > > >                     TOutputStream;
     typedef BamIOContext<TContigNames, TContigNamesCache>           TOutputContext;
 
     typedef ReadsContext<TSpec, TConfig>                            TReadsContext;
