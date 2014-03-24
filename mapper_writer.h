@@ -60,6 +60,7 @@ struct MatchesWriter
     // Thread-private data.
     BamAlignmentRecord      record;
     CharString              xa;
+    CharString              buffer;
 
     // Shared-memory read-write data.
     TOutputStream &         outputStream;
@@ -94,7 +95,7 @@ struct MatchesWriter
         options(options)
     {
         // Process all matches.
-        iterate(primaryMatches, *this, Standard(), Serial());
+        iterate(primaryMatches, *this, Standard(), typename Traits::TThreading());
     }
 
     template <typename TIterator>
@@ -564,7 +565,22 @@ inline void _fillXa(MatchesWriter<TSpec, Traits> & me, TMatches const & matches)
 template <typename TSpec, typename Traits>
 inline void _writeRecord(MatchesWriter<TSpec, Traits> & me)
 {
+    _writeRecordImpl(me, typename Traits::TThreading());
+}
+
+template <typename TSpec, typename Traits, typename TThreading>
+inline void _writeRecordImpl(MatchesWriter<TSpec, Traits> & me, TThreading const & /* tag */)
+{
     write2(me.outputStream, me.record, me.outputCtx, typename Traits::TOutputFormat());
+}
+
+template <typename TSpec, typename Traits>
+inline void _writeRecordImpl(MatchesWriter<TSpec, Traits> & me, Parallel)
+{
+    clear(me.buffer);
+    write2(me.buffer, me.record, me.outputCtx, typename Traits::TOutputFormat());
+    SEQAN_OMP_PRAGMA(critical(MatchesWriter_writeRecord))
+    streamWriteBlock(me.outputStream, begin(me.buffer, Standard()), length(me.buffer));
 }
 
 #endif  // #ifndef APP_YARA_MAPPER_WRITER_H_
