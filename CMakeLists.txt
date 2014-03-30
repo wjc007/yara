@@ -18,11 +18,14 @@ message (STATUS "Configuring core/apps/yara")
 set (SEQAN_FIND_DEPENDENCIES OpenMP CUDA ZLIB)
 find_package (SeqAn REQUIRED)
 
+# ALWAYS disable CUDA acceleration.
+add_definitions (-DCUDA_DISABLED=1)
+
 # Disable CUDA acceleration if CUDA was not found.
-if (NOT SEQAN_HAS_CUDA)
-  add_definitions (-DCUDA_DISABLED=1)
-  message (STATUS "  CUDA disabled: building yara without CUDA acceleration.")
-endif (NOT SEQAN_HAS_CUDA)
+#if (NOT SEQAN_HAS_CUDA)
+#  add_definitions (-DCUDA_DISABLED=1)
+#  message (STATUS "  CUDA disabled: building yara without CUDA acceleration.")
+#endif (NOT SEQAN_HAS_CUDA)
 
 # Warn if OpenMP was not found.
 if (NOT SEQAN_HAS_OPENMP)
