@@ -1,25 +1,17 @@
-*** Yara - Yet Another Read Aligner ***
-
+===========================================================================
+Yara - Yet another read aligner
+===========================================================================
 
 ---------------------------------------------------------------------------
 Table of Contents
 ---------------------------------------------------------------------------
 
-  1.   Overview
-  2.   Installation
-  3.   Usage examples
-  4.   Contact
-
+  1.   Installation
+  2.   Usage examples
+  3.   Contact
 
 ---------------------------------------------------------------------------
-1. Overview
----------------------------------------------------------------------------
-
-Yara is just another read aligner.
-
-
----------------------------------------------------------------------------
-2. Installation
+1. Installation
 ---------------------------------------------------------------------------
 
 First download the latest (develop) SeqAn sources from GitHub:
@@ -44,20 +36,20 @@ After compilation, you can copy the binary to a folder in your PATH variable:
 
   $ sudo cp bin/yara_* /usr/local/bin
 
-
 ---------------------------------------------------------------------------
-3. Usage examples
+2. Usage examples
 ---------------------------------------------------------------------------
 
-Yara consists of two binaries:
-* yara_indexer:   builds an index for a given reference genome
-* yara_mapper:    maps genomic reads onto an indexed reference genome
+Yara consists of two executables:
+
+* yara_indexer builds an index for a given reference genome;
+* yara_mapper maps genomic reads onto an indexed reference genome.
 
 In the following we show some basic usage examples.
 To get a complete usage description, call each program with -h or --help.
 
 ---------------------------------------------------------------------------
-3.1 Indexer
+2.1 Indexer
 ---------------------------------------------------------------------------
 
 First build an index for a reference genome, e.g. by executing:
@@ -65,7 +57,7 @@ First build an index for a reference genome, e.g. by executing:
   $ yara_indexer REF.fasta
 
 The reference genome must be stored inside a DNA (multi-)Fasta file.
-On mammals reference genomes the indexer runs in about two-three hours.
+On mammal reference genomes the indexer runs in about two-three hours.
 
 *** WARNING ***
 
@@ -81,7 +73,7 @@ or by passing the working temporary folder to the indexer as:
   $ yara_indexer --tmp-folder /big/folder/ REF.fasta
 
 ---------------------------------------------------------------------------
-3.2 Mapper
+2.2 Mapper
 ---------------------------------------------------------------------------
 
 Map genomic reads onto an indexed reference genome by executing:
@@ -100,7 +92,7 @@ To map more reads you can increase the error rate e.g. to 6%:
   $ yara_mapper --error-rate 6 REF.fasta READS.fastq
 
 ---------------------------------------------------------------------------
-4. Contact
+3. Contact
 ---------------------------------------------------------------------------
 
 Enrico Siragusa <enrico.siragusa@fu-berlin.de>
