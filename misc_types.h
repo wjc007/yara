@@ -41,10 +41,18 @@
 using namespace seqan;
 
 // ============================================================================
-// Global Types
+// String Types
 // ============================================================================
 
-typedef StringSet<DnaString, Owner<ConcatDirect<> > >           TFMContigs;
+// ----------------------------------------------------------------------------
+// String Spec
+// ----------------------------------------------------------------------------
+
+#ifndef YARA_DISABLE_MMAP
+typedef MMap<>  YaraStringSpec;
+#else
+typedef Alloc<> YaraStringSpec;
+#endif
 
 // ----------------------------------------------------------------------------
 // ReadSeqs Size
@@ -113,36 +121,17 @@ typedef StringSet<DnaString, Owner<ConcatDirect<> > >           TFMContigs;
 // ============================================================================
 
 // ----------------------------------------------------------------------------
-// Suffix Array Value Type
+// Index Text Type
 // ----------------------------------------------------------------------------
 
-namespace seqan {
-template <>
-struct SAValue<TFMContigs>
-{
-    typedef Pair<__uint8, __uint32, Pack> Type;
-};
-
-template <>
-struct SAValue<View<TFMContigs>::Type>
-{
-    typedef Pair<__uint8, __uint32, Pack> Type;
-};
-
-#ifdef PLATFORM_CUDA
-template <>
-struct SAValue<Device<TFMContigs>::Type>
-{
-    typedef Pair<__uint8, __uint32, Pack> Type;
-};
-#endif
-}
+typedef StringSet<String<Dna5, Packed<YaraStringSpec> >, Owner<ConcatDirect<> > >   YaraContigs;
+typedef StringSet<String<Dna>, Owner<ConcatDirect<> > >                             YaraContigsFM;
 
 // ----------------------------------------------------------------------------
 // FM Index Fibres
 // ----------------------------------------------------------------------------
 
-struct CUDAFMIndexConfig
+struct YaraFMIndexConfig
 {
     typedef TwoLevels<void>    TValuesSpec;
     typedef Naive<void>        TSentinelsSpec;
@@ -150,8 +139,8 @@ struct CUDAFMIndexConfig
     static const unsigned SAMPLING = 10;
 };
 
-typedef FMIndex<void, CUDAFMIndexConfig>        TGenomeIndexSpec;
-typedef Index<TFMContigs, TGenomeIndexSpec>     TGenomeIndex;
+typedef FMIndex<void, YaraFMIndexConfig>        YaraIndexSpec;
+typedef Index<YaraContigsFM, YaraIndexSpec>     YaraIndex;
 
 // ----------------------------------------------------------------------------
 // FM Index Size
@@ -159,28 +148,78 @@ typedef Index<TFMContigs, TGenomeIndexSpec>     TGenomeIndex;
 
 namespace seqan {
 template <>
-struct Size<TGenomeIndex>
+struct Size<YaraIndex>
 {
     typedef __uint32 Type;
 };
 
 template <>
-struct Size<View<TGenomeIndex>::Type>
+struct Size<View<YaraIndex>::Type>
 {
     typedef __uint32 Type;
 };
 
 #ifdef PLATFORM_CUDA
 template <>
-struct Size<Device<TGenomeIndex>::Type>
+struct Size<Device<YaraIndex>::Type>
 {
     typedef __uint32 Type;
 };
 
 template <>
-struct Size<View<Device<TGenomeIndex>::Type>::Type>
+struct Size<View<Device<YaraIndex>::Type>::Type>
 {
     typedef __uint32 Type;
+};
+#endif
+}
+
+// ----------------------------------------------------------------------------
+// Default Index Fibre Specs
+// ----------------------------------------------------------------------------
+
+namespace seqan {
+template <>
+struct DefaultIndexStringSpec<YaraContigsFM>
+{
+    typedef YaraStringSpec Type;
+};
+
+template <>
+struct DefaultIndexStringSpec<CompressedSA<YaraContigsFM, void, YaraFMIndexConfig> >
+{
+    typedef YaraStringSpec Type;
+};
+}
+
+// ----------------------------------------------------------------------------
+// Suffix Array Value Type
+// ----------------------------------------------------------------------------
+
+namespace seqan {
+template <>
+struct StringSetPosition<YaraContigs>
+{
+    typedef Pair<__uint8, __uint32, Pack> Type;
+};
+
+template <>
+struct StringSetPosition<YaraContigsFM>
+{
+    typedef Pair<__uint8, __uint32, Pack> Type;
+};
+
+template <>
+struct StringSetPosition<View<YaraContigsFM>::Type>
+{
+    typedef Pair<__uint8, __uint32, Pack> Type;
+};
+
+#ifdef PLATFORM_CUDA
+template <>
+struct StringSetPosition<Device<YaraContigsFM>::Type>
+{
+    typedef Pair<__uint8, __uint32, Pack> Type;
 };
 #endif
 }
@@ -191,7 +230,7 @@ struct Size<View<Device<TGenomeIndex>::Type>::Type>
 
 namespace seqan {
 template <typename TSpec, typename TConfig>
-struct Size<LF<TFMContigs, TSpec, TConfig> >
+struct Size<LF<YaraContigsFM, TSpec, TConfig> >
 {
     typedef __uint32 Type;
 };
@@ -218,6 +257,30 @@ template <typename TSpec>
 struct Size<RankDictionary<bool, Naive<TSpec> > >
 {
     typedef __uint32 Type;
+};
+}
+
+// ----------------------------------------------------------------------------
+// Rank Dictionary Fibre Specs
+// ----------------------------------------------------------------------------
+
+namespace seqan {
+template <typename TSpec>
+struct RankDictionaryFibreSpec<RankDictionary<Dna, TwoLevels<TSpec> > >
+{
+    typedef YaraStringSpec Type;
+};
+
+template <typename TSpec>
+struct RankDictionaryFibreSpec<RankDictionary<bool, TwoLevels<TSpec> > >
+{
+    typedef YaraStringSpec Type;
+};
+
+template <typename TSpec>
+struct RankDictionaryFibreSpec<RankDictionary<bool, Naive<TSpec> > >
+{
+    typedef YaraStringSpec Type;
 };
 }
 

@@ -125,7 +125,7 @@ template <typename TExecSpace_      = ExecHost,
           typename TStrategy_       = Strata,
           typename TAnchoring_      = Nothing,
           unsigned BUCKETS_         = 3>
-struct ReadMapperConfig : public ContigsConfig<void>, public ReadsConfig<void>
+struct ReadMapperConfig : public ContigsConfig<YaraStringSpec>, public ReadsConfig<void>
 {
     typedef TExecSpace_     TExecSpace;
     typedef TThreading_     TThreading;
@@ -156,7 +156,7 @@ struct MapperTraits
     typedef typename Value<TContigSeqs>::Type                       TContig;
     typedef typename StringSetPosition<TContigSeqs>::Type           TContigsPos;
 
-    typedef Index<TFMContigs, TGenomeIndexSpec>                     THostIndex;
+    typedef Index<YaraContigsFM, YaraIndexSpec>                     THostIndex;
     typedef typename Space<THostIndex, TExecSpace>::Type            TIndex;
     typedef typename Size<TIndex>::Type                             TIndexSize;
     typedef typename Fibre<TIndex, FibreSA>::Type                   TSA;
@@ -171,7 +171,7 @@ struct MapperTraits
 
     typedef typename TContigs::TContigNames                         TContigNames;
     typedef typename TContigs::TContigNamesCache                    TContigNamesCache;
-    typedef Stream<FileStream<File<> > >                            TOutputStream;
+    typedef Stream<FileStream<File<MMap<> > > >                     TOutputStream;
     typedef BamIOContext<TContigNames, TContigNamesCache>           TOutputContext;
 
     typedef ReadsContext<TSpec, TConfig>                            TReadsContext;
@@ -537,11 +537,13 @@ inline void findSeeds(Mapper<TSpec, TConfig> & me, TBucketId bucketId)
     if (ERRORS > 0)
     {
         setScoreThreshold(me.finderApx, ERRORS);
+        // TODO(esiragusa): guess the number of hits.
         reserve(me.hits[bucketId], lengthSum(me.seeds[bucketId]) * Power<ERRORS, 2>::VALUE, Exact());
         _findSeedsImpl(me, me.hits[bucketId], me.seeds[bucketId], me.finderApx, TPatternApx());
     }
     else
     {
+        // TODO(esiragusa): guess the number of hits.
         reserve(me.hits[bucketId], length(me.seeds[bucketId]), Exact());
         _findSeedsImpl(me, me.hits[bucketId], me.seeds[bucketId], me.finderExt, TPatternExt());
     }

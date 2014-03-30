@@ -54,26 +54,29 @@ using namespace seqan;
 // Class ContigsConfig
 // ----------------------------------------------------------------------------
 
-template <typename TSpec = void>
+template <typename TSpec = Alloc<> >
 struct ContigsConfig
 {
-    typedef String<Dna5, Packed<> > TContigSeq;
-    typedef Owner<ConcatDirect<> >  TContigSpec;
-    typedef Owner<ConcatDirect<> >  TContigNameSpec;
+    typedef Dna5                        TContigValue;
+    typedef Packed<TSpec>               TContigSpec;
+    typedef Owner<ConcatDirect<> >      TContigsSpec;
+    typedef Owner<ConcatDirect<> >      TContigNameSpec;
 };
 
 // ----------------------------------------------------------------------------
 // Class Contigs
 // ----------------------------------------------------------------------------
 
-template <typename TSpec = void, typename TConfig = ContigsConfig<TSpec> >
+template <typename TSpec = Alloc<>, typename TConfig = ContigsConfig<TSpec> >
 struct Contigs
 {
-    typedef typename TConfig::TContigSeq                TContigSeq;
+    typedef typename TConfig::TContigValue              TContigValue;
     typedef typename TConfig::TContigSpec               TContigSpec;
+    typedef typename TConfig::TContigsSpec              TContigsSpec;
     typedef typename TConfig::TContigNameSpec           TContigNameSpec;
 
-    typedef StringSet<TContigSeq, TContigSpec>          TContigSeqs;
+    typedef String<TContigValue, TContigSpec>           TContigSeq;
+    typedef StringSet<TContigSeq, TContigsSpec>         TContigSeqs;
 	typedef StringSet<CharString, TContigNameSpec>      TContigNames;
 	typedef NameStoreCache<TContigNames, CharString>    TContigNamesCache;
 
@@ -256,9 +259,7 @@ inline void open(ContigsLoader<TSpec, TConfig> & loader, TFileName const & conti
     typedef typename TContigsLoader::TRecordReader   TRecordReader;
 
     // Open file.
-    loader._file.open(toCString(contigsFile), std::ios::binary | std::ios::in);
-
-    if (!loader._file.is_open())
+    if (!open(loader._file, toCString(contigsFile), OPEN_RDONLY))
         throw RuntimeError("Error while opening contigs file.");
 
     // Compute file size.

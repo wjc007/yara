@@ -203,7 +203,7 @@ _getNodeByCharImpl(Iter<Index<TText, FMIndex<TOccSpec, TIndexSpec> >, VSTree<Top
 // ----------------------------------------------------------------------------
 // Function ordEqual()
 // ----------------------------------------------------------------------------
-// This function is overloaded for Dna to let Ns always mismatch.
+// This function is overloaded to avoid casting TValue2 to Dna.
 
 namespace seqan {
 template <typename TValue2>

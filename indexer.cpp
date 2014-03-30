@@ -52,6 +52,10 @@
 // I/O and options
 // ----------------------------------------------------------------------------
 
+#ifndef YARA_DISABLE_MMAP
+#define YARA_DISABLE_MMAP
+#endif
+
 #include "store_genome.h"
 
 // ----------------------------------------------------------------------------
@@ -94,7 +98,7 @@ struct Indexer
 {
     typedef Contigs<TSpec>                         TContigs;
     typedef ContigsLoader<TSpec>                   TContigsLoader;
-    typedef Index<TFMContigs, TIndexSpec>          TIndex;
+    typedef Index<YaraContigsFM, TIndexSpec>       TIndex;
 
     TContigs            contigs;
     TContigsLoader      contigsLoader;
@@ -289,7 +293,7 @@ int main(int argc, char const ** argv)
 
     try
     {
-        Indexer<TGenomeIndexSpec, void> indexer;
+        Indexer<YaraIndexSpec, YaraStringSpec> indexer;
         runIndexer(indexer, options);
     }
     catch (Exception const & e)
