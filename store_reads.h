@@ -118,6 +118,29 @@ struct ReadsLoader<PairedEnd, TConfig>
     Pair<std::auto_ptr<TRecordReader> > _reader;
 };
 
+// ----------------------------------------------------------------------------
+// Class LoadReadsWorker
+// ----------------------------------------------------------------------------
+
+template <typename TSpec, typename TConfig>
+struct LoadReadsWorker
+{
+    Reads<TSpec, TConfig> *         reads;
+    ReadsLoader<TSpec, TConfig> &   readsLoader;
+    unsigned                        readsCount;
+
+    LoadReadsWorker(Reads<TSpec, TConfig> * reads, ReadsLoader<TSpec, TConfig> & readsLoader, unsigned readsCount) :
+        reads(reads),
+        readsLoader(readsLoader),
+        readsCount(readsCount)
+    {}
+
+    void operator() ()
+    {
+        load(*reads, readsLoader, readsCount);
+    }
+};
+
 // ============================================================================
 // Functions
 // ============================================================================
