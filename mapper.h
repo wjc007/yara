@@ -1122,11 +1122,11 @@ inline void runMapper(Mapper<TSpec, TConfig> & me)
     initOutput(me);
 
     // Process reads in blocks.
-    while (!atEnd(me.readsLoader))
+    while (true)
     {
         if (me.options.verbose > 1) printRuler(std::cout);
-
         loadReads(me);
+        if (empty(me.reads->seqs)) break;
         mapReads(me);
         clearReads(me);
     }
