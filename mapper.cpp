@@ -56,6 +56,10 @@ struct Options;
 // I/O and options
 // ----------------------------------------------------------------------------
 
+#ifndef YARA_DISABLE_MMAP
+#define YARA_DISABLE_MMAP
+#endif
+
 #include "misc_tags.h"
 #include "misc_options.h"
 #include "store_reads.h"
