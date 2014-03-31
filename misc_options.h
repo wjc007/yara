@@ -98,13 +98,13 @@ lastOf(TString const & string, TFunctor const & f)
     typedef typename Iterator<TString const, Standard>::Type TIterator;
 
     TIterator itBegin = begin(string, Standard());
-    TIterator it = end(string, Standard());
+    TIterator itEnd = end(string, Standard());
 
-    while (it != itBegin)
+    for (TIterator it = itEnd; it != itBegin; )
         if (f(value(--it)))
-            break;
+            return it;
 
-    return it;
+    return itEnd;
 }
 
 // ----------------------------------------------------------------------------
