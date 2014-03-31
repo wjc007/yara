@@ -139,22 +139,20 @@ void clear(Reads<TSpec, TConfig> & me)
 // ----------------------------------------------------------------------------
 
 template <typename TSpec, typename TConfig, typename TSize>
-void load(Reads<TSpec, TConfig> & me, ReadsLoader<TSpec, TConfig> & loader, TSize count)
+void load(Reads<TSpec, TConfig> & reads, ReadsLoader<TSpec, TConfig> & me, TSize count)
 {
-    _load(me, count, *(loader._reader), loader._fileFormat);
-    appendReverseComplement(me);
+    _load(reads, count, *(me._reader), me._fileFormat);
 }
 
 template <typename TConfig, typename TSize>
-void load(Reads<PairedEnd, TConfig> & me, ReadsLoader<PairedEnd, TConfig> & loader, TSize count)
+void load(Reads<PairedEnd, TConfig> & reads, ReadsLoader<PairedEnd, TConfig> & me, TSize count)
 {
-    _load(me, count, *(loader._reader.i1), loader._fileFormat.i1);
-    _load(me, count, *(loader._reader.i2), loader._fileFormat.i2);
-    appendReverseComplement(me);
+    _load(reads, count, *(me._reader.i1), me._fileFormat.i1);
+    _load(reads, count, *(me._reader.i2), me._fileFormat.i2);
 }
 
 template <typename TSpec, typename TConfig, typename TSize, typename TReader, typename TFormat>
-void _load(Reads<TSpec, TConfig> & me, TSize count, TReader & reader, TFormat & format)
+void _load(Reads<TSpec, TConfig> & reads, TSize count, TReader & reader, TFormat & format)
 {
     typedef Reads<TSpec, TConfig>           TReads;
     typedef typename TReads::TReadSeq       TReadSeq;
@@ -168,8 +166,8 @@ void _load(Reads<TSpec, TConfig> & me, TSize count, TReader & reader, TFormat & 
         if (readRecord(seqName, seq, reader, format) != 0)
             throw RuntimeError("Error while reading read record.");
 
-        appendValue(me.seqs, seq, Generous());
-        appendValue(me.names, prefix(seqName, lastOf(seqName, IsSpace())), Generous());
+        appendValue(reads.seqs, seq, Generous());
+        appendValue(reads.names, prefix(seqName, lastOf(seqName, IsSpace())), Generous());
     }
 }
 
@@ -204,43 +202,43 @@ void appendReverseComplement(Reads<TSpec, TConfig> & me)
 // ----------------------------------------------------------------------------
 
 template <typename TSpec, typename TConfig, typename TString>
-void open(ReadsLoader<TSpec, TConfig> & loader, TString const & readsFile)
+void open(ReadsLoader<TSpec, TConfig> & me, TString const & readsFile)
 {
     typedef ReadsLoader<TSpec, TConfig>             TReadsLoader;
     typedef typename TReadsLoader::TRecordReader    TRecordReader;
 
     // Open file.
-    if (!open(loader._file, toCString(readsFile), OPEN_RDONLY))
+    if (!open(me._file, toCString(readsFile), OPEN_RDONLY))
         throw RuntimeError("Error while opening reads file.");
 
     // Initialize record reader.
-    loader._reader.reset(new TRecordReader(loader._file));
+    me._reader.reset(new TRecordReader(me._file));
 
     // Autodetect file format.
-    if (!guessStreamFormat(*(loader._reader), loader._fileFormat))
+    if (!guessStreamFormat(*(me._reader), me._fileFormat))
         throw RuntimeError("Error while guessing reads file format.");
 }
 
 template <typename TConfig, typename TString>
-void open(ReadsLoader<PairedEnd, TConfig> & loader, Pair<TString> const & readsFile)
+void open(ReadsLoader<PairedEnd, TConfig> & me, Pair<TString> const & readsFile)
 {
     typedef ReadsLoader<PairedEnd, TConfig>         TReadsLoader;
     typedef typename TReadsLoader::TRecordReader    TRecordReader;
 
     // Open files.
-    if (!open(loader._file1, toCString(readsFile.i1), OPEN_RDONLY))
+    if (!open(me._file1, toCString(readsFile.i1), OPEN_RDONLY))
         throw RuntimeError("Error while opening reads file.");
 
-    if (!open(loader._file2, toCString(readsFile.i2), OPEN_RDONLY))
+    if (!open(me._file2, toCString(readsFile.i2), OPEN_RDONLY))
         throw RuntimeError("Error while opening reads file.");
 
     // Initialize record reader.
-    loader._reader.i1.reset(new TRecordReader(loader._file1));
-    loader._reader.i2.reset(new TRecordReader(loader._file2));
+    me._reader.i1.reset(new TRecordReader(me._file1));
+    me._reader.i2.reset(new TRecordReader(me._file2));
 
     // Autodetect file format.
-    if (!guessStreamFormat(*(loader._reader.i1), loader._fileFormat.i1) ||
-        !guessStreamFormat(*(loader._reader.i2), loader._fileFormat.i2))
+    if (!guessStreamFormat(*(me._reader.i1), me._fileFormat.i1) ||
+        !guessStreamFormat(*(me._reader.i2), me._fileFormat.i2))
         throw RuntimeError("Error while guessing reads file format.");
 }
 
@@ -249,16 +247,16 @@ void open(ReadsLoader<PairedEnd, TConfig> & loader, Pair<TString> const & readsF
 // ----------------------------------------------------------------------------
 
 template <typename TSpec, typename TConfig>
-void close(ReadsLoader<TSpec, TConfig> & loader)
+void close(ReadsLoader<TSpec, TConfig> & me)
 {
-    close(loader._file);
+    close(me._file);
 }
 
 template <typename TConfig>
-void close(ReadsLoader<PairedEnd, TConfig> & loader)
+void close(ReadsLoader<PairedEnd, TConfig> & me)
 {
-    close(loader._file1);
-    close(loader._file2);
+    close(me._file1);
+    close(me._file2);
 }
 
 // ----------------------------------------------------------------------------
