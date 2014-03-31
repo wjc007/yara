@@ -20,7 +20,7 @@ First download the latest (develop) SeqAn sources from GitHub:
 
 Then download Yara sources inside the SeqAn tree:
 
-  $ git clone https://bitbucket.org/esiragusa/yara.git seqan/core/apps/yara
+  $ git clone https://github.com/esiragusa/yara.git seqan/core/apps/yara
 
 Create a SeqAn build project in Release mode:
 
