@@ -162,7 +162,10 @@ struct MapperTraits
     typedef typename Fibre<TIndex, FibreSA>::Type                   TSA;
 
     typedef Reads<TSequencing, TConfig>                             TReads;
+    typedef Pair<TReads>                                            TReadsBuckets;
     typedef ReadsLoader<TSequencing, TConfig>                       TReadsLoader;
+    typedef LoadReadsWorker<TSequencing, TConfig>                   TLoadReadsWorker;
+    typedef Thread<TLoadReadsWorker>                                TReadsLoaderThread;
     typedef typename TReads::TReadSeqs                              THostReadSeqs;
     typedef typename Space<THostReadSeqs, TExecSpace>::Type         TReadSeqs;
     typedef typename Value<TReadSeqs>::Type                         TReadSeq;
@@ -261,8 +264,12 @@ struct Mapper
 
     typename Traits::TContigs           contigs;
     typename Traits::TIndex             index;
-    typename Traits::TReads             reads;
+    typename Traits::TReadsBuckets      readsBuckets;
+    typename Traits::TReads *           reads;
     typename Traits::TReadsLoader       readsLoader;
+    typename Traits::TLoadReadsWorker   loadReadsWorker;
+    typename Traits::TReadsLoaderThread readsLoaderThread;
+
     typename Traits::TOutputStream      outputStream;
     typename Traits::TOutputContext     outputCtx;
 
@@ -286,8 +293,11 @@ struct Mapper
         stats(),
         contigs(),
         index(),
-        reads(),
+        readsBuckets(),
+        reads(&readsBuckets.i1),
         readsLoader(),
+        loadReadsWorker(&readsBuckets.i2, readsLoader, options.readsCount),
+        readsLoaderThread(loadReadsWorker),
         outputStream(),
         outputCtx(contigs.names, contigs.namesCache),
         ctx(),
@@ -387,6 +397,9 @@ template <typename TSpec, typename TConfig>
 inline void openReads(Mapper<TSpec, TConfig> & me)
 {
     _openReadsImpl(me, typename TConfig::TSequencing());
+
+    // Preload one batch of reads.
+    run(me.readsLoaderThread);
 }
 
 template <typename TSpec, typename TConfig, typename TSequencing>
@@ -410,17 +423,33 @@ template <typename TSpec, typename TConfig>
 inline void loadReads(Mapper<TSpec, TConfig> & me)
 {
     start(me.timer);
-    clear(me.reads);
-    load(me.reads, me.readsLoader, me.options.readsCount);
+
+    // Wait next batch of reads.
+    waitFor(me.readsLoaderThread);
+
+    // Make next batch of reads the current one.
+    std::swap(me.reads, me.readsLoaderThread.worker.reads);
+
+    // Append reverse complemented reads.
+    appendReverseComplement(value(me.reads));
+
     stop(me.timer);
+
+//    start(me.timer);
+//    load(me.readsNext, me.readsLoader, me.options.readsCount);
+//    stop(me.timer);
+
     me.stats.loadReads += getValue(me.timer);
-    me.stats.loadedReads += getReadsCount(me.reads.seqs);
+    me.stats.loadedReads += getReadsCount(me.reads->seqs);
 
     if (me.options.verbose > 1)
     {
         std::cout << "Loading reads:\t\t\t" << me.timer << std::endl;
-        std::cout << "Reads count:\t\t\t" << getReadsCount(me.reads.seqs) << std::endl;
+        std::cout << "Reads count:\t\t\t" << getReadsCount(me.reads->seqs) << std::endl;
     }
+
+    // Preload one batch of reads.
+    run(me.readsLoaderThread);
 }
 
 // ----------------------------------------------------------------------------
@@ -430,7 +459,7 @@ inline void loadReads(Mapper<TSpec, TConfig> & me)
 template <typename TSpec, typename TConfig>
 inline void clearReads(Mapper<TSpec, TConfig> & me)
 {
-    clear(me.reads);
+    clear(value(me.reads));
 }
 
 // ----------------------------------------------------------------------------
@@ -887,7 +916,7 @@ inline void alignMatches(Mapper<TSpec, TConfig> & me)
     start(me.timer);
     setHost(me.cigarSet, me.cigars);
     typename TTraits::TCigarLimits cigarLimits;
-    TMatchesAligner aligner(me.cigarSet, cigarLimits, me.primaryMatches, me.contigs.seqs, me.reads.seqs, me.options);
+    TMatchesAligner aligner(me.cigarSet, cigarLimits, me.primaryMatches, me.contigs.seqs, me.reads->seqs, me.options);
     stop(me.timer);
     me.stats.alignMatches += getValue(me.timer);
 
@@ -921,7 +950,7 @@ inline void writeMatches(Mapper<TSpec, TConfig> & me)
     start(me.timer);
     TMatchesWriter writer(me.outputStream, me.outputCtx,
                           me.matchesSet, me.primaryMatches, me.cigarSet,
-                          me.ctx, me.contigs, me.reads,
+                          me.ctx, me.contigs, value(me.reads),
                           me.options);
     stop(me.timer);
     me.stats.writeMatches += getValue(me.timer);
@@ -937,7 +966,7 @@ inline void writeMatches(Mapper<TSpec, TConfig> & me)
 template <typename TSpec, typename TConfig>
 inline void mapReads(Mapper<TSpec, TConfig> & me)
 {
-    _mapReadsImpl(me, me.reads.seqs, typename TConfig::TStrategy());
+    _mapReadsImpl(me, me.reads->seqs, typename TConfig::TStrategy());
 }
 
 // ----------------------------------------------------------------------------
@@ -1113,114 +1142,6 @@ inline void runMapper(Mapper<TSpec, TConfig> & me)
     if (me.options.verbose > 0)
         printStats(me, timer);
 }
-
-// ----------------------------------------------------------------------------
-// Function runMapper()
-// ----------------------------------------------------------------------------
-
-/*
-template <typename TSpec, typename TConfig>
-inline void runMapper(Mapper<TSpec, TConfig> & me, Parallel)
-{
-    typedef Mapper<TSpec, TConfig>                      TMapper;
-    typedef Reads<void, typename TMapper::TReadsConfig> TReads;
-    typedef Logger<std::ostream>                        TLogger;
-
-    Timer<double> timer;
-    TLogger cout(std::cout);
-    TLogger cerr(std::cerr);
-
-#ifdef _OPENMP
-    cout << "Threads count:\t\t\t" << me.options.threadsCount << std::endl;
-#endif
-
-#ifdef _OPENMP
-    // Disable nested parallelism.
-    omp_set_nested(false);
-#endif
-
-    loadGenome(me);
-    loadGenomeIndex(me);
-
-    // Open reads file.
-    open(me.readsLoader);
-
-    // Process reads in parallel.
-    SEQAN_OMP_PRAGMA(parallel firstprivate(timer) num_threads(3))
-    {
-        // Reserve space for reads.
-        TReads reads;
-        reserve(reads, me.options.readsCount);
-
-        // Process reads.
-        while (true)
-        {
-            // Load a block of reads.
-            SEQAN_OMP_PRAGMA(critical(_mapper_readsLoader_load))
-            {
-                // No more reads.
-                if (!atEnd(me.readsLoader))
-                {
-                    start(me.timer);
-                    setReads(me.readsLoader, reads);
-                    load(me.readsLoader, me.options.readsCount);
-                    stop(me.timer);
-
-                    cout << "Loading reads:\t\t\t" << me.timer << "\t\t[" << omp_get_thread_num() << "]" << std::endl;// <<
-//                            "Reads count:\t\t\t" << reads.readsCount << "\t\t\t[" << omp_get_thread_num() << "]" << std::endl;
-                }
-            }
-
-            // No more reads.
-            if (!reads.readsCount) break;
-
-            // Map reads.
-            SEQAN_OMP_PRAGMA(critical(_mapper_mapReads))
-            {
-                #ifdef _OPENMP
-                // Enable nested parallelism.
-                omp_set_nested(true);
-                #endif
-
-                #ifdef _OPENMP
-                omp_set_num_threads(me.options.threadsCount);
-                #endif
-
-                start(me.timer);
-                mapReads(me, me.options, getSeqs(reads));
-                stop(me.timer);
-
-                cout << "Mapping reads:\t\t\t" << me.timer << "\t\t[" << omp_get_thread_num() << "]" << std::endl;
-
-                #ifdef _OPENMP
-                omp_set_num_threads(1);
-                #endif
-
-                #ifdef _OPENMP
-                // Disable nested parallelism.
-                omp_set_nested(false);
-                #endif
-            }
-
-            // Writer results.
-            SEQAN_OMP_PRAGMA(critical(_mapper_samWriter_write))
-            {
-                start(me.timer);
-                sleep(reads.readsCount / 1000000.0);
-                stop(me.timer);
-                
-                cout << "Writing results:\t\t" << me.timer << "\t\t[" << omp_get_thread_num() << "]" << std::endl;
-            }
-
-            // Clear mapped reads.
-            clear(reads);
-        }
-    }
-
-    // Close reads file.
-    close(me.readsLoader);
-}
-*/
 
 // ----------------------------------------------------------------------------
 // Function spawnMapper()
