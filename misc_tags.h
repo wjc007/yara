@@ -75,6 +75,11 @@ enum LibraryOrientation
     FWD_REV, FWD_FWD, REV_REV
 };
 
+enum InputType
+{
+    PLAIN, GZIP, BZIP2
+};
+
 enum OutputFormat
 {
     SAM, BAM
