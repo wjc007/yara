@@ -148,19 +148,21 @@ struct Options
 
 template <typename TExecSpace_      = ExecHost,
           typename TThreading_      = Parallel,
+          typename TInputType_      = Nothing,
           typename TOutputFormat_   = Sam,
           typename TSequencing_     = SingleEnd,
           typename TStrategy_       = Strata,
-          typename TAnchoring_      = Nothing,
+//          typename TAnchoring_      = Nothing,
           unsigned BUCKETS_         = 3>
 struct ReadMapperConfig : public ContigsConfig<YaraStringSpec>, public ReadsConfig<void>
 {
     typedef TExecSpace_     TExecSpace;
     typedef TThreading_     TThreading;
+    typedef TInputType_     TInputType;
     typedef TOutputFormat_  TOutputFormat;
     typedef TSequencing_    TSequencing;
     typedef TStrategy_      TStrategy;
-    typedef TAnchoring_     TAnchoring;
+//    typedef TAnchoring_     TAnchoring;
 
     static const unsigned BUCKETS = BUCKETS_;
 };
@@ -177,7 +179,7 @@ struct MapperTraits
     typedef typename TConfig::TOutputFormat                         TOutputFormat;
     typedef typename TConfig::TSequencing                           TSequencing;
     typedef typename TConfig::TStrategy                             TStrategy;
-    typedef typename TConfig::TAnchoring                            TAnchoring;
+//    typedef typename TConfig::TAnchoring                            TAnchoring;
 
     typedef Contigs<void, TConfig>                                  TContigs;
     typedef typename TContigs::TContigSeqs                          TContigSeqs;
@@ -1177,24 +1179,24 @@ inline void runMapper(Mapper<TSpec, TConfig> & me)
 
 template <typename TExecSpace,
           typename TThreading,
+          typename TInputType,
           typename TOutputFormat,
           typename TSequencing,
-          typename TStrategy,
-          typename TAnchoring>
+          typename TStrategy>
 inline void spawnMapper(Options const & options,
                         TExecSpace const & /* tag */,
                         TThreading const & /* tag */,
+                        TInputType const & /* tag */,
                         TOutputFormat const & /* tag */,
                         TSequencing const & /* tag */,
-                        TStrategy const & /* tag */,
-                        TAnchoring const & /* tag */)
+                        TStrategy const & /* tag */)
 {
     typedef ReadMapperConfig<TExecSpace,
                              TThreading,
+                             TInputType,
                              TOutputFormat,
                              TSequencing,
-                             TStrategy,
-                             TAnchoring> TConfig;
+                             TStrategy> TConfig;
 
     Mapper<void, TConfig> mapper(options);
     runMapper(mapper);

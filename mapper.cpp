@@ -297,6 +297,34 @@ parseCommandLine(Options & options, ArgumentParser & parser, int argc, char cons
 //}
 
 // ----------------------------------------------------------------------------
+// Function configureInputType()
+// ----------------------------------------------------------------------------
+
+template <typename TExecSpace, typename TThreading, typename TOutputFormat, typename TSequencing, typename TStrategy>
+void configureInputType(Options const & options, TExecSpace const & execSpace, TThreading const & threading,
+                        TOutputFormat const & format, TSequencing const & sequencing, TStrategy const & strategy)
+{
+    switch (options.inputType)
+    {
+    case PLAIN:
+        return spawnMapper(options, execSpace, threading, Nothing(), format, sequencing, strategy);
+
+#ifdef SEQAN_HAS_ZLIB
+    case GZIP:
+        return spawnMapper(options, execSpace, threading, GZFile(), format, sequencing, strategy);
+#endif
+
+#ifdef SEQAN_HAS_BZIP2
+    case BZIP2:
+        return spawnMapper(options, execSpace, threading, BZ2File(), format, sequencing, strategy);
+#endif
+
+    default:
+        return;
+    }
+}
+
+// ----------------------------------------------------------------------------
 // Function configureStrategy()
 // ----------------------------------------------------------------------------
 
@@ -307,10 +335,10 @@ void configureStrategy(Options const & options, TExecSpace const & execSpace, TT
     switch (options.mappingMode)
     {
     case STRATA:
-        return spawnMapper(options, execSpace, threading, format, sequencing, Strata(), Nothing());
+        return configureInputType(options, execSpace, threading, format, sequencing, Strata());
 
     case ALL:
-        return spawnMapper(options, execSpace, threading, format, sequencing, All(), Nothing());
+        return configureInputType(options, execSpace, threading, format, sequencing, All());
 
     default:
         return;
