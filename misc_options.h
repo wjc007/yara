@@ -173,10 +173,9 @@ void getOptionEnum(TOption & option,
     TOptionsIterator optionsBegin = begin(optionsList, Standard());
     TOptionsIterator optionsEnd = end(optionsList, Standard());
 
-    TOptionsIterator optionType = std::find(optionsBegin, optionsEnd, optionStr);
+    TOptionsIterator optionPos = std::find(optionsBegin, optionsEnd, optionStr);
 
-    SEQAN_ASSERT(optionType != optionsEnd);
-    option = TOption(optionType - optionsBegin);
+    option = (optionPos != optionsEnd) ? TOption(optionPos - optionsBegin) : TOption();
 }
 
 // ----------------------------------------------------------------------------
@@ -272,6 +271,18 @@ void getIndexPrefix(TOptions & options, ArgumentParser const & parser)
 }
 
 // ----------------------------------------------------------------------------
+// Function getInputType()
+// ----------------------------------------------------------------------------
+
+template <typename TOptions, typename TString>
+void getInputType(TOptions & options, TString const & inputFile)
+{
+    TString inputExtension = getExtension(inputFile);
+    typename TOptions::TString inputTypeExtension(toCString(inputExtension));
+    getOptionEnum(options.inputType, inputTypeExtension, options.inputTypeList);
+}
+
+// ----------------------------------------------------------------------------
 // Function getOutputFormat()
 // ----------------------------------------------------------------------------
 
@@ -293,7 +304,7 @@ void setOutputFile(ArgumentParser & parser, TOptions const & options)
     addOption(parser, ArgParseOption("o", "output-file", "Specify an output file. \
                                      Default: use the reads filename prefix.",
                                      ArgParseOption::OUTPUTFILE));
-    setValidValues(parser, "output-file", options.outputFormatExtensions);
+    setValidValues(parser, "output-file", options.outputFormatList);
 }
 
 // ----------------------------------------------------------------------------
@@ -313,7 +324,7 @@ void getOutputFile(TString & file,
         file = trimExtension(from);
         append(file, suffix);
         appendValue(file, '.');
-        append(file, options.outputFormatExtensions[options.outputFormat]);
+        append(file, options.outputFormatList[options.outputFormat]);
     }
 }
 
