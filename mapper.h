@@ -385,8 +385,15 @@ template <typename TSpec, typename TConfig>
 inline void loadGenome(Mapper<TSpec, TConfig> & me)
 {
     start(me.timer);
-    if (!open(me.contigs, toCString(me.options.genomeIndexFile)))
-        throw RuntimeError("Error while opening genome file.");
+    try
+    {
+        if (!open(me.contigs, toCString(me.options.genomeIndexFile)))
+            throw RuntimeError("Error while opening reference genome file.");
+    }
+    catch (BadAlloc const & /* e */)
+    {
+        throw RuntimeError("Insufficient memory to load reference genome.");
+    }
     stop(me.timer);
     me.stats.loadGenome += getValue(me.timer);
 
@@ -406,8 +413,15 @@ inline void loadGenomeIndex(Mapper<TSpec, TConfig> & me)
 #endif
 
     start(me.timer);
-    if (!open(me.index, toCString(me.options.genomeIndexFile)))
-        throw RuntimeError("Error while opening genome index file.");
+    try
+    {
+        if (!open(me.index, toCString(me.options.genomeIndexFile)))
+            throw RuntimeError("Error while opening reference genome index file.");
+    }
+    catch (BadAlloc const & /* e */)
+    {
+        throw RuntimeError("Insufficient memory to load reference genome index.");
+    }
     stop(me.timer);
     me.stats.loadGenome += getValue(me.timer);
 

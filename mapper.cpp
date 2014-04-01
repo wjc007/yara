@@ -434,6 +434,11 @@ int main(int argc, char const ** argv)
     {
         configureMapper(options);
     }
+    catch (BadAlloc const & /* e */)
+    {
+        std::cerr << "Insufficient memory." << std::endl;
+        return 1;
+    }
     catch (Exception const & e)
     {
         std::cerr << e.what() << std::endl;
