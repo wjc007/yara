@@ -59,6 +59,7 @@ struct ReadsConfig
     typedef String<Dna5Q>           TReadSeq;
     typedef Owner<ConcatDirect<> >  TReadSpec;
     typedef Owner<ConcatDirect<> >  TReadNameSpec;
+    typedef Nothing                 TInputType;
 };
 
 // ----------------------------------------------------------------------------
@@ -88,13 +89,38 @@ struct Reads
 };
 
 // ----------------------------------------------------------------------------
+// Metafunction InputStream
+// ----------------------------------------------------------------------------
+
+template <typename TSpec>
+struct InputStream
+{
+    typedef std::fstream    Type;
+};
+
+template <>
+struct InputStream<GZFile>
+{
+    typedef Stream<GZFile>  Type;
+};
+
+#if SEQAN_HAS_BZIP2
+template <>
+struct InputStream<BZ2File>
+{
+    typedef Stream<BZ2File> Type;
+};
+#endif
+
+// ----------------------------------------------------------------------------
 // Class ReadsLoader
 // ----------------------------------------------------------------------------
 
 template <typename TSpec = void, typename TConfig = ReadsConfig<> >
 struct ReadsLoader
 {
-    typedef std::fstream                            TStream;
+    typedef typename TConfig::TInputType            TInputType;
+    typedef typename InputStream<TInputType>::Type  TStream;
     typedef RecordReader<TStream, SinglePass<> >    TRecordReader;
 
     TStream                         _file;
@@ -109,7 +135,8 @@ struct ReadsLoader
 template <typename TConfig>
 struct ReadsLoader<PairedEnd, TConfig>
 {
-    typedef std::fstream                            TStream;
+    typedef typename TConfig::TInputType            TInputType;
+    typedef typename InputStream<TInputType>::Type  TStream;
     typedef RecordReader<TStream, SinglePass<> >    TRecordReader;
 
     TStream                             _file1;
@@ -146,78 +173,16 @@ struct LoadReadsWorker
 // ============================================================================
 
 // ----------------------------------------------------------------------------
-// Function clear()
+// Function open()
 // ----------------------------------------------------------------------------
+// TODO(esiragusa): remove this sh*t when the new i/o gets merged.
 
-template <typename TSpec, typename TConfig>
-void clear(Reads<TSpec, TConfig> & me)
+namespace seqan {
+template <typename TSpec>
+inline bool open(Stream<TSpec> & stream, const char *fileName, int /* mode */)
 {
-    clear(me.seqs);
-    clear(me.names);
-//    clear(me.namesCache);
+    return open(stream, fileName, "r");
 }
-
-// ----------------------------------------------------------------------------
-// Function load()
-// ----------------------------------------------------------------------------
-
-template <typename TSpec, typename TConfig, typename TSize>
-void load(Reads<TSpec, TConfig> & reads, ReadsLoader<TSpec, TConfig> & me, TSize count)
-{
-    _load(reads, count, *(me._reader), me._fileFormat);
-}
-
-template <typename TConfig, typename TSize>
-void load(Reads<PairedEnd, TConfig> & reads, ReadsLoader<PairedEnd, TConfig> & me, TSize count)
-{
-    _load(reads, count, *(me._reader.i1), me._fileFormat.i1);
-    _load(reads, count, *(me._reader.i2), me._fileFormat.i2);
-}
-
-template <typename TSpec, typename TConfig, typename TSize, typename TReader, typename TFormat>
-void _load(Reads<TSpec, TConfig> & reads, TSize count, TReader & reader, TFormat & format)
-{
-    typedef Reads<TSpec, TConfig>           TReads;
-    typedef typename TReads::TReadSeq       TReadSeq;
-
-    CharString  seqName;
-    TReadSeq    seq;
-
-    // Read records.
-    for (; count > 0 && !atEnd(reader); count--)
-    {
-        if (readRecord(seqName, seq, reader, format) != 0)
-            throw RuntimeError("Error while reading read record.");
-
-        appendValue(reads.seqs, seq, Generous());
-        appendValue(reads.names, prefix(seqName, lastOf(seqName, IsSpace())), Generous());
-    }
-}
-
-// ----------------------------------------------------------------------------
-// Function appendReverseComplement()
-// ----------------------------------------------------------------------------
-// Append reverse complemented reads.
-
-template <typename TSpec, typename TConfig>
-void appendReverseComplement(Reads<TSpec, TConfig> & me)
-{
-    typedef Reads<TSpec, TConfig>           TReads;
-    typedef typename TReads::TReadSeqs      TReadSeqs;
-    typedef typename Value<TReadSeqs>::Type TReadSeq;
-    typedef typename Size<TReadSeqs>::Type  TReadSeqId;
-
-    TReadSeqId readSeqsCount = length(me.seqs);
-
-    reserve(me.seqs, 2 * readSeqsCount, Exact());
-    reserve(concat(me.seqs), 2 * lengthSum(me.seqs), Exact());
-
-    for (TReadSeqId readSeqId = 0; readSeqId < readSeqsCount; ++readSeqId)
-    {
-        TReadSeq const & read = me.seqs[readSeqId];
-        appendValue(me.seqs, read);
-        reverseComplement(back(me.seqs));
-    }
 }
 
 // ----------------------------------------------------------------------------
@@ -283,6 +248,43 @@ void close(ReadsLoader<PairedEnd, TConfig> & me)
 }
 
 // ----------------------------------------------------------------------------
+// Function load()
+// ----------------------------------------------------------------------------
+
+template <typename TSpec, typename TConfig, typename TSize>
+void load(Reads<TSpec, TConfig> & reads, ReadsLoader<TSpec, TConfig> & me, TSize count)
+{
+    _load(reads, count, *(me._reader), me._fileFormat);
+}
+
+template <typename TConfig, typename TSize>
+void load(Reads<PairedEnd, TConfig> & reads, ReadsLoader<PairedEnd, TConfig> & me, TSize count)
+{
+    _load(reads, count, *(me._reader.i1), me._fileFormat.i1);
+    _load(reads, count, *(me._reader.i2), me._fileFormat.i2);
+}
+
+template <typename TSpec, typename TConfig, typename TSize, typename TReader, typename TFormat>
+void _load(Reads<TSpec, TConfig> & reads, TSize count, TReader & reader, TFormat & format)
+{
+    typedef Reads<TSpec, TConfig>           TReads;
+    typedef typename TReads::TReadSeq       TReadSeq;
+
+    CharString  seqName;
+    TReadSeq    seq;
+
+    // Read records.
+    for (; count > 0 && !atEnd(reader); count--)
+    {
+        if (readRecord(seqName, seq, reader, format) != 0)
+            throw RuntimeError("Error while reading read record.");
+
+        appendValue(reads.seqs, seq, Generous());
+        appendValue(reads.names, prefix(seqName, lastOf(seqName, IsSpace())), Generous());
+    }
+}
+
+// ----------------------------------------------------------------------------
 // Function atEnd()
 // ----------------------------------------------------------------------------
 
@@ -296,6 +298,44 @@ template <typename TConfig>
 inline bool atEnd(ReadsLoader<PairedEnd, TConfig> & reads)
 {
     return atEnd(*(reads._reader.i1)) && atEnd(*(reads._reader.i2));
+}
+
+// ----------------------------------------------------------------------------
+// Function clear()
+// ----------------------------------------------------------------------------
+
+template <typename TSpec, typename TConfig>
+void clear(Reads<TSpec, TConfig> & me)
+{
+    clear(me.seqs);
+    clear(me.names);
+//    clear(me.namesCache);
+}
+
+// ----------------------------------------------------------------------------
+// Function appendReverseComplement()
+// ----------------------------------------------------------------------------
+// Append reverse complemented reads.
+
+template <typename TSpec, typename TConfig>
+void appendReverseComplement(Reads<TSpec, TConfig> & me)
+{
+    typedef Reads<TSpec, TConfig>           TReads;
+    typedef typename TReads::TReadSeqs      TReadSeqs;
+    typedef typename Value<TReadSeqs>::Type TReadSeq;
+    typedef typename Size<TReadSeqs>::Type  TReadSeqId;
+
+    TReadSeqId readSeqsCount = length(me.seqs);
+
+    reserve(me.seqs, 2 * readSeqsCount, Exact());
+    reserve(concat(me.seqs), 2 * lengthSum(me.seqs), Exact());
+
+    for (TReadSeqId readSeqId = 0; readSeqId < readSeqsCount; ++readSeqId)
+    {
+        TReadSeq const & read = me.seqs[readSeqId];
+        appendValue(me.seqs, read);
+        reverseComplement(back(me.seqs));
+    }
 }
 
 // ----------------------------------------------------------------------------
