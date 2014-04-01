@@ -179,7 +179,14 @@ void loadGenome(Indexer<TIndexSpec, TSpec> & me, Options const & options)
 
     start(me.timer);
     open(me.contigsLoader, options.genomeFile);
-    load(me.contigs, me.contigsLoader);
+    try
+    {
+        load(me.contigs, me.contigsLoader);
+    }
+    catch (BadAlloc const & /* e */)
+    {
+        throw RuntimeError("Insufficient memory to load reference genome.");
+    }
     stop(me.timer);
 
     if (options.verbose)
@@ -194,7 +201,7 @@ template <typename TIndexSpec, typename TSpec>
 void saveGenome(Indexer<TIndexSpec, TSpec> & me, Options const & options)
 {
     if (options.verbose)
-    std::cout << "Dumping genome:\t\t\t" << std::flush;
+        std::cout << "Dumping genome:\t\t\t" << std::flush;
 
     start(me.timer);
     if (!save(me.contigs, toCString(options.genomeIndexFile)))
@@ -202,7 +209,7 @@ void saveGenome(Indexer<TIndexSpec, TSpec> & me, Options const & options)
     stop(me.timer);
 
     if (options.verbose)
-    std::cout << me.timer << std::endl;
+        std::cout << me.timer << std::endl;
 }
 
 // ----------------------------------------------------------------------------
@@ -219,23 +226,35 @@ void buildIndex(Indexer<TIndexSpec, TSpec> & me, Options const & options)
 
     start(me.timer);
 
-    // Remove Ns from contigs.
-    removeNs(me.contigs);
+    try
+    {
+        // Remove Ns from contigs.
+        removeNs(me.contigs);
 
-    // IndexFM is built on the reversed contigs.
-    reverse(me.contigs);
+        // IndexFM is built on the reversed contigs.
+        reverse(me.contigs);
 
-    // Set the index text.
-    // NOTE(esiragusa): this assignment implicitly assigns and converts the contigs to the index contigs.
-    setValue(me.index.text, me.contigs.seqs);
+        // Set the index text.
+        // NOTE(esiragusa): this assignment implicitly assigns and converts the contigs to the index contigs.
+        setValue(me.index.text, me.contigs.seqs);
 
-    // Clears the contigs.
-    // NOTE(esiragusa): the index now owns its own contigs.
-    shrinkToFit(me.contigs.seqs);
+        // Clears the contigs.
+        // NOTE(esiragusa): the index now owns its own contigs.
+        shrinkToFit(me.contigs.seqs);
 
-    // Iterator instantiation calls automatic index construction.
-    typename Iterator<TIndex, TopDown<> >::Type it(me.index);
-    ignoreUnusedVariableWarning(it);
+        // Iterator instantiation calls automatic index construction.
+        typename Iterator<TIndex, TopDown<> >::Type it(me.index);
+        ignoreUnusedVariableWarning(it);
+    }
+    catch (BadAlloc const & /* e */)
+    {
+        throw RuntimeError("Insufficient memory to build reference genome index.");
+    }
+    catch (IOError const & /* e */)
+    {
+        throw RuntimeError("Insufficient disk space to build reference genome index. \
+                            Specify a bigger temporary folder using the options --tmp-folder.");
+    }
 
 //    reverse(me.contigs);
     stop(me.timer);
@@ -295,6 +314,11 @@ int main(int argc, char const ** argv)
     {
         Indexer<YaraIndexSpec, YaraStringSpec> indexer;
         runIndexer(indexer, options);
+    }
+    catch (BadAlloc const & /* e */)
+    {
+        std::cerr << "Insufficient memory." << std::endl;
+        return 1;
     }
     catch (Exception const & e)
     {
