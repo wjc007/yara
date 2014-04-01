@@ -53,11 +53,16 @@ struct Options
 
     CharString          genomeFile;
     CharString          genomeIndexFile;
+
     Pair<CharString>    readsFile;
+    TList               readsFormatList;
+    InputType           inputType;
+    TList               inputTypeList;
+    TList               readsExtensionList;
+
     CharString          outputFile;
     OutputFormat        outputFormat;
     TList               outputFormatList;
-    TList               outputFormatExtensions;
     bool                outputSecondary;
     bool                outputHeader;
 
@@ -69,8 +74,8 @@ struct Options
     bool                singleEnd;
     unsigned            libraryLength;
     unsigned            libraryError;
-    TList               libraryOrientationList;
     LibraryOrientation  libraryOrientation;
+    TList               libraryOrientationList;
 //    bool                anchorOne;
 
     unsigned            readsCount;
@@ -83,6 +88,7 @@ struct Options
     CharString          version;
 
     Options() :
+        inputType(PLAIN),
         outputFormat(SAM),
         outputSecondary(false),
         outputHeader(true),
@@ -101,16 +107,38 @@ struct Options
         hitsThreshold(300),
         verbose(0)
     {
-        outputFormatList.push_back("sam");
-        outputFormatExtensions.push_back("sam");
+        appendValue(readsFormatList, "fastq");
+        appendValue(readsFormatList, "fasta");
+        appendValue(readsFormatList, "fa");
+
+        appendValue(inputTypeList, "");
 #ifdef SEQAN_HAS_ZLIB
-        outputFormatList.push_back("bam");
-        outputFormatExtensions.push_back("bam");
+        appendValue(inputTypeList, "gz");
+#endif
+#ifdef SEQAN_HAS_BZIP2
+        appendValue(inputTypeList, "bz2");
 #endif
 
-        libraryOrientationList.push_back("fwd-rev");
-        libraryOrientationList.push_back("fwd-fwd");
-        libraryOrientationList.push_back("rev-rev");
+        readsExtensionList = readsFormatList;
+#ifdef SEQAN_HAS_ZLIB
+        appendValue(readsExtensionList, "fastq.gz");
+        appendValue(readsExtensionList, "fasta.gz");
+        appendValue(readsExtensionList, "fa.gz");
+#endif
+#ifdef SEQAN_HAS_BZIP2
+        appendValue(readsExtensionList, "fastq.bz2");
+        appendValue(readsExtensionList, "fasta.bz2");
+        appendValue(readsExtensionList, "fa.bz2");
+#endif
+
+        appendValue(outputFormatList, "sam");
+#ifdef SEQAN_HAS_ZLIB
+        appendValue(outputFormatList, "bam");
+#endif
+
+        appendValue(libraryOrientationList, "fwd-rev");
+        appendValue(libraryOrientationList, "fwd-fwd");
+        appendValue(libraryOrientationList, "rev-rev");
     }
 };
 

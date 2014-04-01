@@ -120,7 +120,7 @@ void setupArgumentParser(ArgumentParser & parser, Options const & options)
     setHelpText(parser, 0, "A reference genome file.");
 
     addArgument(parser, ArgParseArgument(ArgParseArgument::INPUTFILE, "READS", true));
-    setValidValues(parser, 1, "fastq fasta fa");
+    setValidValues(parser, 1, options.readsExtensionList);
     setHelpText(parser, 1, "Either one single-end or two paired-end / mate-pairs read files.");
 
     addOption(parser, ArgParseOption("v", "verbose", "Displays global statistics."));
@@ -225,6 +225,9 @@ parseCommandLine(Options & options, ArgumentParser & parser, int argc, char cons
     default:
         return ArgumentParser::PARSE_ERROR;
     }
+
+    // Parse reads input type.
+    getInputType(options, options.readsFile.i1);
 
     // Parse output file.
     getOutputFile(options.outputFile, options, parser, options.readsFile.i1, "");
