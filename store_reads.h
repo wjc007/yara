@@ -66,7 +66,7 @@ struct ReadsConfig
 // Class Reads
 // ----------------------------------------------------------------------------
 
-template <typename TSpec = void, typename TConfig = ReadsConfig<TSpec> >
+template <typename TSpec = SingleEnd, typename TConfig = ReadsConfig<TSpec> >
 struct Reads
 {
     typedef typename TConfig::TReadSeq                  TReadSeq;
@@ -116,7 +116,7 @@ struct InputStream<BZ2File>
 // Class ReadsLoader
 // ----------------------------------------------------------------------------
 
-template <typename TSpec = void, typename TConfig = ReadsConfig<> >
+template <typename TSpec = SingleEnd, typename TConfig = ReadsConfig<> >
 struct ReadsLoader
 {
     typedef typename TConfig::TInputType            TInputType;
