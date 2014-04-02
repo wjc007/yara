@@ -175,7 +175,7 @@ template <typename TIndexSpec, typename TSpec>
 void loadGenome(Indexer<TIndexSpec, TSpec> & me, Options const & options)
 {
     if (options.verbose)
-        std::cout << "Loading genome:\t\t\t" << std::flush;
+        std::cout << "Loading reference:\t\t\t" << std::flush;
 
     start(me.timer);
     open(me.contigsLoader, options.genomeFile);
@@ -185,7 +185,7 @@ void loadGenome(Indexer<TIndexSpec, TSpec> & me, Options const & options)
     }
     catch (BadAlloc const & /* e */)
     {
-        throw RuntimeError("Insufficient memory to load reference genome.");
+        throw RuntimeError("Insufficient memory to load the reference.");
     }
     stop(me.timer);
 
@@ -201,11 +201,11 @@ template <typename TIndexSpec, typename TSpec>
 void saveGenome(Indexer<TIndexSpec, TSpec> & me, Options const & options)
 {
     if (options.verbose)
-        std::cout << "Dumping genome:\t\t\t" << std::flush;
+        std::cout << "Dumping reference:\t\t\t" << std::flush;
 
     start(me.timer);
     if (!save(me.contigs, toCString(options.genomeIndexFile)))
-        throw RuntimeError("Error while dumping genome file.");
+        throw RuntimeError("Error while dumping reference file.");
     stop(me.timer);
 
     if (options.verbose)
@@ -222,7 +222,7 @@ void buildIndex(Indexer<TIndexSpec, TSpec> & me, Options const & options)
     typedef typename Indexer<TIndexSpec, TSpec>::TIndex TIndex;
 
     if (options.verbose)
-        std::cout << "Building genome index:\t\t" << std::flush;
+        std::cout << "Building reference index:\t\t" << std::flush;
 
     start(me.timer);
 

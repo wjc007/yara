@@ -388,17 +388,17 @@ inline void loadGenome(Mapper<TSpec, TConfig> & me)
     try
     {
         if (!open(me.contigs, toCString(me.options.genomeIndexFile)))
-            throw RuntimeError("Error while opening reference genome file.");
+            throw RuntimeError("Error while opening reference file.");
     }
     catch (BadAlloc const & /* e */)
     {
-        throw RuntimeError("Insufficient memory to load reference genome.");
+        throw RuntimeError("Insufficient memory to load the reference.");
     }
     stop(me.timer);
     me.stats.loadGenome += getValue(me.timer);
 
     if (me.options.verbose > 1)
-        std::cout << "Loading genome:\t\t\t" << me.timer << std::endl;
+        std::cout << "Loading reference:\t\t\t" << me.timer << std::endl;
 }
 
 // ----------------------------------------------------------------------------
@@ -416,17 +416,17 @@ inline void loadGenomeIndex(Mapper<TSpec, TConfig> & me)
     try
     {
         if (!open(me.index, toCString(me.options.genomeIndexFile)))
-            throw RuntimeError("Error while opening reference genome index file.");
+            throw RuntimeError("Error while opening reference index file.");
     }
     catch (BadAlloc const & /* e */)
     {
-        throw RuntimeError("Insufficient memory to load reference genome index.");
+        throw RuntimeError("Insufficient memory to load the reference index.");
     }
     stop(me.timer);
     me.stats.loadGenome += getValue(me.timer);
 
     if (me.options.verbose > 1)
-        std::cout << "Loading genome index:\t\t" << me.timer << std::endl;
+        std::cout << "Loading reference index:\t\t" << me.timer << std::endl;
 
 #ifdef PLATFORM_CUDA
     cudaPrintFreeMemory();
