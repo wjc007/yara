@@ -248,11 +248,11 @@ void buildIndex(Indexer<TIndexSpec, TSpec> & me, Options const & options)
     }
     catch (BadAlloc const & /* e */)
     {
-        throw RuntimeError("Insufficient memory to build reference genome index.");
+        throw RuntimeError("Insufficient memory to index the reference.");
     }
-    catch (IOError const & /* e */)
+    catch (PageFrameError const & /* e */)
     {
-        throw RuntimeError("Insufficient disk space to build reference genome index. \
+        throw RuntimeError("Insufficient disk space to index the reference. \
                             Specify a bigger temporary folder using the options --tmp-folder.");
     }
 
