@@ -158,7 +158,7 @@ inline void _writeUnmappedRead(MatchesWriter<TSpec, Traits> & me, TReadId readId
     clear(me.record);
     _fillReadName(me, readId);
     _fillReadSeqQual(me, readId);
-    _fillMapq(me, 0);
+    _fillMapq(me, 0u);
     _fillMateInfo(me, readId);
     me.record.flag |= BAM_FLAG_UNMAPPED;
     _writeRecord(me);
