@@ -303,7 +303,7 @@ inline void _addMatchImpl(HitsExtender<TSpec, Traits> & me,
 
     setContigPosition(me.prototype, matchBegin, matchEnd);
     me.prototype.errors = matchErrors;
-    appendValue(me.matches, me.prototype, Insist(), typename Traits::TThreading());
+    appendValue(me.matches, me.prototype, typename Traits::TAppend(), typename Traits::TThreading());
 
     TReadSeqId readId = getReadId(me.prototype);
     setMinErrors(me.ctx, readId, matchErrors);
