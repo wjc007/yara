@@ -53,11 +53,16 @@ struct Options
 
     CharString          genomeFile;
     CharString          genomeIndexFile;
+
     Pair<CharString>    readsFile;
+    TList               readsFormatList;
+    InputType           inputType;
+    TList               inputTypeList;
+    TList               readsExtensionList;
+
     CharString          outputFile;
     OutputFormat        outputFormat;
     TList               outputFormatList;
-    TList               outputFormatExtensions;
     bool                outputSecondary;
     bool                outputHeader;
 
@@ -69,8 +74,8 @@ struct Options
     bool                singleEnd;
     unsigned            libraryLength;
     unsigned            libraryError;
-    TList               libraryOrientationList;
     LibraryOrientation  libraryOrientation;
+    TList               libraryOrientationList;
 //    bool                anchorOne;
 
     unsigned            readsCount;
@@ -83,6 +88,7 @@ struct Options
     CharString          version;
 
     Options() :
+        inputType(PLAIN),
         outputFormat(SAM),
         outputSecondary(false),
         outputHeader(true),
@@ -101,16 +107,38 @@ struct Options
         hitsThreshold(300),
         verbose(0)
     {
-        outputFormatList.push_back("sam");
-        outputFormatExtensions.push_back("sam");
+        appendValue(readsFormatList, "fastq");
+        appendValue(readsFormatList, "fasta");
+        appendValue(readsFormatList, "fa");
+
+        appendValue(inputTypeList, "");
 #ifdef SEQAN_HAS_ZLIB
-        outputFormatList.push_back("bam");
-        outputFormatExtensions.push_back("bam");
+        appendValue(inputTypeList, "gz");
+#endif
+#ifdef SEQAN_HAS_BZIP2
+        appendValue(inputTypeList, "bz2");
 #endif
 
-        libraryOrientationList.push_back("fwd-rev");
-        libraryOrientationList.push_back("fwd-fwd");
-        libraryOrientationList.push_back("rev-rev");
+        readsExtensionList = readsFormatList;
+#ifdef SEQAN_HAS_ZLIB
+        appendValue(readsExtensionList, "fastq.gz");
+        appendValue(readsExtensionList, "fasta.gz");
+        appendValue(readsExtensionList, "fa.gz");
+#endif
+#ifdef SEQAN_HAS_BZIP2
+        appendValue(readsExtensionList, "fastq.bz2");
+        appendValue(readsExtensionList, "fasta.bz2");
+        appendValue(readsExtensionList, "fa.bz2");
+#endif
+
+        appendValue(outputFormatList, "sam");
+#ifdef SEQAN_HAS_ZLIB
+        appendValue(outputFormatList, "bam");
+#endif
+
+        appendValue(libraryOrientationList, "fwd-rev");
+        appendValue(libraryOrientationList, "fwd-fwd");
+        appendValue(libraryOrientationList, "rev-rev");
     }
 };
 
@@ -120,19 +148,21 @@ struct Options
 
 template <typename TExecSpace_      = ExecHost,
           typename TThreading_      = Parallel,
+          typename TInputType_      = Nothing,
           typename TOutputFormat_   = Sam,
           typename TSequencing_     = SingleEnd,
           typename TStrategy_       = Strata,
-          typename TAnchoring_      = Nothing,
+//          typename TAnchoring_      = Nothing,
           unsigned BUCKETS_         = 3>
 struct ReadMapperConfig : public ContigsConfig<YaraStringSpec>, public ReadsConfig<void>
 {
     typedef TExecSpace_     TExecSpace;
     typedef TThreading_     TThreading;
+    typedef TInputType_     TInputType;
     typedef TOutputFormat_  TOutputFormat;
     typedef TSequencing_    TSequencing;
     typedef TStrategy_      TStrategy;
-    typedef TAnchoring_     TAnchoring;
+//    typedef TAnchoring_     TAnchoring;
 
     static const unsigned BUCKETS = BUCKETS_;
 };
@@ -149,7 +179,10 @@ struct MapperTraits
     typedef typename TConfig::TOutputFormat                         TOutputFormat;
     typedef typename TConfig::TSequencing                           TSequencing;
     typedef typename TConfig::TStrategy                             TStrategy;
-    typedef typename TConfig::TAnchoring                            TAnchoring;
+//    typedef typename TConfig::TAnchoring                            TAnchoring;
+
+    typedef typename IsSameType<TThreading, Parallel>::Type         TIsParallel;
+    typedef typename If<TIsParallel, Insist, Generous>::Type        TAppend;
 
     typedef Contigs<void, TConfig>                                  TContigs;
     typedef typename TContigs::TContigSeqs                          TContigSeqs;
@@ -162,7 +195,10 @@ struct MapperTraits
     typedef typename Fibre<TIndex, FibreSA>::Type                   TSA;
 
     typedef Reads<TSequencing, TConfig>                             TReads;
+    typedef Pair<TReads>                                            TReadsBuckets;
     typedef ReadsLoader<TSequencing, TConfig>                       TReadsLoader;
+    typedef LoadReadsWorker<TSequencing, TConfig>                   TLoadReadsWorker;
+    typedef Thread<TLoadReadsWorker>                                TReadsLoaderThread;
     typedef typename TReads::TReadSeqs                              THostReadSeqs;
     typedef typename Space<THostReadSeqs, TExecSpace>::Type         TReadSeqs;
     typedef typename Value<TReadSeqs>::Type                         TReadSeq;
@@ -261,8 +297,12 @@ struct Mapper
 
     typename Traits::TContigs           contigs;
     typename Traits::TIndex             index;
-    typename Traits::TReads             reads;
+    typename Traits::TReadsBuckets      readsBuckets;
+    typename Traits::TReads *           reads;
     typename Traits::TReadsLoader       readsLoader;
+    typename Traits::TLoadReadsWorker   loadReadsWorker;
+    typename Traits::TReadsLoaderThread readsLoaderThread;
+
     typename Traits::TOutputStream      outputStream;
     typename Traits::TOutputContext     outputCtx;
 
@@ -283,22 +323,11 @@ struct Mapper
 
     Mapper(Options const & options) :
         options(options),
-        stats(),
-        contigs(),
-        index(),
-        reads(),
-        readsLoader(),
-        outputStream(),
+        readsBuckets(),
+        reads(&readsBuckets.i1),
+        loadReadsWorker(&readsBuckets.i2, readsLoader, options.readsCount),
+        readsLoaderThread(loadReadsWorker),
         outputCtx(contigs.names, contigs.namesCache),
-        ctx(),
-        seeds(),
-        hits(),
-        ranks(),
-        matches(),
-        matchesSet(),
-        primaryMatches(),
-        cigars(),
-        cigarSet(),
         finderExt(index),
         finderApx(index)
     {};
@@ -327,14 +356,11 @@ inline TReadSeqSize getReadErrors(Options const & options, TReadSeqSize readSeqL
 template <typename TSpec, typename TConfig>
 inline void configureThreads(Mapper<TSpec, TConfig> & me)
 {
-#ifdef _OPENMP
-    omp_set_num_threads(me.options.threadsCount);
+    if (IsSameType<typename TConfig::TThreading, Parallel>::VALUE)
+        omp_set_num_threads(me.options.threadsCount);
 
     if (me.options.verbose > 0)
         std::cout << "Threads count:\t\t\t" << omp_get_max_threads() << std::endl;
-#else
-    ignoreUnusedVariableWarning(me);
-#endif
 }
 
 // ----------------------------------------------------------------------------
@@ -345,13 +371,20 @@ template <typename TSpec, typename TConfig>
 inline void loadGenome(Mapper<TSpec, TConfig> & me)
 {
     start(me.timer);
-    if (!open(me.contigs, toCString(me.options.genomeIndexFile)))
-        throw RuntimeError("Error while opening genome file.");
+    try
+    {
+        if (!open(me.contigs, toCString(me.options.genomeIndexFile)))
+            throw RuntimeError("Error while opening reference file.");
+    }
+    catch (BadAlloc const & /* e */)
+    {
+        throw RuntimeError("Insufficient memory to load the reference.");
+    }
     stop(me.timer);
     me.stats.loadGenome += getValue(me.timer);
 
     if (me.options.verbose > 1)
-        std::cout << "Loading genome:\t\t\t" << me.timer << std::endl;
+        std::cout << "Loading reference:\t\t\t" << me.timer << std::endl;
 }
 
 // ----------------------------------------------------------------------------
@@ -366,13 +399,20 @@ inline void loadGenomeIndex(Mapper<TSpec, TConfig> & me)
 #endif
 
     start(me.timer);
-    if (!open(me.index, toCString(me.options.genomeIndexFile)))
-        throw RuntimeError("Error while opening genome index file.");
+    try
+    {
+        if (!open(me.index, toCString(me.options.genomeIndexFile)))
+            throw RuntimeError("Error while opening reference index file.");
+    }
+    catch (BadAlloc const & /* e */)
+    {
+        throw RuntimeError("Insufficient memory to load the reference index.");
+    }
     stop(me.timer);
     me.stats.loadGenome += getValue(me.timer);
 
     if (me.options.verbose > 1)
-        std::cout << "Loading genome index:\t\t" << me.timer << std::endl;
+        std::cout << "Loading reference index:\t\t" << me.timer << std::endl;
 
 #ifdef PLATFORM_CUDA
     cudaPrintFreeMemory();
@@ -387,6 +427,10 @@ template <typename TSpec, typename TConfig>
 inline void openReads(Mapper<TSpec, TConfig> & me)
 {
     _openReadsImpl(me, typename TConfig::TSequencing());
+
+    // Preload one batch of reads.
+    if (IsSameType<typename TConfig::TThreading, Parallel>::VALUE)
+        run(me.readsLoaderThread);
 }
 
 template <typename TSpec, typename TConfig, typename TSequencing>
@@ -410,17 +454,38 @@ template <typename TSpec, typename TConfig>
 inline void loadReads(Mapper<TSpec, TConfig> & me)
 {
     start(me.timer);
-    clear(me.reads);
-    load(me.reads, me.readsLoader, me.options.readsCount);
+
+    if (IsSameType<typename TConfig::TThreading, Parallel>::VALUE)
+    {
+        // Wait next batch of reads.
+        waitFor(me.readsLoaderThread);
+
+        // Make next batch of reads the current one.
+        std::swap(me.reads, me.readsLoaderThread.worker.reads);
+    }
+    else
+    {
+        // Sync load.
+        load(value(me.reads), me.readsLoader, me.options.readsCount);
+    }
+
+    // Append reverse complemented reads.
+    appendReverseComplement(value(me.reads));
+
     stop(me.timer);
+
     me.stats.loadReads += getValue(me.timer);
-    me.stats.loadedReads += getReadsCount(me.reads.seqs);
+    me.stats.loadedReads += getReadsCount(me.reads->seqs);
 
     if (me.options.verbose > 1)
     {
         std::cout << "Loading reads:\t\t\t" << me.timer << std::endl;
-        std::cout << "Reads count:\t\t\t" << getReadsCount(me.reads.seqs) << std::endl;
+        std::cout << "Reads count:\t\t\t" << getReadsCount(me.reads->seqs) << std::endl;
     }
+
+    // Preload next batch of reads.
+    if (IsSameType<typename TConfig::TThreading, Parallel>::VALUE)
+        run(me.readsLoaderThread);
 }
 
 // ----------------------------------------------------------------------------
@@ -430,7 +495,7 @@ inline void loadReads(Mapper<TSpec, TConfig> & me)
 template <typename TSpec, typename TConfig>
 inline void clearReads(Mapper<TSpec, TConfig> & me)
 {
-    clear(me.reads);
+    clear(value(me.reads));
 }
 
 // ----------------------------------------------------------------------------
@@ -887,7 +952,7 @@ inline void alignMatches(Mapper<TSpec, TConfig> & me)
     start(me.timer);
     setHost(me.cigarSet, me.cigars);
     typename TTraits::TCigarLimits cigarLimits;
-    TMatchesAligner aligner(me.cigarSet, cigarLimits, me.primaryMatches, me.contigs.seqs, me.reads.seqs, me.options);
+    TMatchesAligner aligner(me.cigarSet, cigarLimits, me.primaryMatches, me.contigs.seqs, me.reads->seqs, me.options);
     stop(me.timer);
     me.stats.alignMatches += getValue(me.timer);
 
@@ -921,7 +986,7 @@ inline void writeMatches(Mapper<TSpec, TConfig> & me)
     start(me.timer);
     TMatchesWriter writer(me.outputStream, me.outputCtx,
                           me.matchesSet, me.primaryMatches, me.cigarSet,
-                          me.ctx, me.contigs, me.reads,
+                          me.ctx, me.contigs, value(me.reads),
                           me.options);
     stop(me.timer);
     me.stats.writeMatches += getValue(me.timer);
@@ -937,7 +1002,7 @@ inline void writeMatches(Mapper<TSpec, TConfig> & me)
 template <typename TSpec, typename TConfig>
 inline void mapReads(Mapper<TSpec, TConfig> & me)
 {
-    _mapReadsImpl(me, me.reads.seqs, typename TConfig::TStrategy());
+    _mapReadsImpl(me, me.reads->seqs, typename TConfig::TStrategy());
 }
 
 // ----------------------------------------------------------------------------
@@ -1050,7 +1115,8 @@ inline void printStats(Mapper<TSpec, TConfig> const & me, Timer<TValue> const & 
     std::cout << "Seeding time:\t\t\t" << me.stats.collectSeeds << " sec" << "\t\t" << me.stats.collectSeeds / total << " %" << std::endl;
     std::cout << "Filtering time:\t\t\t" << me.stats.findSeeds << " sec" << "\t\t" << me.stats.findSeeds / total << " %" << std::endl;
     std::cout << "Classification time:\t\t" << me.stats.classifyReads << " sec" << "\t\t" << me.stats.classifyReads / total << " %" << std::endl;
-    std::cout << "Ranking time:\t\t\t" << me.stats.rankSeeds << " sec" << "\t\t" << me.stats.rankSeeds / total << " %" << std::endl;
+    if (IsSameType<typename TConfig::TStrategy, Strata>::VALUE)
+        std::cout << "Ranking time:\t\t\t" << me.stats.rankSeeds << " sec" << "\t\t" << me.stats.rankSeeds / total << " %" << std::endl;
     std::cout << "Extension time:\t\t\t" << me.stats.extendHits << " sec" << "\t\t" << me.stats.extendHits / total << " %" << std::endl;
     std::cout << "Sorting time:\t\t\t" << me.stats.sortMatches << " sec" << "\t\t" << me.stats.sortMatches / total << " %" << std::endl;
     std::cout << "Compaction time:\t\t" << me.stats.compactMatches << " sec" << "\t\t" << me.stats.compactMatches / total << " %" << std::endl;
@@ -1093,11 +1159,11 @@ inline void runMapper(Mapper<TSpec, TConfig> & me)
     initOutput(me);
 
     // Process reads in blocks.
-    while (!atEnd(me.readsLoader))
+    while (true)
     {
         if (me.options.verbose > 1) printRuler(std::cout);
-
         loadReads(me);
+        if (empty(me.reads->seqs)) break;
         mapReads(me);
         clearReads(me);
     }
@@ -1115,137 +1181,29 @@ inline void runMapper(Mapper<TSpec, TConfig> & me)
 }
 
 // ----------------------------------------------------------------------------
-// Function runMapper()
-// ----------------------------------------------------------------------------
-
-/*
-template <typename TSpec, typename TConfig>
-inline void runMapper(Mapper<TSpec, TConfig> & me, Parallel)
-{
-    typedef Mapper<TSpec, TConfig>                      TMapper;
-    typedef Reads<void, typename TMapper::TReadsConfig> TReads;
-    typedef Logger<std::ostream>                        TLogger;
-
-    Timer<double> timer;
-    TLogger cout(std::cout);
-    TLogger cerr(std::cerr);
-
-#ifdef _OPENMP
-    cout << "Threads count:\t\t\t" << me.options.threadsCount << std::endl;
-#endif
-
-#ifdef _OPENMP
-    // Disable nested parallelism.
-    omp_set_nested(false);
-#endif
-
-    loadGenome(me);
-    loadGenomeIndex(me);
-
-    // Open reads file.
-    open(me.readsLoader);
-
-    // Process reads in parallel.
-    SEQAN_OMP_PRAGMA(parallel firstprivate(timer) num_threads(3))
-    {
-        // Reserve space for reads.
-        TReads reads;
-        reserve(reads, me.options.readsCount);
-
-        // Process reads.
-        while (true)
-        {
-            // Load a block of reads.
-            SEQAN_OMP_PRAGMA(critical(_mapper_readsLoader_load))
-            {
-                // No more reads.
-                if (!atEnd(me.readsLoader))
-                {
-                    start(me.timer);
-                    setReads(me.readsLoader, reads);
-                    load(me.readsLoader, me.options.readsCount);
-                    stop(me.timer);
-
-                    cout << "Loading reads:\t\t\t" << me.timer << "\t\t[" << omp_get_thread_num() << "]" << std::endl;// <<
-//                            "Reads count:\t\t\t" << reads.readsCount << "\t\t\t[" << omp_get_thread_num() << "]" << std::endl;
-                }
-            }
-
-            // No more reads.
-            if (!reads.readsCount) break;
-
-            // Map reads.
-            SEQAN_OMP_PRAGMA(critical(_mapper_mapReads))
-            {
-                #ifdef _OPENMP
-                // Enable nested parallelism.
-                omp_set_nested(true);
-                #endif
-
-                #ifdef _OPENMP
-                omp_set_num_threads(me.options.threadsCount);
-                #endif
-
-                start(me.timer);
-                mapReads(me, me.options, getSeqs(reads));
-                stop(me.timer);
-
-                cout << "Mapping reads:\t\t\t" << me.timer << "\t\t[" << omp_get_thread_num() << "]" << std::endl;
-
-                #ifdef _OPENMP
-                omp_set_num_threads(1);
-                #endif
-
-                #ifdef _OPENMP
-                // Disable nested parallelism.
-                omp_set_nested(false);
-                #endif
-            }
-
-            // Writer results.
-            SEQAN_OMP_PRAGMA(critical(_mapper_samWriter_write))
-            {
-                start(me.timer);
-                sleep(reads.readsCount / 1000000.0);
-                stop(me.timer);
-                
-                cout << "Writing results:\t\t" << me.timer << "\t\t[" << omp_get_thread_num() << "]" << std::endl;
-            }
-
-            // Clear mapped reads.
-            clear(reads);
-        }
-    }
-
-    // Close reads file.
-    close(me.readsLoader);
-}
-*/
-
-// ----------------------------------------------------------------------------
 // Function spawnMapper()
 // ----------------------------------------------------------------------------
 
 template <typename TExecSpace,
           typename TThreading,
+          typename TInputType,
           typename TOutputFormat,
           typename TSequencing,
-          typename TStrategy,
-          typename TAnchoring>
+          typename TStrategy>
 inline void spawnMapper(Options const & options,
                         TExecSpace const & /* tag */,
                         TThreading const & /* tag */,
+                        TInputType const & /* tag */,
                         TOutputFormat const & /* tag */,
                         TSequencing const & /* tag */,
-                        TStrategy const & /* tag */,
-                        TAnchoring const & /* tag */)
+                        TStrategy const & /* tag */)
 {
     typedef ReadMapperConfig<TExecSpace,
                              TThreading,
+                             TInputType,
                              TOutputFormat,
                              TSequencing,
-                             TStrategy,
-                             TAnchoring> TConfig;
+                             TStrategy> TConfig;
 
     Mapper<void, TConfig> mapper(options);
     runMapper(mapper);

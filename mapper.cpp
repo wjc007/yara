@@ -56,6 +56,10 @@ struct Options;
 // I/O and options
 // ----------------------------------------------------------------------------
 
+#ifndef YARA_DISABLE_MMAP
+#define YARA_DISABLE_MMAP
+#endif
+
 #include "misc_tags.h"
 #include "misc_options.h"
 #include "store_reads.h"
@@ -116,7 +120,7 @@ void setupArgumentParser(ArgumentParser & parser, Options const & options)
     setHelpText(parser, 0, "A reference genome file.");
 
     addArgument(parser, ArgParseArgument(ArgParseArgument::INPUTFILE, "READS", true));
-    setValidValues(parser, 1, "fastq fasta fa");
+    setValidValues(parser, 1, options.readsExtensionList);
     setHelpText(parser, 1, "Either one single-end or two paired-end / mate-pairs read files.");
 
     addOption(parser, ArgParseOption("v", "verbose", "Displays global statistics."));
@@ -148,7 +152,8 @@ void setupArgumentParser(ArgumentParser & parser, Options const & options)
     addOption(parser, ArgParseOption("a", "all", "Report all suboptimal alignments. Default: report only cooptimal alignments."));
     addOption(parser, ArgParseOption("q", "quick", "Be quicker by loosely mapping a few very repetitive reads."));
 
-//    addOption(parser, ArgParseOption("s", "strata-rate", "Report found suboptimal alignments within this error rate from the optimal one. Note that strata-rate << error-rate.", ArgParseOption::STRING));
+//    addOption(parser, ArgParseOption("s", "strata-rate", "Report found suboptimal alignments within this error rate from the optimal one.
+//                                                            Note that strata-rate << error-rate.", ArgParseOption::STRING));
 //    setMinValue(parser, "strata-rate", "0");
 //    setMaxValue(parser, "strata-rate", "10");
 //    setDefaultValue(parser, "strata-rate", options.strataRate);
@@ -222,6 +227,9 @@ parseCommandLine(Options & options, ArgumentParser & parser, int argc, char cons
         return ArgumentParser::PARSE_ERROR;
     }
 
+    // Parse reads input type.
+    getInputType(options, options.readsFile.i1);
+
     // Parse output file.
     getOutputFile(options.outputFile, options, parser, options.readsFile.i1, "");
 
@@ -290,6 +298,34 @@ parseCommandLine(Options & options, ArgumentParser & parser, int argc, char cons
 //}
 
 // ----------------------------------------------------------------------------
+// Function configureInputType()
+// ----------------------------------------------------------------------------
+
+template <typename TExecSpace, typename TThreading, typename TOutputFormat, typename TSequencing, typename TStrategy>
+void configureInputType(Options const & options, TExecSpace const & execSpace, TThreading const & threading,
+                        TOutputFormat const & format, TSequencing const & sequencing, TStrategy const & strategy)
+{
+    switch (options.inputType)
+    {
+    case PLAIN:
+        return spawnMapper(options, execSpace, threading, Nothing(), format, sequencing, strategy);
+
+#ifdef SEQAN_HAS_ZLIB
+    case GZIP:
+        return spawnMapper(options, execSpace, threading, GZFile(), format, sequencing, strategy);
+#endif
+
+#ifdef SEQAN_HAS_BZIP2
+    case BZIP2:
+        return spawnMapper(options, execSpace, threading, BZ2File(), format, sequencing, strategy);
+#endif
+
+    default:
+        return;
+    }
+}
+
+// ----------------------------------------------------------------------------
 // Function configureStrategy()
 // ----------------------------------------------------------------------------
 
@@ -300,10 +336,10 @@ void configureStrategy(Options const & options, TExecSpace const & execSpace, TT
     switch (options.mappingMode)
     {
     case STRATA:
-        return spawnMapper(options, execSpace, threading, format, sequencing, Strata(), Nothing());
+        return configureInputType(options, execSpace, threading, format, sequencing, Strata());
 
     case ALL:
-        return spawnMapper(options, execSpace, threading, format, sequencing, All(), Nothing());
+        return configureInputType(options, execSpace, threading, format, sequencing, All());
 
     default:
         return;
@@ -397,6 +433,11 @@ int main(int argc, char const ** argv)
     try
     {
         configureMapper(options);
+    }
+    catch (BadAlloc const & /* e */)
+    {
+        std::cerr << "Insufficient memory." << std::endl;
+        return 1;
     }
     catch (Exception const & e)
     {
