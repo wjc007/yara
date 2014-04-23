@@ -323,25 +323,11 @@ struct Mapper
 
     Mapper(Options const & options) :
         options(options),
-        stats(),
-        contigs(),
-        index(),
         readsBuckets(),
         reads(&readsBuckets.i1),
-        readsLoader(),
         loadReadsWorker(&readsBuckets.i2, readsLoader, options.readsCount),
         readsLoaderThread(loadReadsWorker),
-        outputStream(),
         outputCtx(contigs.names, contigs.namesCache),
-        ctx(),
-        seeds(),
-        hits(),
-        ranks(),
-        matches(),
-        matchesSet(),
-        primaryMatches(),
-        cigars(),
-        cigarSet(),
         finderExt(index),
         finderApx(index)
     {};
