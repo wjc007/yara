@@ -463,14 +463,13 @@ inline void loadReads(Mapper<TSpec, TConfig> & me)
     // Make next batch of reads the current one.
     std::swap(me.reads, me.readsLoaderThread.worker.reads);
 
+    // NOTE(esiragusa): Sync load.
+//    load(value(me.reads), me.readsLoader, me.options.readsCount);
+
     // Append reverse complemented reads.
     appendReverseComplement(value(me.reads));
 
     stop(me.timer);
-
-//    start(me.timer);
-//    load(me.readsNext, me.readsLoader, me.options.readsCount);
-//    stop(me.timer);
 
     me.stats.loadReads += getValue(me.timer);
     me.stats.loadedReads += getReadsCount(me.reads->seqs);
