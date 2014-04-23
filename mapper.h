@@ -429,7 +429,8 @@ inline void openReads(Mapper<TSpec, TConfig> & me)
     _openReadsImpl(me, typename TConfig::TSequencing());
 
     // Preload one batch of reads.
-    run(me.readsLoaderThread);
+    if (IsSameType<typename TConfig::TThreading, Parallel>::VALUE)
+        run(me.readsLoaderThread);
 }
 
 template <typename TSpec, typename TConfig, typename TSequencing>
@@ -454,14 +455,19 @@ inline void loadReads(Mapper<TSpec, TConfig> & me)
 {
     start(me.timer);
 
-    // Wait next batch of reads.
-    waitFor(me.readsLoaderThread);
+    if (IsSameType<typename TConfig::TThreading, Parallel>::VALUE)
+    {
+        // Wait next batch of reads.
+        waitFor(me.readsLoaderThread);
 
-    // Make next batch of reads the current one.
-    std::swap(me.reads, me.readsLoaderThread.worker.reads);
-
-    // NOTE(esiragusa): Sync load.
-//    load(value(me.reads), me.readsLoader, me.options.readsCount);
+        // Make next batch of reads the current one.
+        std::swap(me.reads, me.readsLoaderThread.worker.reads);
+    }
+    else
+    {
+        // Sync load.
+        load(value(me.reads), me.readsLoader, me.options.readsCount);
+    }
 
     // Append reverse complemented reads.
     appendReverseComplement(value(me.reads));
@@ -477,8 +483,9 @@ inline void loadReads(Mapper<TSpec, TConfig> & me)
         std::cout << "Reads count:\t\t\t" << getReadsCount(me.reads->seqs) << std::endl;
     }
 
-    // Preload one batch of reads.
-    run(me.readsLoaderThread);
+    // Preload next batch of reads.
+    if (IsSameType<typename TConfig::TThreading, Parallel>::VALUE)
+        run(me.readsLoaderThread);
 }
 
 // ----------------------------------------------------------------------------
