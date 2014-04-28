@@ -49,9 +49,9 @@ using namespace seqan;
 template <typename TSpec, typename Traits>
 struct FilterDelegate
 {
-    typedef typename Traits::THits      THits;
-    typedef typename Value<THits>::Type THit;
-    typedef typename Spec<THit>::Type   THitSpec;
+    typedef typename Traits::THitsAppender  THits;
+    typedef typename Value<THits>::Type     THit;
+    typedef typename Spec<THit>::Type       THitSpec;
 
     THits & hits;
 

@@ -219,6 +219,7 @@ struct MapperTraits
     typedef String<THit>                                            THits;
     typedef Tuple<THits, TConfig::BUCKETS>                          THitsBuckets;
     typedef String<TIndexSize>                                      THitsCounts;
+    typedef ConcurrentAppender<THits>                               THitsAppender;
 
     typedef StringSet<TSeedsCount, Owner<ConcatDirect<> > >         TRanks;
     typedef Tuple<TRanks, TConfig::BUCKETS>                         TRanksBuckets;
@@ -627,8 +628,10 @@ inline void _findSeedsImpl(Mapper<TSpec, TConfig> & /* me */, THits & hits, TSee
 {
     typedef MapperTraits<TSpec, TConfig>            TTraits;
     typedef FilterDelegate<TSpec, TTraits>          TDelegate;
+    typedef typename TTraits::THitsAppender         TAppender;
 
-    TDelegate delegate(hits);
+    TAppender appender(hits);
+    TDelegate delegate(appender);
     TPattern pattern(seeds);
 
     // Find hits.
