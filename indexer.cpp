@@ -250,7 +250,8 @@ void buildIndex(Indexer<TIndexSpec, TSpec> & me, Options const & options)
     {
         throw RuntimeError("Insufficient memory to index the reference.");
     }
-    catch (PageFrameError const & /* e */)
+    catch (IOError const & /* e */)
+//    catch (PageFrameError const & /* e */)
     {
         throw RuntimeError("Insufficient disk space to index the reference. \
                             Specify a bigger temporary folder using the options --tmp-folder.");
