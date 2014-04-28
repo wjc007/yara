@@ -181,9 +181,6 @@ struct MapperTraits
     typedef typename TConfig::TStrategy                             TStrategy;
 //    typedef typename TConfig::TAnchoring                            TAnchoring;
 
-    typedef typename IsSameType<TThreading, Parallel>::Type         TIsParallel;
-    typedef typename If<TIsParallel, Insist, Generous>::Type        TAppend;
-
     typedef Contigs<void, TConfig>                                  TContigs;
     typedef typename TContigs::TContigSeqs                          TContigSeqs;
     typedef typename Value<TContigSeqs>::Type                       TContig;

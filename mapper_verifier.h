@@ -179,7 +179,7 @@ inline void _addMatchImpl(AnchorsVerifier<TSpec, Traits> & me,
 {
     setContigPosition(me.prototype, matchBegin, matchEnd);
     me.prototype.errors = matchErrors;
-    appendValue(me.mates, me.prototype, typename Traits::TAppend(), typename Traits::TThreading());
+    appendValue(me.mates, me.prototype, Insist(), typename Traits::TThreading());
 }
 
 // ----------------------------------------------------------------------------
