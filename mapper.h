@@ -226,7 +226,7 @@ struct MapperTraits
     typedef Match<void>                                             TMatch;
     typedef String<TMatch>                                          TMatches;
     typedef StringSet<TMatches, Segment<TMatches> >                 TMatchesSet;
-    typedef ConcurrentAppendValue<TMatches>                         TMatchesParallel;
+    typedef ConcurrentAppender<TMatches>                            TMatchesAppender;
 
     typedef String<CigarElement<> >                                 TCigar;
     typedef StringSet<TCigar, Segment<TCigar> >                     TCigarSet;
@@ -729,10 +729,10 @@ inline void extendHits(Mapper<TSpec, TConfig> & me, TBucketId bucketId)
     typedef MapperTraits<TSpec, TConfig>    TTraits;
     typedef HitsExtender<TSpec, TTraits>    THitsExtender;
 
-    typename TTraits::TMatchesParallel matches(me.matches);
+    typename TTraits::TMatchesAppender appender(me.matches);
 
     start(me.timer);
-    THitsExtender extender(me.ctx, matches, me.contigs.seqs,
+    THitsExtender extender(me.ctx, appender, me.contigs.seqs,
                            me.seeds[bucketId], me.hits[bucketId], me.ranks[bucketId], ERRORS,
                            indexSA(me.index), me.options);
     stop(me.timer);
@@ -752,7 +752,7 @@ inline void extendHits(Mapper<TSpec, TConfig> & me, TBucketId bucketId)
 template <typename TSpec, typename TConfig>
 inline void reserveMatches(Mapper<TSpec, TConfig> & me)
 {
-    // TODO(esiragusa): guess the number of matches.
+    // Estimate the number of matches.
     reserve(me.matches, countHits(me) / 3);
 }
 
