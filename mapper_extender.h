@@ -54,7 +54,7 @@ struct HitsExtender
     typedef typename Traits::TReadSeqs         TReadSeqs;
     typedef typename Traits::TReadSeq          TReadSeq;
     typedef typename Traits::TReadsContext     TReadsContext;
-    typedef typename Traits::TMatches          TMatches;
+    typedef typename Traits::TMatchesParallel  TMatches;
     typedef typename Traits::TMatch            TMatch;
     typedef typename Traits::TSeeds            TSeeds;
     typedef typename Traits::THits             THits;
@@ -303,7 +303,7 @@ inline void _addMatchImpl(HitsExtender<TSpec, Traits> & me,
 
     setContigPosition(me.prototype, matchBegin, matchEnd);
     me.prototype.errors = matchErrors;
-    appendValue(me.matches, me.prototype, typename Traits::TAppend(), typename Traits::TThreading());
+    appendValue(me.matches, me.prototype, Generous(), typename Traits::TThreading());
 
     TReadSeqId readId = getReadId(me.prototype);
     setMinErrors(me.ctx, readId, matchErrors);
