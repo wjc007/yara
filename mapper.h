@@ -356,8 +356,7 @@ inline TReadSeqSize getReadErrors(Options const & options, TReadSeqSize readSeqL
 template <typename TSpec, typename TConfig>
 inline void configureThreads(Mapper<TSpec, TConfig> & me)
 {
-    if (IsSameType<typename TConfig::TThreading, Parallel>::VALUE)
-        omp_set_num_threads(me.options.threadsCount);
+    omp_set_num_threads(me.options.threadsCount);
 
     if (me.options.verbose > 0)
         std::cout << "Threads count:\t\t\t" << omp_get_max_threads() << std::endl;
