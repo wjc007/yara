@@ -239,7 +239,7 @@ inline void load(Contigs<TSpec, TConfig> & me, ContigsLoader<TSpec, TConfig> & l
     while (!atEnd(*(loader._reader)))
     {
         if (readRecord(contigName, contigSeq, *(loader._reader), loader._fileFormat) != 0)
-            throw RuntimeError("Error while reading contigs contig.");
+            throw RuntimeError("Error while reading contig.");
 
         appendValue(me.seqs, contigSeq);
         appendValue(me.names, contigName);

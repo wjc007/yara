@@ -54,7 +54,7 @@ struct HitsExtender
     typedef typename Traits::TReadSeqs         TReadSeqs;
     typedef typename Traits::TReadSeq          TReadSeq;
     typedef typename Traits::TReadsContext     TReadsContext;
-    typedef typename Traits::TMatches          TMatches;
+    typedef typename Traits::TMatchesAppender  TMatches;
     typedef typename Traits::TMatch            TMatch;
     typedef typename Traits::TSeeds            TSeeds;
     typedef typename Traits::THits             THits;
@@ -157,7 +157,6 @@ template <typename TSpec, typename Traits, typename THitsIterator, typename TStr
 inline void _extendHitImpl(HitsExtender<TSpec, Traits> & me, THitsIterator const & hitsIt, TStrategy const & /* tag */)
 {
     typedef typename Traits::TContigSeqs                TContigSeqs;
-    typedef typename Size<TContigSeqs>::Type            TContigId;
     typedef typename Traits::TContigsPos                TContigsPos;
 
     typedef typename Traits::TReadSeqs                  TReadSeqs;
@@ -177,13 +176,10 @@ inline void _extendHitImpl(HitsExtender<TSpec, Traits> & me, THitsIterator const
     typedef unsigned char                               THitErrors;
 
     typedef typename Traits::TMatches                   TMatches;
-    typedef typename Value<TMatches>::Type              TMatch;
 
     typedef typename Traits::TSA                        TSA;
     typedef typename Size<TSA>::Type                    TSAPos;
     typedef typename Value<TSA>::Type                   TSAValue;
-
-    typedef typename Traits::TReadsContext              TReadsContext;
 
     // Get hit id.
     THitId hitId = position(hitsIt, me.hits);
@@ -236,13 +232,11 @@ inline void _extendHitImpl(HitsExtender<TSpec, Traits> & me, TReadSeqsIterator c
 
     typedef typename Traits::TSeeds                     TSeeds;
     typedef typename Id<TSeeds>::Type                   TSeedId;
-    typedef Pair<TSeedId>                               TSeedIds;
 
     typedef typename Traits::THits                      THits;
     typedef typename Value<THits>::Type                 THit;
     typedef typename Id<THit>::Type                     THitId;
     typedef Pair<THitId>                                THitIds;
-    typedef typename Size<THit>::Type                   THitSize;
     typedef typename Iterator<THits const, Standard>::Type  THitsIt;
 
     typedef typename Traits::TRanks                     TRanks;
@@ -303,7 +297,7 @@ inline void _addMatchImpl(HitsExtender<TSpec, Traits> & me,
 
     setContigPosition(me.prototype, matchBegin, matchEnd);
     me.prototype.errors = matchErrors;
-    appendValue(me.matches, me.prototype, typename Traits::TAppend(), typename Traits::TThreading());
+    appendValue(me.matches, me.prototype, Generous(), typename Traits::TThreading());
 
     TReadSeqId readId = getReadId(me.prototype);
     setMinErrors(me.ctx, readId, matchErrors);

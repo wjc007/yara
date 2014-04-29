@@ -143,7 +143,7 @@ inline void _findMateImpl(AnchorsVerifier<TSpec, Traits> & me, TMatch const & an
 
     typedef Myers<>                                     TAlgorithm;
 //    typedef Filter<MultipleShiftAnd>                    TAlgorithm;
-    typedef Verifier<TContigSeqs, TReadSeq, TAlgorithm> TVerifier;
+//    typedef Verifier<TContigSeqs, TReadSeq, TAlgorithm> TVerifier;
 
     // Get mate seq.
     TReadId mateSeqId = getMateSeqId(me.readSeqs, getReadSeqId(anchor, me.readSeqs));
@@ -179,7 +179,7 @@ inline void _addMatchImpl(AnchorsVerifier<TSpec, Traits> & me,
 {
     setContigPosition(me.prototype, matchBegin, matchEnd);
     me.prototype.errors = matchErrors;
-    appendValue(me.mates, me.prototype, typename Traits::TAppend(), typename Traits::TThreading());
+    appendValue(me.mates, me.prototype, Insist(), typename Traits::TThreading());
 }
 
 // ----------------------------------------------------------------------------

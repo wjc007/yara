@@ -189,6 +189,12 @@ void loadGenome(Indexer<TIndexSpec, TSpec> & me, Options const & options)
     }
     stop(me.timer);
 
+    if (length(me.contigs.seqs) > MaxValue<Value<StringSetPosition<YaraContigs>::Type, 1>::Type>::VALUE)
+        throw RuntimeError("Reference contains too many contigs.");
+
+    if (maxLength(me.contigs.seqs) > MaxValue<Value<StringSetPosition<YaraContigs>::Type, 2>::Type>::VALUE)
+        throw RuntimeError("Reference contains too long contigs.");
+
     if (options.verbose)
         std::cout << me.timer << std::endl;
 }
