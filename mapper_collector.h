@@ -126,7 +126,6 @@ template <typename TSpec, typename Traits, typename TReadSeqsIterator>
 inline void _collectSeedsImpl(SeedsCollector<TSpec, Traits> & me, TReadSeqsIterator const & it)
 {
     typedef typename Traits::TReadSeqs                  TReadSeqs;
-    typedef typename Value<TReadSeqs>::Type             TReadSeq;
     typedef typename Id<TReadSeqs>::Type                TReadSeqId;
 
     TReadSeqId readSeqId = position(it);

@@ -150,8 +150,6 @@ inline bool _extendRight(Extender<THaystack, TNeedle, TSpec> & extender,
                          TMaxErrors maxErrors)
 {
     typedef Extender<THaystack, TNeedle, TSpec>         TExtender;
-    typedef typename TExtender::THaystackInfixRev       THaystackInfixRev;
-    typedef typename TExtender::TNeedleInfixRev         TNeedleInfixRev;
     typedef typename TExtender::TFinderRight            TFinderRight;
 
     typedef typename Value<THaystack>::Type             THaystackString;

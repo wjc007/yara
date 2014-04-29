@@ -143,7 +143,7 @@ inline void _findMateImpl(AnchorsVerifier<TSpec, Traits> & me, TMatch const & an
 
     typedef Myers<>                                     TAlgorithm;
 //    typedef Filter<MultipleShiftAnd>                    TAlgorithm;
-    typedef Verifier<TContigSeqs, TReadSeq, TAlgorithm> TVerifier;
+//    typedef Verifier<TContigSeqs, TReadSeq, TAlgorithm> TVerifier;
 
     // Get mate seq.
     TReadId mateSeqId = getMateSeqId(me.readSeqs, getReadSeqId(anchor, me.readSeqs));
