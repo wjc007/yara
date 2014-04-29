@@ -49,9 +49,9 @@ using namespace seqan;
 template <typename TSpec, typename Traits>
 struct FilterDelegate
 {
-    typedef typename Traits::THits      THits;
-    typedef typename Value<THits>::Type THit;
-    typedef typename Spec<THit>::Type   THitSpec;
+    typedef typename Traits::THitsAppender  THits;
+    typedef typename Value<THits>::Type     THit;
+    typedef typename Spec<THit>::Type       THitSpec;
 
     THits & hits;
 
@@ -118,7 +118,7 @@ _addHit(FilterDelegate<TSpec, Traits> & me, TFinder const & finder, HammingDista
 
     THit hit = { range(textIterator(finder)), finder._patternIt, getScore(finder) };
 
-    appendValue(me.hits, hit, typename Traits::TAppend(), typename Traits::TThreading());
+    appendValue(me.hits, hit, Generous(), typename Traits::TThreading());
 }
 
 #endif  // #ifndef APP_YARA_MAPPER_FILTER_H_

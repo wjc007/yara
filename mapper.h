@@ -181,9 +181,6 @@ struct MapperTraits
     typedef typename TConfig::TStrategy                             TStrategy;
 //    typedef typename TConfig::TAnchoring                            TAnchoring;
 
-    typedef typename IsSameType<TThreading, Parallel>::Type         TIsParallel;
-    typedef typename If<TIsParallel, Insist, Generous>::Type        TAppend;
-
     typedef Contigs<void, TConfig>                                  TContigs;
     typedef typename TContigs::TContigSeqs                          TContigSeqs;
     typedef typename Value<TContigSeqs>::Type                       TContig;
@@ -219,6 +216,7 @@ struct MapperTraits
     typedef String<THit>                                            THits;
     typedef Tuple<THits, TConfig::BUCKETS>                          THitsBuckets;
     typedef String<TIndexSize>                                      THitsCounts;
+    typedef ConcurrentAppender<THits>                               THitsAppender;
 
     typedef StringSet<TSeedsCount, Owner<ConcatDirect<> > >         TRanks;
     typedef Tuple<TRanks, TConfig::BUCKETS>                         TRanksBuckets;
@@ -226,6 +224,7 @@ struct MapperTraits
     typedef Match<void>                                             TMatch;
     typedef String<TMatch>                                          TMatches;
     typedef StringSet<TMatches, Segment<TMatches> >                 TMatchesSet;
+    typedef ConcurrentAppender<TMatches>                            TMatchesAppender;
 
     typedef String<CigarElement<> >                                 TCigar;
     typedef StringSet<TCigar, Segment<TCigar> >                     TCigarSet;
@@ -601,13 +600,12 @@ inline void findSeeds(Mapper<TSpec, TConfig> & me, TBucketId bucketId)
     if (ERRORS > 0)
     {
         setScoreThreshold(me.finderApx, ERRORS);
-        // TODO(esiragusa): guess the number of hits.
+        // Estimate the number of hits.
         reserve(me.hits[bucketId], lengthSum(me.seeds[bucketId]) * Power<ERRORS, 2>::VALUE, Exact());
         _findSeedsImpl(me, me.hits[bucketId], me.seeds[bucketId], me.finderApx, TPatternApx());
     }
     else
     {
-        // TODO(esiragusa): guess the number of hits.
         reserve(me.hits[bucketId], length(me.seeds[bucketId]), Exact());
         _findSeedsImpl(me, me.hits[bucketId], me.seeds[bucketId], me.finderExt, TPatternExt());
     }
@@ -627,8 +625,10 @@ inline void _findSeedsImpl(Mapper<TSpec, TConfig> & /* me */, THits & hits, TSee
 {
     typedef MapperTraits<TSpec, TConfig>            TTraits;
     typedef FilterDelegate<TSpec, TTraits>          TDelegate;
+    typedef typename TTraits::THitsAppender         TAppender;
 
-    TDelegate delegate(hits);
+    TAppender appender(hits);
+    TDelegate delegate(appender);
     TPattern pattern(seeds);
 
     // Find hits.
@@ -728,8 +728,10 @@ inline void extendHits(Mapper<TSpec, TConfig> & me, TBucketId bucketId)
     typedef MapperTraits<TSpec, TConfig>    TTraits;
     typedef HitsExtender<TSpec, TTraits>    THitsExtender;
 
+    typename TTraits::TMatchesAppender appender(me.matches);
+
     start(me.timer);
-    THitsExtender extender(me.ctx, me.matches, me.contigs.seqs,
+    THitsExtender extender(me.ctx, appender, me.contigs.seqs,
                            me.seeds[bucketId], me.hits[bucketId], me.ranks[bucketId], ERRORS,
                            indexSA(me.index), me.options);
     stop(me.timer);
@@ -749,7 +751,7 @@ inline void extendHits(Mapper<TSpec, TConfig> & me, TBucketId bucketId)
 template <typename TSpec, typename TConfig>
 inline void reserveMatches(Mapper<TSpec, TConfig> & me)
 {
-    // TODO(esiragusa): guess the number of matches.
+    // Estimate the number of matches.
     reserve(me.matches, countHits(me) / 3);
 }
 
