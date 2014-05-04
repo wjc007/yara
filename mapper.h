@@ -1111,7 +1111,7 @@ inline void printStats(Mapper<TSpec, TConfig> const & me, Timer<TValue> const & 
 {
     printRuler(std::cout);
 
-    TValue total = getValue(timer) / 100;
+    TValue total = getValue(timer) / 100.0;
 
     std::cout << "Total time:\t\t\t" << getValue(timer) << " sec" << std::endl;
     std::cout << "Genome loading time:\t\t" << me.stats.loadGenome << " sec" << "\t\t" << me.stats.loadGenome / total << " %" << std::endl;
@@ -1131,7 +1131,7 @@ inline void printStats(Mapper<TSpec, TConfig> const & me, Timer<TValue> const & 
 
     printRuler(std::cout);
 
-    double totalReads = me.stats.loadedReads / 100;
+    double totalReads = me.stats.loadedReads / 100.0;
     std::cout << "Total reads:\t\t\t" << me.stats.loadedReads << std::endl;
     std::cout << "Mapped reads:\t\t\t" << me.stats.mappedReads << "\t\t" << me.stats.mappedReads / totalReads << " %" << std::endl;
     if (IsSameType<typename TConfig::TSequencing, PairedEnd>::VALUE)
