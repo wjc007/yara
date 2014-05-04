@@ -67,7 +67,7 @@ struct Options
     bool                outputHeader;
 
     MappingMode         mappingMode;
-    unsigned            errorRate;
+    float               errorRate;
 //    unsigned            strataRate;
     bool                quick;
 
@@ -93,7 +93,7 @@ struct Options
         outputSecondary(false),
         outputHeader(true),
         mappingMode(STRATA),
-        errorRate(5),
+        errorRate(0.05),
 //        strataRate(0),
         quick(false),
         singleEnd(true),
@@ -344,7 +344,7 @@ struct Mapper
 template <typename TReadSeqSize>
 inline TReadSeqSize getReadErrors(Options const & options, TReadSeqSize readSeqLength)
 {
-    return std::floor(readSeqLength * (options.errorRate / 100.0));
+    return _min(readSeqLength * options.errorRate, (TReadSeqSize)YaraLimits<void>::ERRORS);
 }
 
 // ----------------------------------------------------------------------------
@@ -466,6 +466,9 @@ inline void loadReads(Mapper<TSpec, TConfig> & me)
         // Sync load.
         load(value(me.reads), me.readsLoader, me.options.readsCount);
     }
+
+    if (maxLength(me.reads->seqs, typename TConfig::TThreading()) > YaraLimits<TSpec>::READ_SIZE)
+        throw RuntimeError("Maximum read length exceeded.");
 
     // Append reverse complemented reads.
     appendReverseComplement(value(me.reads));
@@ -1108,7 +1111,7 @@ inline void printStats(Mapper<TSpec, TConfig> const & me, Timer<TValue> const & 
 {
     printRuler(std::cout);
 
-    TValue total = getValue(timer) / 100;
+    TValue total = getValue(timer) / 100.0;
 
     std::cout << "Total time:\t\t\t" << getValue(timer) << " sec" << std::endl;
     std::cout << "Genome loading time:\t\t" << me.stats.loadGenome << " sec" << "\t\t" << me.stats.loadGenome / total << " %" << std::endl;
@@ -1128,7 +1131,7 @@ inline void printStats(Mapper<TSpec, TConfig> const & me, Timer<TValue> const & 
 
     printRuler(std::cout);
 
-    double totalReads = me.stats.loadedReads / 100;
+    double totalReads = me.stats.loadedReads / 100.0;
     std::cout << "Total reads:\t\t\t" << me.stats.loadedReads << std::endl;
     std::cout << "Mapped reads:\t\t\t" << me.stats.mappedReads << "\t\t" << me.stats.mappedReads / totalReads << " %" << std::endl;
     if (IsSameType<typename TConfig::TSequencing, PairedEnd>::VALUE)
