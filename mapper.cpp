@@ -147,7 +147,7 @@ void setupArgumentParser(ArgumentParser & parser, Options const & options)
     addOption(parser, ArgParseOption("e", "error-rate", "Consider alignments within this error rate.", ArgParseOption::INTEGER));
     setMinValue(parser, "error-rate", "0");
     setMaxValue(parser, "error-rate", "10");
-    setDefaultValue(parser, "error-rate", options.errorRate);
+    setDefaultValue(parser, "error-rate", 100.0 * options.errorRate);
 
     addOption(parser, ArgParseOption("a", "all", "Report all suboptimal alignments. Default: report only cooptimal alignments."));
     addOption(parser, ArgParseOption("q", "quick", "Be quicker by loosely mapping a few very repetitive reads."));
@@ -242,7 +242,10 @@ parseCommandLine(Options & options, ArgumentParser & parser, int argc, char cons
     getIndexPrefix(options, parser);
 
     // Parse mapping options.
-    getOptionValue(options.errorRate, parser, "error-rate");
+    unsigned errorRate;
+    if (getOptionValue(errorRate, parser, "error-rate"))
+        options.errorRate = errorRate / 100.0;
+
 //    getOptionValue(options.strataRate, parser, "strata-rate");
 
     if (isSet(parser, "all")) options.mappingMode = ALL;
