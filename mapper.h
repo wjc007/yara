@@ -344,7 +344,7 @@ struct Mapper
 template <typename TReadSeqSize>
 inline TReadSeqSize getReadErrors(Options const & options, TReadSeqSize readSeqLength)
 {
-    return _min(readSeqLength * options.errorRate, (TReadSeqSize)Limits<>::ERRORS);
+    return _min(readSeqLength * options.errorRate, (TReadSeqSize)YaraLimits<void>::ERRORS);
 }
 
 // ----------------------------------------------------------------------------
@@ -467,8 +467,8 @@ inline void loadReads(Mapper<TSpec, TConfig> & me)
         load(value(me.reads), me.readsLoader, me.options.readsCount);
     }
 
-    if (maxLength(me.reads->seqs, typename TConfig::TThreading()) > Limits<>::READ_SIZE)
-        throw RuntimeError("Read length limit exceeded.");
+    if (maxLength(me.reads->seqs, typename TConfig::TThreading()) > YaraLimits<TSpec>::READ_SIZE)
+        throw RuntimeError("Maximum read length exceeded.");
 
     // Append reverse complemented reads.
     appendReverseComplement(value(me.reads));
