@@ -211,18 +211,32 @@ typedef Tag<SortErrors_> const SortErrors;
 // ============================================================================
 
 // ----------------------------------------------------------------------------
+// Class Limits
+// ----------------------------------------------------------------------------
+
+template <typename TSpec = void>
+struct Limits
+{
+    static const unsigned long READ_ID     = Power<2, 21>::VALUE;
+    static const unsigned long CONTIG_ID   = Power<2, 8>::VALUE;
+    static const unsigned long CONTIG_SIZE = Power<2, 30>::VALUE;
+    static const unsigned long READ_SIZE   = Power<2, 14>::VALUE;
+    static const unsigned long ERRORS      = Power<2, 6>::VALUE;
+};
+
+// ----------------------------------------------------------------------------
 // Class Match
 // ----------------------------------------------------------------------------
 
 template <typename TSpec = void>
 struct Match
 {
-    unsigned        readId       : 22;
+    unsigned        readId       : 21;
     unsigned char   contigId; // : 8;
     bool            isRev        : 1;
     unsigned        contigBegin  : 30;
     unsigned short  contigEnd    : 14;
-    unsigned        errors       : 5;
+    unsigned        errors       : 6;
 }
 __attribute__((packed));
 

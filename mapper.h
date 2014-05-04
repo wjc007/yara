@@ -67,7 +67,7 @@ struct Options
     bool                outputHeader;
 
     MappingMode         mappingMode;
-    unsigned            errorRate;
+    float               errorRate;
 //    unsigned            strataRate;
     bool                quick;
 
@@ -93,7 +93,7 @@ struct Options
         outputSecondary(false),
         outputHeader(true),
         mappingMode(STRATA),
-        errorRate(5),
+        errorRate(0.05),
 //        strataRate(0),
         quick(false),
         singleEnd(true),
@@ -344,7 +344,7 @@ struct Mapper
 template <typename TReadSeqSize>
 inline TReadSeqSize getReadErrors(Options const & options, TReadSeqSize readSeqLength)
 {
-    return std::floor(readSeqLength * (options.errorRate / 100.0));
+    return _min(readSeqLength * options.errorRate, (TReadSeqSize)Limits<>::ERRORS);
 }
 
 // ----------------------------------------------------------------------------
@@ -466,6 +466,9 @@ inline void loadReads(Mapper<TSpec, TConfig> & me)
         // Sync load.
         load(value(me.reads), me.readsLoader, me.options.readsCount);
     }
+
+    if (maxLength(me.reads->seqs, typename TConfig::TThreading()) > Limits<>::READ_SIZE)
+        throw RuntimeError("Read length limit exceeded.");
 
     // Append reverse complemented reads.
     appendReverseComplement(value(me.reads));
