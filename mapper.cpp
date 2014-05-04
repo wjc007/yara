@@ -242,8 +242,10 @@ parseCommandLine(Options & options, ArgumentParser & parser, int argc, char cons
     getIndexPrefix(options, parser);
 
     // Parse mapping options.
-    getOptionValue(options.errorRate, parser, "error-rate");
-    options.errorRate = options.errorRate / 100.0;
+    unsigned errorRate;
+    if (getOptionValue(errorRate, parser, "error-rate"))
+        options.errorRate = errorRate / 100.0;
+
 //    getOptionValue(options.strataRate, parser, "strata-rate");
 
     if (isSet(parser, "all")) options.mappingMode = ALL;
