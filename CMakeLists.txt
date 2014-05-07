@@ -15,7 +15,7 @@ message (STATUS "Configuring core/apps/yara")
 # ----------------------------------------------------------------------------
 
 # Search SeqAn and select dependencies.
-set (SEQAN_FIND_DEPENDENCIES OpenMP CUDA ZLIB)
+set (SEQAN_FIND_DEPENDENCIES OpenMP CUDA ZLIB BZIP2)
 find_package (SeqAn REQUIRED)
 
 # ALWAYS disable CUDA acceleration.
@@ -34,8 +34,13 @@ endif (NOT SEQAN_HAS_OPENMP)
 
 # Warn if Zlib was not found.
 if (NOT SEQAN_HAS_ZLIB)
-  message (STATUS "  Zlib not found: building yara without BAM output.")
+  message (STATUS "  Zlib not found: building yara without gzipped input and BAM output.")
 endif (NOT SEQAN_HAS_ZLIB)
+
+# Warn if Bzip2 was not found.
+if (NOT SEQAN_HAS_BZIP2)
+  message (STATUS "  Bzip2 not found: building yara without bzipped input.")
+endif (NOT SEQAN_HAS_BZIP2)
 
 # ----------------------------------------------------------------------------
 # CUDA Setup
