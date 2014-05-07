@@ -67,7 +67,11 @@ seqan_setup_cuda_vars (ARCH sm_35)
 # Arch Setup
 # ----------------------------------------------------------------------------
 
-set (SEQAN_CXX_FLAGS "${SEQAN_CXX_FLAGS} -march=native")
+if (CMAKE_COMPILER_IS_GNUCXX OR COMPILER_IS_CLANG)
+  set (SEQAN_CXX_FLAGS "${SEQAN_CXX_FLAGS} -march=native")
+elseif (MSVC)
+  set (SEQAN_CXX_FLAGS "${SEQAN_CXX_FLAGS} /arch:SSE")
+endif (CMAKE_COMPILER_IS_GNUCXX OR COMPILER_IS_CLANG)
 
 if (CMAKE_COMPILER_IS_GNUCXX)
   set (SEQAN_CXX_FLAGS "${SEQAN_CXX_FLAGS} -mpopcnt")
