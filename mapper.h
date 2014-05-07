@@ -344,7 +344,7 @@ struct Mapper
 template <typename TReadSeqSize>
 inline TReadSeqSize getReadErrors(Options const & options, TReadSeqSize readSeqLength)
 {
-    return _min(readSeqLength * options.errorRate, (TReadSeqSize)YaraLimits<void>::ERRORS);
+    return std::min((TReadSeqSize)(readSeqLength * options.errorRate), (TReadSeqSize)YaraLimits<void>::ERRORS);
 }
 
 // ----------------------------------------------------------------------------
