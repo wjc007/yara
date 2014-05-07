@@ -214,6 +214,10 @@ typedef Tag<SortErrors_> const SortErrors;
 // Class Match
 // ----------------------------------------------------------------------------
 
+#ifdef PLATFORM_WINDOWS
+    #pragma pack(push,1)
+#endif
+
 template <typename TSpec = void>
 struct Match
 {
@@ -224,7 +228,14 @@ struct Match
     unsigned short  contigEnd    : YaraBits<TSpec>::READ_SIZE;
     unsigned        errors       : YaraBits<TSpec>::ERRORS;
 }
-__attribute__((packed));
+#ifndef PLATFORM_WINDOWS
+    __attribute__((packed))
+#endif
+;
+
+#ifdef PLATFORM_WINDOWS
+      #pragma pack(pop)
+#endif
 
 // ----------------------------------------------------------------------------
 // Class Match Getter
