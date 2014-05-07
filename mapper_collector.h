@@ -151,7 +151,7 @@ inline void _getSeeds(SeedsCollector<TSpec, Traits> & me, TReadSeqId readSeqId)
     TSize readLength = length(me.readSeqs[readSeqId]);
     TSize readErrors = getReadErrors(me.options, readLength);
     TSize seedErrors = getSeedErrors(me.ctx, readSeqId);
-    TSize seedsCount = std::ceil((readErrors + 1) / (seedErrors + 1.0));
+    TSize seedsCount = static_cast<TSize>(std::ceil((readErrors + 1) / (seedErrors + 1.0)));
     TSize seedsLength = readLength / seedsCount;
 
     for (TSize seedId = 0; seedId < seedsCount; ++seedId)
