@@ -93,7 +93,7 @@ struct Options
         outputSecondary(false),
         outputHeader(true),
         mappingMode(STRATA),
-        errorRate(0.05),
+        errorRate(0.05f),
 //        strataRate(0),
         quick(false),
         singleEnd(true),
