@@ -229,13 +229,6 @@ struct MapperTraits
     typedef String<CigarElement<> >                                 TCigar;
     typedef StringSet<TCigar, Segment<TCigar> >                     TCigarSet;
     typedef StringSetLimits<TCigarSet>::Type                        TCigarLimits;
-
-    typedef Multiple<FinderSTree>                                   TAlgorithmExt;
-    typedef Multiple<Backtracking<HammingDistance> >                TAlgorithmApx;
-    typedef Pattern<TSeeds, TAlgorithmExt>                          TPatternExt;
-    typedef Pattern<TSeeds, TAlgorithmApx>                          TPatternApx;
-    typedef Finder2<TIndex, TPatternExt, TAlgorithmExt>             TFinderExt;
-    typedef Finder2<TIndex, TPatternApx, TAlgorithmApx>             TFinderApx;
 };
 
 // ----------------------------------------------------------------------------
@@ -317,18 +310,13 @@ struct Mapper
     typename Traits::TCigar             cigars;
     typename Traits::TCigarSet          cigarSet;
 
-    typename Traits::TFinderExt         finderExt;
-    typename Traits::TFinderApx         finderApx;
-
     Mapper(Options const & options) :
         options(options),
         readsBuckets(),
         reads(&readsBuckets.i1),
         loadReadsWorker(&readsBuckets.i2, readsLoader, options.readsCount),
         readsLoaderThread(loadReadsWorker),
-        outputCtx(contigs.names, contigs.namesCache),
-        finderExt(index),
-        finderApx(index)
+        outputCtx(contigs.names, contigs.namesCache)
     {};
 };
 
@@ -595,22 +583,17 @@ inline void collectSeeds(Mapper<TSpec, TConfig> & me, TReadSeqs const & readSeqs
 template <unsigned ERRORS, typename TSpec, typename TConfig, typename TBucketId>
 inline void findSeeds(Mapper<TSpec, TConfig> & me, TBucketId bucketId)
 {
-    typedef MapperTraits<TSpec, TConfig>            TTraits;
-    typedef typename TTraits::TPatternExt           TPatternExt;
-    typedef typename TTraits::TPatternApx           TPatternApx;
-
     start(me.timer);
     if (ERRORS > 0)
     {
-        setScoreThreshold(me.finderApx, ERRORS);
         // Estimate the number of hits.
         reserve(me.hits[bucketId], lengthSum(me.seeds[bucketId]) * Power<ERRORS, 2>::VALUE, Exact());
-        _findSeedsImpl(me, me.hits[bucketId], me.seeds[bucketId], me.finderApx, TPatternApx());
+        _findSeedsImpl(me, me.hits[bucketId], me.seeds[bucketId], ERRORS, HammingDistance());
     }
     else
     {
         reserve(me.hits[bucketId], length(me.seeds[bucketId]), Exact());
-        _findSeedsImpl(me, me.hits[bucketId], me.seeds[bucketId], me.finderExt, TPatternExt());
+        _findSeedsImpl(me, me.hits[bucketId], me.seeds[bucketId], ERRORS, Exact());
     }
     stop(me.timer);
     me.stats.findSeeds += getValue(me.timer);
@@ -623,8 +606,8 @@ inline void findSeeds(Mapper<TSpec, TConfig> & me, TBucketId bucketId)
     }
 }
 
-template <typename TSpec, typename TConfig, typename THits, typename TSeeds, typename TFinder, typename TPattern>
-inline void _findSeedsImpl(Mapper<TSpec, TConfig> & /* me */, THits & hits, TSeeds & seeds, TFinder & finder, TPattern)
+template <typename TSpec, typename TConfig, typename THits, typename TSeeds, typename TErrors, typename TDistance>
+inline void _findSeedsImpl(Mapper<TSpec, TConfig> & me, THits & hits, TSeeds & seeds, TErrors errors, TDistance)
 {
     typedef MapperTraits<TSpec, TConfig>            TTraits;
     typedef FilterDelegate<TSpec, TTraits>          TDelegate;
@@ -632,10 +615,9 @@ inline void _findSeedsImpl(Mapper<TSpec, TConfig> & /* me */, THits & hits, TSee
 
     TAppender appender(hits);
     TDelegate delegate(appender);
-    TPattern pattern(seeds);
 
     // Find hits.
-    find(finder, pattern, delegate);
+    find(me.index, seeds, errors, delegate, Backtracking<TDistance>(), typename TConfig::TThreading());
 
     // Sort the hits by seedId.
     if (IsSameType<typename TConfig::TThreading, Parallel>::VALUE)
