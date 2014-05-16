@@ -14,6 +14,15 @@ message (STATUS "Configuring core/apps/yara")
 # Dependencies
 # ----------------------------------------------------------------------------
 
+# Search C++11.
+find_package(CXX11 REQUIRED)
+
+# Stop here if C++11 was not found.
+if (NOT CXX11_FOUND)
+    message (STATUS "  C++11 compiler required to build yara.")
+    return ()
+endif (NOT CXX11_FOUND)
+
 # Search SeqAn and select dependencies.
 set (SEQAN_FIND_DEPENDENCIES OpenMP ZLIB BZIP2) #CUDA
 find_package (SeqAn REQUIRED)
@@ -91,7 +100,7 @@ add_definitions (-DSEQAN_REVISION="${SEQAN_REVISION}")
 add_definitions (-DSEQAN_DATE="${SEQAN_DATE}")
 
 # Add CXX flags found by find_package (SeqAn).
-set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${SEQAN_CXX_FLAGS}")
+set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${SEQAN_CXX_FLAGS} ${CXX11_CXX_FLAGS}")
 
 # Update the list of file names below if you add source files to your application.
 add_executable(yara_indexer indexer.cpp
