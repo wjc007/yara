@@ -156,7 +156,6 @@ inline void _extendHitsImpl(HitsExtender<TSpec, Traits> & me, Strata)
 template <typename TSpec, typename Traits, typename THitsIterator, typename TStrategy>
 inline void _extendHitImpl(HitsExtender<TSpec, Traits> & me, THitsIterator const & hitsIt, TStrategy const & /* tag */)
 {
-    typedef typename Traits::TContigSeqs                TContigSeqs;
     typedef typename Traits::TContigsPos                TContigsPos;
 
     typedef typename Traits::TReadSeqs                  TReadSeqs;
@@ -174,8 +173,6 @@ inline void _extendHitImpl(HitsExtender<TSpec, Traits> & me, THitsIterator const
     typedef typename Id<THit>::Type                     THitId;
     typedef typename Position<THit>::Type               THitRange;
     typedef unsigned char                               THitErrors;
-
-    typedef typename Traits::TMatches                   TMatches;
 
     typedef typename Traits::TSA                        TSA;
     typedef typename Size<TSA>::Type                    TSAPos;
