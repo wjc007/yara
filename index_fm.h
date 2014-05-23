@@ -39,6 +39,24 @@
 #define APP_YARA_INDEX_FM_H_
 
 // ----------------------------------------------------------------------------
+// Function indexRequire()
+// ----------------------------------------------------------------------------
+// This function is overloaded to avoid building the index except for Wotd Dir.
+
+#ifndef YARA_INDEXER
+namespace seqan {
+template <typename TText, typename TSSetSpec, typename TSpec, typename TConfig, typename TFibre>
+inline bool indexRequire(Index<StringSet<TText, TSSetSpec>,  FMIndex<TSpec, TConfig> > & index, Tag<TFibre> const fibre)
+{
+    if (!indexSupplied(index, fibre))
+        throw RuntimeError("The reference index file was not loaded correctly.");
+
+    return true;
+}
+}
+#endif
+
+// ----------------------------------------------------------------------------
 // Function save()
 // ----------------------------------------------------------------------------
 // This function is overloaded to avoid saving the text.

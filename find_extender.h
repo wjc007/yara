@@ -219,7 +219,7 @@ inline bool _extendRight(Extender<THaystack, TNeedle, TSpec> & extender,
 // ----------------------------------------------------------------------------
 // Function extend()
 // ----------------------------------------------------------------------------
-// TODO(esiragusa): setScoreThreshold(me, maxErrors)
+// TODO(esiragusa): _setScoreThreshold(me, maxErrors)
 // TODO(esiragusa): extend(me, haystackInfix, needleInfix(needle=host), needleErrors, delegate)
 
 template <typename THaystack, typename TNeedle, typename TSpec,

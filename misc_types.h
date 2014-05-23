@@ -80,11 +80,11 @@ struct YaraLimits
 // String Spec
 // ----------------------------------------------------------------------------
 
-#ifndef YARA_DISABLE_MMAP
-typedef MMap<>  YaraStringSpec;
-#else
+//#ifndef YARA_INDEXER
+//typedef MMap<>  YaraStringSpec;
+//#else
 typedef Alloc<> YaraStringSpec;
-#endif
+//#endif
 
 // ----------------------------------------------------------------------------
 // ReadSeqs Size
