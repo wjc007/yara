@@ -133,7 +133,6 @@ inline void _verifyAnchorsImpl(AnchorsVerifier<TSpec, Traits> & me)
 template <typename TSpec, typename Traits, typename TMatch>
 inline void _findMateImpl(AnchorsVerifier<TSpec, Traits> & me, TMatch const & anchor)
 {
-    typedef typename Traits::TContigSeqs                TContigSeqs;
     typedef typename Traits::TContigsPos                TContigsPos;
 
     typedef typename Traits::TReadSeqs                  TReadSeqs;
@@ -141,7 +140,7 @@ inline void _findMateImpl(AnchorsVerifier<TSpec, Traits> & me, TMatch const & an
     typedef typename Value<TReadSeqs>::Type             TReadSeq;
     typedef typename Size<TReadSeq>::Type               TErrors;
 
-    typedef Myers<>                                     TAlgorithm;
+//    typedef Myers<>                                     TAlgorithm;
 //    typedef Filter<MultipleShiftAnd>                    TAlgorithm;
 //    typedef Verifier<TContigSeqs, TReadSeq, TAlgorithm> TVerifier;
 
